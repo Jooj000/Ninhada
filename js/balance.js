@@ -68,7 +68,7 @@ export const BALANCE = {
   fatigue: {
     full: 10,          // as N primeiras vezes pagam cheio
     taper: 15,         // até aqui pagam metade
-    resetMinutes: 10,  // sem repetir por N min, o contador zera
+    resetMinutes: 5,  // sem repetir por N min, o contador zera
     hardFloor: 0.2,    // minigames difíceis nunca zeram de todo
   },
 
@@ -77,9 +77,9 @@ export const BALANCE = {
   // `minPhase` define em que idade libera E o multiplicador de valor.
   minigames: {
     flappy:   { minPhase: "newborn",  coinsPerPoint: 1,    xpPerPoint: 2,   hard: false },
-    dino:     { minPhase: "crawling", coinsPerPoint: 0.013, xpPerPoint: 0.028, hard: false },
+    dino:     { minPhase: "crawling", coinsPerPoint: 0.010, xpPerPoint: 0.025, hard: false },
     fishing:  { minPhase: "crawling", coinsPerPoint: 1.5,  xpPerPoint: 2,   hard: false },
-    circuit:  { minPhase: "toddler",  coinsPerPoint: 2.5,  xpPerPoint: 3.5, hard: true  },
+    circuit:  { minPhase: "toddler",  coinsPerPoint: 2.5,  xpPerPoint: 3.5, hard: false  },
     homework: { minPhase: "toddler",  coinsPerPoint: 1.25, xpPerPoint: 3,   hard: true  },
   },
   // Multiplicador por faixa etária (índice da fase mínima do jogo).
@@ -88,8 +88,8 @@ export const BALANCE = {
   /* ================= DEVER DE CASA ================= */
   homework: {
     lives: 3,
-    timeStart: 14,     // segundos na 1ª questão
-    timeMin: 6,        // não fica mais curto que isso
+    timeStart: 10,     // segundos na 1ª questão
+    timeMin: 5,        // não fica mais curto que isso
     timeStepEvery: 2,  // a cada N acertos, tira 1 segundo
     // A cada N acertos sobe um "nível de escolaridade" (até o ensino médio).
     levelEvery: 3,
@@ -97,14 +97,14 @@ export const BALANCE = {
 
   /* ================= PESCARIA ================= */
   fishing: {
-    netHeightPx: 74,        // altura da rede (menor = mais difícil)
+    netHeightPx: 70,        // altura da rede (menor = mais difícil)
     // Ligeireza derivada do VALOR do peixe: base + porPonto × pontos.
-    velBase: 1.25, velPerPoint: 0.14,
-    erraticBase: 0.03, erraticPerPoint: 0.006,
-    fugaBase: 0.0036, fugaPerPoint: 0.00032,
-    ganhoNaRede: 0.0055,    // quanto a barra enche com o peixe dentro
+    velBase: 1.3, velPerPoint: 0.14,
+    erraticBase: 0.05, erraticPerPoint: 0.006,
+    fugaBase: 0.004, fugaPerPoint: 0.00032,
+    ganhoNaRede: 0.005,    // quanto a barra enche com o peixe dentro
     esperaMinMs: 1400, esperaMaxMs: 5600,   // demora até morder
-    janelaFisgadaMs: 1100,  // tempo para reagir ao "❗"
+    janelaFisgadaMs: 800,  // tempo para reagir ao "❗"
   },
 
   /* ================= COZINHA ================= */
@@ -113,7 +113,7 @@ export const BALANCE = {
     foodPriceMultiplier: 1,
     cookXpMultiplier: 1,
     readyFoodXpMultiplier: 1,
-    cookSpeed: 6,           // velocidade do marcador (maior = mais difícil)
+    cookSpeed: 5,           // velocidade do marcador (maior = mais difícil)
   },
 
   /* ================= CLIMA ================= */
