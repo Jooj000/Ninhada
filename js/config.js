@@ -67,6 +67,15 @@ export const GAME_CONFIG = {
   // De quanto em quanto tempo o risco de resfriado é reavaliado (min).
   coldCheckMinutes: 15,
 
+  /* Tempo (s) para responder cada questão do Dever de Casa.
+   * Diminui conforme acerta, até o mínimo. */
+  hwTimeStart: 14,
+  hwTimeMin: 6,
+
+  /* Abaixo destes valores a criança "demonstra" o que está sentindo
+   * (sujeira, cara de sono/fome/carência) — camadas de condição. */
+  conditionThreshold: 35,
+
   /* --- FADIGA: evita farmar a mesma coisa na mesma criança ---
    * As primeiras `fatigueFull` vezes pagam cheio; até `fatigueTaper`
    * pagam metade; depois disso não pagam nada (minigames difíceis ainda
@@ -122,7 +131,9 @@ export const MINIGAMES = {
   // dino: a pontuação é distância, então cresce MUITO rápido (≈1500 em 30s).
   // Taxas baixas de propósito: ~30 moedas / ~65 XP numa corrida de 30s.
   dino:    { minPhase: "crawling", coinsPerPoint: 0.013, xpPerPoint: 0.028, hard: false },
-  circuit:  { minPhase: "toddler",  coinsPerPoint: 12,   xpPerPoint: 15,  hard: true  },
+  // circuito: paga menos porque o padrão é decorável. TODO: quando
+  // refinar os minigames, gerar layouts aleatórios e voltar a pagar mais.
+  circuit:  { minPhase: "toddler",  coinsPerPoint: 5,    xpPerPoint: 7,   hard: true  },
   // dever de casa: 1 ponto por acerto; difícil de emendar muitos acertos
   homework: { minPhase: "toddler",  coinsPerPoint: 2.5,  xpPerPoint: 6,   hard: true  },
   // pescaria: pontos variam com a raridade do peixe

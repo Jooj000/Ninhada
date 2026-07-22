@@ -10,6 +10,7 @@
 import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { GAME_CONFIG } from "./config.js";
 
 const rnd = (n) => Math.floor(Math.random() * n);
 const pick = (arr) => arr[rnd(arr.length)];
@@ -98,6 +99,7 @@ export function initHomework() {
   if (!root) return;
 
   let vidas, pontos, nivel, q, rodando;
+  let tempoTotal, tempoRestante, timerId = null;
 
   const elVidas = document.getElementById("hw-lives");
   const elPontos = document.getElementById("hw-score");
@@ -106,6 +108,41 @@ export function initHomework() {
   const elOps = document.getElementById("hw-options");
   const elMsg = document.getElementById("hw-msg");
   const btnStart = document.getElementById("hw-start");
+  const elTimer = document.getElementById("hw-timer");
+
+  function pararTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+
+  function iniciarTimer() {
+    pararTimer();
+    // fica mais apertado conforme acerta
+    tempoTotal = Math.max(GAME_CONFIG.hwTimeMin ?? 6,
+                          (GAME_CONFIG.hwTimeStart ?? 14) - Math.floor(pontos / 2));
+    tempoRestante = tempoTotal;
+    pintarTimer();
+    timerId = setInterval(() => {
+      tempoRestante -= 0.1;
+      if (tempoRestante <= 0) { pararTimer(); tempoEsgotado(); }
+      else pintarTimer();
+    }, 100);
+  }
+
+  function pintarTimer() {
+    const pct = Math.max(0, (tempoRestante / tempoTotal) * 100);
+    elTimer.style.width = `${pct}%`;
+    elTimer.dataset.low = pct < 30 ? "true" : "false";
+    elTimer.parentElement.querySelector(".hw-timer-num").textContent =
+      `${Math.ceil(Math.max(0, tempoRestante))}s`;
+  }
+
+  function tempoEsgotado() {
+    if (!rodando) return;
+    vidas--;
+    elMsg.textContent = `Tempo! Era "${q.certo}" ⏰`;
+    [...elOps.children].forEach((b) => { b.disabled = true; if (b.textContent === q.certo) b.classList.add("ok"); });
+    hud();
+    if (vidas <= 0) setTimeout(fim, 800);
+    else setTimeout(novaQuestao, 1000);
+  }
 
   function hud() {
     elVidas.textContent = "❤️".repeat(Math.max(0, vidas));
@@ -126,10 +163,13 @@ export function initHomework() {
       elOps.appendChild(b);
     }
     hud();
+    iniciarTimer();
   }
 
   function responder(op, btn) {
     if (!rodando) return;
+    pararTimer();
+    [...elOps.children].forEach((b) => (b.disabled = true));
     if (op === q.certo) {
       pontos++;
       btn.classList.add("ok");
@@ -147,6 +187,8 @@ export function initHomework() {
 
   async function fim() {
     rodando = false;
+    pararTimer();
+    elTimer.style.width = "0%";
     elOps.innerHTML = "";
     elMateria.textContent = "";
     elPerg.textContent = `Fim do dever! ${pontos} acerto(s).`;

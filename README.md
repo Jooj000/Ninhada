@@ -228,6 +228,9 @@ todos no mesmo retângulo. (O minigame já usa Canvas, então você tem os dois 
 | Dever de Casa | Criança | acerto |
 
 ### Minigames pendentes (fila combinada)
+- **Refinar a Feira de Ciências**: gerar layouts ALEATÓRIOS (hoje o padrão é
+  decorável, por isso a recompensa está reduzida). Fazer isso ao mexer nos
+  últimos minigames, ANTES dos complexos (piano/microfone).
 - Pack arcade do Pou: 2048, Memory, Color Match, Star Popper, Food Drop, Sky Jump…
 - Microfone estilo Talking Tom (grava e repete com voz fina).
 - Piano/ritmo + parser de arquivos `.osu` (último da fila).

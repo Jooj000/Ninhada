@@ -9,14 +9,49 @@
 import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { getWeather } from "./weather.js";
 
+/* Cada peixe tem `clima`: em qual tempo ele aparece (vazio = sempre).
+ * Velocidade e nervosismo saem do VALOR: quanto mais raro, mais ligeiro. */
 const PEIXES = [
-  { nome: "Lambari",   emoji: "🐟", pontos: 1, vel: 0.9, erratico: 0.02 },
-  { nome: "Tilápia",   emoji: "🐠", pontos: 2, vel: 1.2, erratico: 0.03 },
-  { nome: "Dourado",   emoji: "🐡", pontos: 4, vel: 1.7, erratico: 0.05 },
-  { nome: "Pintado",   emoji: "🦈", pontos: 7, vel: 2.2, erratico: 0.07 },
-  { nome: "Pirarucu",  emoji: "🐋", pontos: 12, vel: 2.8, erratico: 0.09 },
+  { nome: "Lambari",   emoji: "🐟", pontos: 1,  clima: [] },
+  { nome: "Tilápia",   emoji: "🐠", pontos: 2,  clima: [] },
+  { nome: "Carpa",     emoji: "🎏", pontos: 3,  clima: ["clear", "clouds"] },
+  { nome: "Dourado",   emoji: "🐡", pontos: 5,  clima: ["clear"] },
+  { nome: "Truta",     emoji: "🐟", pontos: 6,  clima: ["cold"] },
+  { nome: "Pintado",   emoji: "🦈", pontos: 8,  clima: ["rain"] },
+  { nome: "Bagre",     emoji: "🐙", pontos: 9,  clima: ["rain", "storm"] },
+  { nome: "Pirarucu",  emoji: "🐋", pontos: 14, clima: ["storm"] },
 ];
+
+/* Ligeireza derivada do valor: peixe de 1 ponto é lento; de 14, muito rápido. */
+function perfil(p) {
+  return {
+    ...p,
+    vel: 0.8 + p.pontos * 0.16,          // 0.96 -> 3.0
+    erratico: 0.015 + p.pontos * 0.007,  // 0.02 -> 0.11
+    fuga: 0.0034 + p.pontos * 0.00035,   // raro escapa mais rápido
+  };
+}
+
+/* Sorteia respeitando o clima atual: peixe do clima certo tem peso alto;
+ * peixes "de qualquer tempo" sempre podem vir. */
+function sortearPeixe(total) {
+  const w = getWeather();
+  const clima = w ? w.main : "clear";
+  const cand = [];
+  for (const p of PEIXES) {
+    const combina = p.clima.length === 0 || p.clima.includes(clima);
+    if (!combina) continue;
+    // sorte melhora conforme a pescaria rende, mas peixe raro segue raro
+    const peso = Math.max(0.4, (10 - p.pontos) + total / 8);
+    cand.push({ p, peso });
+  }
+  const soma = cand.reduce((s, c) => s + c.peso, 0);
+  let r = Math.random() * soma;
+  for (const c of cand) { r -= c.peso; if (r <= 0) return perfil(c.p); }
+  return perfil(PEIXES[0]);
+}
 
 export function initFishing() {
   const canvas = document.getElementById("fish-canvas");
@@ -27,16 +62,32 @@ export function initFishing() {
 
   const BAR_H = 92;            // altura da "rede" verde
   let barY, barV, fishY, fishV, fishTarget, progresso, peixe, estado, total, lastT = 0;
+  let esperaAte = 0, fisgarAte = 0;
   let segurando = false;
 
   const msg = document.getElementById("fish-msg");
   const info = document.getElementById("fish-info");
 
-  function novoPeixe() {
-    // peixes raros aparecem mais conforme você pesca bem
-    const chance = Math.random() * (1 + total / 12);
-    peixe = chance > 2.6 ? PEIXES[4] : chance > 1.8 ? PEIXES[3]
-          : chance > 1.1 ? PEIXES[2] : chance > 0.55 ? PEIXES[1] : PEIXES[0];
+  /* 1) joga a linha e ESPERA o peixe morder (tempo aleatório) */
+  function lancar() {
+    estado = "esperando";
+    peixe = sortearPeixe(total);
+    esperaAte = performance.now() + 1400 + Math.random() * 4200;
+    const w = getWeather();
+    info.textContent = w ? `Tempo: ${w.desc} — atrai peixes diferentes` : "";
+    msg.textContent = "Aguarde a fisgada…";
+  }
+
+  /* 2) o peixe mordeu: janela curta pra fisgar */
+  function morder(agora) {
+    estado = "mordendo";
+    fisgarAte = agora + 1100;
+    msg.textContent = "❗ FISGUE AGORA!";
+    if (navigator.vibrate) navigator.vibrate(60);
+  }
+
+  /* 3) fisgou: começa a luta na rede */
+  function começarLuta() {
     barY = H - BAR_H - 10; barV = 0;
     fishY = H / 2; fishV = 0; fishTarget = H / 2;
     progresso = 0.35;
@@ -45,7 +96,17 @@ export function initFishing() {
     msg.textContent = "Segure para subir a rede!";
   }
 
+  function perdeuFisgada() {
+    estado = "escapou";
+    msg.textContent = `${peixe.emoji} soltou a isca… (demorou a fisgar)`;
+    document.getElementById("fish-next").hidden = false;
+    document.getElementById("fish-stop").hidden = false;
+  }
+
   function update(dt) {
+    const agora = performance.now();
+    if (estado === "esperando") { if (agora >= esperaAte) morder(agora); return; }
+    if (estado === "mordendo")  { if (agora >= fisgarAte) perdeuFisgada(); return; }
     if (estado !== "pescando") return;
 
     // rede: sobe segurando, cai soltando
@@ -66,7 +127,7 @@ export function initFishing() {
 
     // dentro da rede?
     const dentro = fishY > barY && fishY < barY + BAR_H;
-    progresso += (dentro ? 0.0055 : -0.0042) * dt * 60 / 60;
+    progresso += (dentro ? 0.0055 : -(peixe.fuga || 0.0042)) * dt;
     progresso = Math.max(0, Math.min(1, progresso));
 
     if (progresso >= 1) fisgou();
@@ -94,25 +155,40 @@ export function initFishing() {
     grad.addColorStop(0, "#BFE3F5"); grad.addColorStop(1, "#5C9BC4");
     ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
 
-    // trilho
-    ctx.fillStyle = "rgba(255,255,255,.35)";
-    ctx.fillRect(W * 0.28, 6, W * 0.44, H - 12);
+    if (estado === "pescando") {
+      // trilho
+      ctx.fillStyle = "rgba(255,255,255,.35)";
+      ctx.fillRect(W * 0.28, 6, W * 0.44, H - 12);
+      // rede
+      ctx.fillStyle = "rgba(126,200,160,.85)";
+      ctx.fillRect(W * 0.28, barY, W * 0.44, BAR_H);
+    }
 
-    // rede
-    ctx.fillStyle = "rgba(126,200,160,.85)";
-    ctx.fillRect(W * 0.28, barY, W * 0.44, BAR_H);
-
-    // peixe
-    ctx.font = "26px system-ui, sans-serif";
+    // peixe (só aparece durante a luta; antes disso fica escondido na água)
     ctx.textAlign = "center";
-    ctx.fillText(peixe ? peixe.emoji : "🐟", W / 2, fishY + 9);
+    if (estado === "pescando") {
+      ctx.font = "26px system-ui, sans-serif";
+      ctx.fillText(peixe ? peixe.emoji : "🐟", W / 2, fishY + 9);
+    } else if (estado === "esperando") {
+      ctx.font = "30px system-ui, sans-serif";
+      ctx.fillText("🎣", W / 2, H / 2);
+      ctx.font = "13px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,.9)";
+      const p = ".".repeat(1 + Math.floor(performance.now() / 400) % 3);
+      ctx.fillText(`aguardando${p}`, W / 2, H / 2 + 34);
+    } else if (estado === "mordendo") {
+      ctx.font = "bold 54px system-ui, sans-serif";
+      ctx.fillStyle = "#FFE55C";
+      ctx.fillText("❗", W / 2, H / 2 + 12);
+    }
 
-    // barra de progresso lateral
-    ctx.fillStyle = "rgba(255,255,255,.5)";
-    ctx.fillRect(W - 20, 6, 12, H - 12);
-    const h = (H - 12) * progresso;
-    ctx.fillStyle = progresso > 0.6 ? "#7EC8A0" : progresso > 0.3 ? "#FFD36B" : "#E38C7A";
-    ctx.fillRect(W - 20, H - 6 - h, 12, h);
+    if (estado === "pescando") {
+      ctx.fillStyle = "rgba(255,255,255,.5)";
+      ctx.fillRect(W - 20, 6, 12, H - 12);
+      const h = (H - 12) * progresso;
+      ctx.fillStyle = progresso > 0.6 ? "#7EC8A0" : progresso > 0.3 ? "#FFD36B" : "#E38C7A";
+      ctx.fillRect(W - 20, H - 6 - h, 12, h);
+    }
   }
 
   function loop(t) {
@@ -124,14 +200,20 @@ export function initFishing() {
   }
 
   /* controles: segurar */
-  const seg = (e) => { e.preventDefault(); segurando = true; };
+  const seg = (e) => {
+    e.preventDefault();
+    if (estado === "mordendo") { começarLuta(); return; }   // fisgada!
+    segurando = true;
+  };
   const solta = () => { segurando = false; };
   canvas.addEventListener("pointerdown", seg);
   window.addEventListener("pointerup", solta);
   canvas.addEventListener("pointercancel", solta);
   window.addEventListener("keydown", (e) => {
     if (e.code === "Space" && document.getElementById("screen-fishing").classList.contains("active")) {
-      e.preventDefault(); segurando = true;
+      e.preventDefault();
+      if (estado === "mordendo") { começarLuta(); return; }
+      segurando = true;
     }
   });
   window.addEventListener("keyup", (e) => { if (e.code === "Space") segurando = false; });
@@ -139,7 +221,7 @@ export function initFishing() {
   document.getElementById("fish-next").onclick = () => {
     document.getElementById("fish-next").hidden = true;
     document.getElementById("fish-stop").hidden = true;
-    novoPeixe();
+    lancar();
   };
 
   document.getElementById("fish-stop").onclick = async () => {
@@ -165,7 +247,7 @@ export function initFishing() {
   document.getElementById("fish-cast").onclick = () => {
     document.getElementById("fish-cast").hidden = true;
     total = 0;
-    novoPeixe();
+    lancar();
   };
 
   total = 0;

@@ -1,0 +1,12 @@
+CONDIÇÕES — aparecem sozinhas quando o status cai (abaixo de 35).
+PNG (ou GIF) 1024x1024, fundo TRANSPARENTE, mesmo enquadramento da pose.
+Enquanto o arquivo não existir, a camada fica INVISÍVEL (não atrapalha).
+
+  sono.png     -> olhinhos caindo / bocejo   (aparece com Sono baixo)
+  fome.png     -> carinha de fome            (aparece com Saciedade baixa)
+  carente.png  -> olhar pedindo colo         (aparece com Afeto baixo)
+  sujo.png     -> manchinhas de sujeira      (aparece com Higiene baixa)
+  doente.png   -> nariz vermelho / gotinha   (aparece resfriado/doente)
+
+Dica: "sono", "fome", "carente" e "doente" são EXPRESSÕES — desenhe só o
+rosto, pois ficam sob o cabelo. "sujo" fica por cima do corpo e da roupa.

@@ -9,6 +9,7 @@
 
 import { ASSETS, getAsset, SLOTS } from "./assets-map.js";
 import { phaseForXp } from "./state.js";
+import { GAME_CONFIG } from "./config.js";
 
 export function paintLayer(el, asset) {
   if (!el) return;
@@ -101,6 +102,28 @@ export function paintMultiLayer(el, srcs) {
   el.style.backgroundImage = srcs.map((s) => `url("${s}")`).join(", ");
 }
 
+/* Decide QUAL condição mostrar em cada camada de condição.
+ *  - "face": a carência mais urgente (o status mais baixo entre sono,
+ *    fome e afeto), se estiver abaixo do limiar. Doente tem prioridade.
+ *  - "dirt": sujeira quando a higiene está baixa.
+ * Devolve null quando não há nada a mostrar. */
+export function conditionAsset(kind, baby) {
+  const lim = GAME_CONFIG.conditionThreshold ?? 35;
+  if (kind === "dirt") {
+    return (baby.hygiene ?? 100) < lim ? ASSETS.conditions.sujo : null;
+  }
+  if (kind === "face") {
+    if (baby.cold || baby.sick) return ASSETS.conditions.doente;
+    const cand = [
+      { k: "sono",    v: baby.sleep ?? 100 },
+      { k: "fome",    v: baby.hunger ?? 100 },
+      { k: "carente", v: baby.love ?? 100 },
+    ].filter((c) => c.v < lim).sort((a, b) => a.v - b.v);
+    return cand.length ? ASSETS.conditions[cand[0].k] : null;
+  }
+  return null;
+}
+
 /* Pinta a pose base (por fase) + cada peça equipada, na ordem dos SLOTS. */
 export function paintBabyLayers(refs, baby) {
   const phase = phaseForXp(baby.xp || 0);
@@ -108,6 +131,7 @@ export function paintBabyLayers(refs, baby) {
   const eq = baby.equipped || {};
   for (const slot of SLOTS) {
     if (slot.base) { paintLayer(refs.base, ASSETS.baby[phase.id]); continue; }
+    if (slot.condition) { paintLayer(refs[slot.id], conditionAsset(slot.condition, baby)); continue; }
     if (slot.multi) {
       const set = eq[slot.id] || {};
       const srcs = Object.keys(set)

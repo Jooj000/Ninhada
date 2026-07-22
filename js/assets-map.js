@@ -32,7 +32,9 @@ export const SLOTS = [
   { id: "calca",      category: "calca",  label: "Calça" },
   { id: "camisa",     category: "camisa", label: "Camisa" },
   { id: "sapatos",    category: "sapatos",label: "Sapatos" },
+  { id: "rosto",      condition: "face",  label: "Expressão" },
   { id: "cabelo",     category: "cabelo", label: "Cabelo" },
+  { id: "sujeira",    condition: "dirt",  label: "Sujeira" },
   { id: "accFrente",  category: "acessorios", multi: true, label: "Acessórios frente", short: "Frente" },
   { id: "brinquedos", category: "brinquedos", label: "Brinquedos" },
 ];
@@ -98,6 +100,18 @@ export const ASSETS = {
   brinquedos: {
     rattle: { src: "assets/sprites/toys/rattle.png", placeholder: "#FFD36B", label: "Chocalho" },
     teddy:  { src: "assets/sprites/toys/teddy.png",  placeholder: "#B78A5E", label: "Ursinho" },
+  },
+
+  /* ---- CONDIÇÕES (aparecem sozinhas conforme o status cai) ----
+   * Pasta: assets/sprites/conditions/
+   * `placeholder: null` = INVISÍVEL enquanto o .png não existir, para
+   * não sujar a tela. Basta criar o arquivo que ele passa a aparecer. */
+  conditions: {
+    sono:    { src: "assets/sprites/conditions/sono.png",    placeholder: null, label: "Com sono" },
+    fome:    { src: "assets/sprites/conditions/fome.png",    placeholder: null, label: "Com fome" },
+    carente: { src: "assets/sprites/conditions/carente.png", placeholder: null, label: "Carente" },
+    sujo:    { src: "assets/sprites/conditions/sujo.png",    placeholder: null, label: "Sujo" },
+    doente:  { src: "assets/sprites/conditions/doente.png",  placeholder: null, label: "Doente" },
   },
 
   /* Ícones de botões (opcional; senão usa emoji) */

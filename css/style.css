@@ -615,3 +615,20 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 }
 .fish-btns { display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .fish-btns button { width: 100%; max-width: 280px; }
+
+/* ============ TIMER DO DEVER ============ */
+.hw-timer-bar {
+  position: relative; height: 20px; border-radius: 999px; background: #EAE2F1;
+  overflow: hidden; margin: 10px 0 4px;
+}
+.hw-timer-fill {
+  height: 100%; width: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--good), var(--accent));
+  transition: width .1s linear;
+}
+.hw-timer-fill[data-low="true"] { background: linear-gradient(90deg, var(--warn), #F0B49E); }
+.hw-timer-num {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 700; color: var(--ink);
+}
+.hw-op:disabled { opacity: .75; cursor: default; }
