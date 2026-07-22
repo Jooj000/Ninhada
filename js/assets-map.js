@@ -80,9 +80,11 @@ export const ASSETS = {
   camisa: {
     body_stars:     { src: "assets/sprites/clothes/body_stars.png",   placeholder: "#8FB8FF", label: "Body Estrelas" },
     camisa_listrada:{ src: "assets/sprites/camisa/camisa_listrada.png", placeholder: "#7EC8A0", label: "Camisa Listrada" },
+    camisa:         { src: "assets/sprites/camisa/camisa.png",         placeholder: "#A0C8FF", label: "Camisa Lisa" },
   },
   calca: {
     calca_jeans: { src: "assets/sprites/calca/calca_jeans.png", placeholder: "#5B7DA6", label: "Calça Jeans" },
+    saia:        { src: "assets/sprites/calca/saia.png",        placeholder: "#D46A6A", label: "Saia" },
   },
   sapatos: {
     tenis: { src: "assets/sprites/sapatos/tenis.png", placeholder: "#D46A6A", label: "Tênis" },
@@ -90,6 +92,8 @@ export const ASSETS = {
   acessorios: {
     hat_bear: { src: "assets/sprites/accessories/hat_bear.png", placeholder: "#C9A06B", label: "Toca de Urso" },
     bow_pink: { src: "assets/sprites/accessories/bow_pink.png", placeholder: "#FF9EC4", label: "Laço Rosa" },
+    laco:     { src: "assets/sprites/accessories/laco.png",     placeholder: "#FFB4A2", label: "Laço" },
+    pulseiras:{ src: "assets/sprites/accessories/pulseiras.png", placeholder: "#A2C4FF", label: "Pulseiras" },
   },
   brinquedos: {
     rattle: { src: "assets/sprites/toys/rattle.png", placeholder: "#FFD36B", label: "Chocalho" },
@@ -114,10 +118,14 @@ export const SHOP_ITEMS = [
   { id: "cabelo_loiro",    category: "cabelo",     price: 30 },
   { id: "body_stars",      category: "camisa",     price: 40 },
   { id: "camisa_listrada", category: "camisa",     price: 45 },
+  { id: "camisa",          category: "camisa",     price: 45 },
   { id: "calca_jeans",     category: "calca",      price: 40 },
+  { id: "saia",            category: "calca",      price: 35 },
   { id: "tenis",           category: "sapatos",    price: 35 },
   { id: "hat_bear",        category: "acessorios", price: 35 },
   { id: "bow_pink",        category: "acessorios", price: 25 },
+  { id: "laco",            category: "acessorios", price: 25 },
+  { id: "pulseiras",       category: "acessorios", price: 30 },
   { id: "rattle",          category: "brinquedos", price: 30 },
   { id: "teddy",           category: "brinquedos", price: 80 },
 ];
