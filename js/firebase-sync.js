@@ -17,8 +17,8 @@ import {
   push, query, limitToLast, remove
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
-import { firebaseConfig, ROOM_ID, GAME_CONFIG } from "./config.js";
-import { defaultRoom, defaultBaby, applyDecay, clamp, phaseForXp, nextColdState, isNightNow, wantsNightmare } from "./state.js";
+import { firebaseConfig, ROOM_ID, GAME_CONFIG, MINIGAMES } from "./config.js";
+import { defaultRoom, defaultBaby, applyDecay, clamp, phaseForXp, nextColdState, isNightNow, wantsNightmare, nextFatigue, tierMultiplier } from "./state.js";
 
 let db = null;
 let roomRef = null;
@@ -86,13 +86,17 @@ export function syncDecay() {
 
 /* Genérica: aplica decaimento, soma `amount` num status e concede XP.
  * TODO cuidado dá XP (banho, sono, carinho, minigame) — não só cozinhar. */
-export function boostStatus(babyId, key, amount, xp = GAME_CONFIG.xpPerCare) {
+export function boostStatus(babyId, key, amount, xp = GAME_CONFIG.xpPerCare, activity = null) {
   if (!babyId || amount <= 0) return Promise.resolve();
+  const act = activity || `care_${key}`;
   return runTransaction(babyRef(babyId), (baby) => {
     if (!baby) return baby;
-    const s = applyDecay(baby, Date.now());
-    s[key] = clamp((s[key] ?? 0) + amount);
-    s.xp = (s.xp ?? 0) + (xp || 0);
+    const now = Date.now();
+    const s = applyDecay(baby, now);
+    s[key] = clamp((s[key] ?? 0) + amount);          // cuidar SEMPRE cuida
+    const { factor, fatigue } = nextFatigue(s, act, now, 0);
+    s.fatigue = fatigue;
+    s.xp = (s.xp ?? 0) + Math.round((xp || 0) * factor);   // só o XP cansa
     return s;
   });
 }
@@ -111,6 +115,37 @@ export function addFun(babyId, amount, xp = GAME_CONFIG.xpPerAction) {
  * RECORDES dos minigames (compartilhados entre os dois jogadores)
  * rooms/{room}/records/{gameId}  — guarda só o maior.
  * ---------------------------------------------------------------- */
+/* Recompensa de minigame: paga pela PONTUAÇÃO (não por jogar), com
+ * multiplicador de faixa etária e desconto de fadiga. Devolve o que
+ * foi realmente pago, para a tela mostrar. */
+export function rewardGame(babyId, gameId, points) {
+  const cfg = MINIGAMES[gameId] || {};
+  const out = { coins: 0, xp: 0, factor: 1 };
+  if (!babyId || !(points > 0)) return Promise.resolve(out);
+
+  return runTransaction(roomRef, (room) => {
+    if (!room) return room;
+    const baby = room.babies && room.babies[babyId];
+    if (!baby) return room;
+    const now = Date.now();
+    const s = applyDecay(baby, now);
+
+    const { factor, fatigue } = nextFatigue(s, `game_${gameId}`, now, cfg.hard ? (GAME_CONFIG.hardFloor ?? 0.2) : 0);
+    const mult = tierMultiplier(cfg.minPhase);
+    const coins = Math.round(points * (cfg.coinsPerPoint || 0) * mult * factor);
+    const xp    = Math.round(points * (cfg.xpPerPoint    || 0) * mult * factor);
+
+    s.fatigue = fatigue;
+    s.xp = (s.xp ?? 0) + xp;
+    s.fun = clamp((s.fun ?? 0) + GAME_CONFIG.funPerMinigame);   // diversão sempre sobe
+    room.babies[babyId] = s;
+    room.coins = (room.coins ?? 0) + coins;
+
+    out.coins = coins; out.xp = xp; out.factor = factor;
+    return room;
+  }).then(() => out);
+}
+
 export function saveRecord(gameId, score) {
   return runTransaction(ref(db, `rooms/${ROOM_ID}/records/${gameId}`), (best) => {
     return Math.max(best || 0, Math.round(score || 0));
@@ -134,9 +169,12 @@ export function serveFood(babyId, { hunger = 0, xp = 0, cost = 0, recipeId = nul
     const baby = room.babies && room.babies[babyId];
     if (!baby) return;
     room.coins -= cost;
-    const s = applyDecay(baby, Date.now());
-    s.hunger = clamp((s.hunger ?? 0) + hunger);
-    s.xp = (s.xp ?? 0) + xp;
+    const now = Date.now();
+    const s = applyDecay(baby, now);
+    s.hunger = clamp((s.hunger ?? 0) + hunger);           // alimentar SEMPRE alimenta
+    const { factor, fatigue } = nextFatigue(s, "care_food", now, 0);
+    s.fatigue = fatigue;
+    s.xp = (s.xp ?? 0) + Math.round(xp * factor);         // só o XP cansa
     room.babies[babyId] = s;
     if (recipeId) { room.recipes = room.recipes || {}; room.recipes[recipeId] = true; }
     return room;

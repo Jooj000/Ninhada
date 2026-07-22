@@ -9,7 +9,7 @@
  * dá pra usar ctx.drawImage com um .png da artista. Deixei marcado.
  * ===================================================================== */
 
-import { addCoins, addFun, saveRecord, getRecord } from "./firebase-sync.js";
+import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { GAME_CONFIG } from "./config.js";
@@ -44,6 +44,7 @@ export function initDino() {
 
   function jump() {
     if (dead) { reset(); return; }
+    if (!running) setOverlay("", "");     // <- some com o "toque para começar"
     running = true;
     if (dino.onGround) { dino.vy = JUMP; dino.onGround = false; }
   }
@@ -94,10 +95,14 @@ export function initDino() {
     const novo = s > rec && s > 0;
     setOverlay(novo ? `🏆 NOVO RECORDE: ${s}!` : `Você fez ${s}`, "Toque para jogar de novo");
     if (s > 0) {
-      await addCoins(Math.ceil(s / 5) + (GAME_CONFIG.coinsPerMinigame || 0));
-      await addFun(getActiveBaby(), GAME_CONFIG.funPerMinigame);
+      const r = await rewardGame(getActiveBaby(), "dino", s);   // paga POR DISTÂNCIA
       await saveRecord("dino", s);
       registerCare();
+      setOverlay(
+        novo ? `🏆 NOVO RECORDE: ${s}!` : `Você fez ${s}`,
+        r.factor === 0 ? "Esta criança se cansou — troque de bebê ou volte depois"
+                       : `+${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""} · toque p/ jogar`
+      );
     }
   }
 

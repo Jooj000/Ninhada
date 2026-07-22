@@ -10,7 +10,7 @@
  * via ctx.drawImage(imagem, ...). Deixei comentado onde plugar.
  * ===================================================================== */
 
-import { addCoins, addFun, saveRecord, getRecord } from "./firebase-sync.js";
+import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { GAME_CONFIG } from "./config.js";
@@ -49,6 +49,7 @@ export function initMinigame() {
 
   function flap() {
     if (dead) { reset(); return; }
+    if (!running) setOverlay("", "");     // <- some com o "toque para começar"
     running = true;
     bird.vy = FLAP;
   }
@@ -83,10 +84,14 @@ export function initMinigame() {
     setOverlay(novo ? `🏆 NOVO RECORDE: ${score}!` : `Você fez ${score}`,
                "Toque para jogar de novo");
     if (score > 0) {
-      await addCoins(score + (GAME_CONFIG.coinsPerMinigame || 0));  // moedas p/ a casa
-      await addFun(getActiveBaby(), GAME_CONFIG.funPerMinigame);    // diversão + XP
+      const r = await rewardGame(getActiveBaby(), "flappy", score);  // paga POR TUBO
       await saveRecord("flappy", score);
       registerCare();
+      setOverlay(
+        novo ? `🏆 NOVO RECORDE: ${score}!` : `Você fez ${score}`,
+        r.factor === 0 ? "Esta criança se cansou — troque de bebê ou volte depois"
+                       : `+${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""} · toque p/ jogar`
+      );
     }
   }
 

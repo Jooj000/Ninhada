@@ -218,6 +218,14 @@ todos no mesmo retângulo. (O minigame já usa Canvas, então você tem os dois 
 | Itens da loja e preços | `assets-map.js` → `SHOP_ITEMS` | |
 | Adicionar roupa/chapéu novo | `assets-map.js` (`ASSETS` + `SHOP_ITEMS`) + png na pasta | |
 
+### Minigames pendentes (fila combinada)
+- **Feira de Ciências**: circuitos variados e mais complexos (vários layouts, série/paralelo,
+  resistores) pagando por circuito completo — a base de pagamento por circuito já está pronta.
+- **Dever de Casa**: intercala matérias aleatórias (contas, português, lógica).
+- **Pescaria** estilo Stardew Valley (barra de tensão + peixe fugindo).
+- Pack arcade do Pou: 2048, Memory, Color Match, Star Popper, Food Drop, Sky Jump…
+- Piano/ritmo + parser de arquivos `.osu` (último da fila).
+
 ### Ideias de próximos passos
 - Segundo bebê (gêmeos): troque `ROOM_ID` por uma lista e uma tela de seleção.
 - Notificação "o bebê está com fome" (Web Push via Firebase Cloud Messaging).

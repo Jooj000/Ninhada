@@ -50,7 +50,7 @@ function initKitchen() {
     const b = document.createElement("button");
     b.className = "food-btn";
     b.innerHTML = `<span class="food-emoji">${f.emoji}</span><span>${f.label}</span><small>${f.cost} 🪙</small>`;
-    b.onclick = () => { serveFood(getActiveBaby(), { hunger: f.hunger, xp: GAME_CONFIG.xpPerCare, cost: f.cost }); registerCare(); };
+    b.onclick = () => { serveFood(getActiveBaby(), { hunger: f.hunger, xp: f.xp ?? GAME_CONFIG.xpPerCare, cost: f.cost }); registerCare(); };
     readyRow.appendChild(b);
   });
 
@@ -59,7 +59,7 @@ function initKitchen() {
   INGREDIENTS.forEach((ing) => {
     const b = document.createElement("button");
     b.className = "food-btn";
-    b.innerHTML = `<span class="food-emoji">${ing.emoji}</span><span>${ing.label}</span>`;
+    b.innerHTML = `<span class="food-emoji">${ing.emoji}</span><span>${ing.label}</span><small>${ing.cost ?? INGREDIENT_COST} 🪙</small>`;
     b.onclick = () => addToPot(ing);
     ingRow.appendChild(b);
   });
@@ -85,7 +85,7 @@ function renderPot() {
 async function cook() {
   if (pot.length !== 2) return;
   const recipe = matchRecipe(pot[0].id, pot[1].id) || UNKNOWN_DISH;
-  const cost = INGREDIENT_COST * pot.length;
+  const cost = pot.reduce((sum, i) => sum + (i.cost ?? INGREDIENT_COST), 0);
 
   // UM round rápido POR ingrediente (2 por refeição). Difícil de propósito.
   let total = 0;

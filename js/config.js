@@ -47,10 +47,7 @@ export const GAME_CONFIG = {
   // Diversão ganha ao terminar uma rodada de minigame COM aquele bebê.
   funPerMinigame: 30,
 
-  // Moedas extras por terminar um minigame (além do placar).
-  coinsPerMinigame: 10,
-
-  // XP por ação "pontual" (terminar minigame, servir comida).
+  // XP por ação "pontual" (servir comida pronta).
   xpPerAction: 12,
   // XP por pulso de cuidado contínuo (carinho, esfregar no banho, ninar).
   // Vale pouco de propósito: o ganho vem de insistir no cuidado.
@@ -69,6 +66,17 @@ export const GAME_CONFIG = {
   coldThreshold: 16,
   // De quanto em quanto tempo o risco de resfriado é reavaliado (min).
   coldCheckMinutes: 15,
+
+  /* --- FADIGA: evita farmar a mesma coisa na mesma criança ---
+   * As primeiras `fatigueFull` vezes pagam cheio; até `fatigueTaper`
+   * pagam metade; depois disso não pagam nada (minigames difíceis ainda
+   * pagam `hardFloor`). O contador zera após `fatigueResetMinutes` sem
+   * repetir aquela atividade. NÃO afeta o status (cuidar sempre cuida),
+   * só a RECOMPENSA de XP e moedas. */
+  fatigueFull: 10,
+  fatigueTaper: 15,
+  fatigueResetMinutes: 10,
+  hardFloor: 0.2,
 
   // Pesadelos noturnos: só acontecem "de madrugada" (entre estas horas).
   // Dica p/ testar de dia: ponha nightStartHour na hora atual.
@@ -104,3 +112,16 @@ export const WEATHER = {
   coldChance:    0.15, // friagem (neve leve)
   // o resto do tempo alterna entre nublado e céu limpo
 };
+
+/* -------- MINIGAMES: recompensa POR PONTO (nada por só dar play) -----
+ * `minPhase` também define a "dificuldade": jogos liberados em idades
+ * mais avançadas pagam mais (multiplicador por faixa etária).
+ * `hard: true` = continua pagando um pouquinho mesmo com fadiga alta. */
+export const MINIGAMES = {
+  flappy:  { minPhase: "newborn",  coinsPerPoint: 1,    xpPerPoint: 2,   hard: false },
+  dino:    { minPhase: "crawling", coinsPerPoint: 0.15, xpPerPoint: 0.3, hard: false },
+  circuit: { minPhase: "toddler",  coinsPerPoint: 12,   xpPerPoint: 15,  hard: true  },
+};
+
+/* Multiplicador por faixa etária do minigame (índice da fase mínima). */
+export const TIER_MULTIPLIER = [1, 1.5, 2, 2.6];

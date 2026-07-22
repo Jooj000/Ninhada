@@ -9,7 +9,7 @@
  *     do mesmo `lastUpdate` que está no banco. ✔
  * ===================================================================== */
 
-import { GAME_CONFIG } from "./config.js";
+import { GAME_CONFIG, TIER_MULTIPLIER } from "./config.js";
 
 export const STATUS_KEYS = ["hunger", "sleep", "hygiene", "fun", "love"];
 
@@ -115,4 +115,33 @@ export function wantsNightmare(baby, night, roll) {
   const base = GAME_CONFIG.nightmareChance ?? 0.4;
   const p = (baby.sleep ?? 100) < 40 ? base + 0.25 : base;   // sono baixo = mais pesadelo
   return roll < p;
+}
+
+/* =====================================================================
+ * FADIGA — impede farmar a mesma atividade na mesma criança
+ * ---------------------------------------------------------------------
+ * Devolve o FATOR de recompensa (1 = cheio, 0.5 = reduzido, 0 = nada)
+ * e o novo registro de fadiga já com esta interação contada.
+ * O contador zera sozinho após `fatigueResetMinutes` sem repetir.
+ * IMPORTANTE: só mexe na RECOMPENSA. O status sempre sobe normalmente.
+ * ===================================================================== */
+export function nextFatigue(baby, activity, now = Date.now(), floor = 0) {
+  const all = (baby && baby.fatigue) || {};
+  const rec = all[activity] || { n: 0, at: 0 };
+  const windowMs = (GAME_CONFIG.fatigueResetMinutes || 10) * 60_000;
+  const n = now - (rec.at || 0) > windowMs ? 0 : rec.n || 0;   // esfriou? zera
+
+  let factor;
+  if (n < (GAME_CONFIG.fatigueFull ?? 10)) factor = 1;
+  else if (n < (GAME_CONFIG.fatigueTaper ?? 15)) factor = 0.5;
+  else factor = floor;
+
+  return { factor, fatigue: { ...all, [activity]: { n: n + 1, at: now } } };
+}
+
+/* Multiplicador de recompensa pela faixa etária exigida pelo minigame:
+ * jogo liberado só para criança grande paga mais que um de recém-nascido. */
+export function tierMultiplier(minPhaseId) {
+  const i = PHASES.findIndex((p) => p.id === minPhaseId);
+  return TIER_MULTIPLIER[Math.max(0, i)] ?? 1;
 }

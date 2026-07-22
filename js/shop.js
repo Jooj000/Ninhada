@@ -89,12 +89,13 @@ function renderShop() {
   const isAcc = category === "acessorios";
 
   const items = SHOP_ITEMS.filter((it) => it.category === category)
-    .filter((it) => (mode === "guarda" ? !!inv[it.id] : true));
+    .filter((it) => (mode === "guarda" ? !!inv[it.id] : !inv[it.id]));  // loja só mostra o que falta
 
   grid.innerHTML = "";
   if (!items.length) {
     grid.innerHTML = `<p class="board-empty" style="color:var(--ink-soft)">${
-      mode === "guarda" ? "Nada comprado nesta categoria ainda." : "Sem itens aqui."}</p>`;
+      mode === "guarda" ? "Nada comprado nesta categoria ainda."
+                        : "Vocês já compraram tudo desta categoria! 🎉"}</p>`;
     return;
   }
 

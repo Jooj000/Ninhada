@@ -18,7 +18,7 @@
  *   — deixei isso como gancho de nível futuro nos comentários.)
  * ===================================================================== */
 
-import { addCoins, addFun } from "./firebase-sync.js";
+import { rewardGame } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { GAME_CONFIG } from "./config.js";
@@ -119,13 +119,16 @@ export function initCircuit() {
       status.textContent = "Curto-circuito! O + não pode ligar direto no −.";
       setTimeout(() => { wires.clear(); selected = null; render(); }, 900);
     } else if (state === "on") {
-      status.textContent = solved ? "Lâmpada acesa 💡" : `Lâmpada acesa! +${REWARD} 🪙`;
       if (!solved) {
         solved = true;
-        await addCoins(REWARD);
-        await addFun(getActiveBaby(), GAME_CONFIG.funPerMinigame);
-      registerCare();
+        const r = await rewardGame(getActiveBaby(), "circuit", 1);   // paga por circuito
+        registerCare();
+        status.textContent = r.factor === 0
+          ? "Lâmpada acesa 💡 (a criança se cansou — sem recompensa agora)"
+          : `Lâmpada acesa! +${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`;
         render();
+      } else {
+        status.textContent = "Lâmpada acesa 💡 — toque em Novo desafio";
       }
     } else {
       status.textContent = "Ligue o + e o − passando pela lâmpada.";
