@@ -9,17 +9,12 @@
  *     do mesmo `lastUpdate` que está no banco. ✔
  * ===================================================================== */
 
-import { GAME_CONFIG, TIER_MULTIPLIER } from "./config.js";
+import { GAME_CONFIG, TIER_MULTIPLIER, BALANCE } from "./config.js";
 
 export const STATUS_KEYS = ["hunger", "sleep", "hygiene", "fun", "love"];
 
 /* Fases de vida em ordem. O bebê sobe de fase ao atingir o xpNeeded. */
-export const PHASES = [
-  { id: "newborn",  name: "Recém-nascido",  xpNeeded: 0 },
-  { id: "crawling", name: "Engatinhando",   xpNeeded: 600 },
-  { id: "toddler",  name: "Criança",        xpNeeded: 2500 },
-  { id: "child",    name: "Criança grande", xpNeeded: 6000 },
-];
+export const PHASES = BALANCE.growth.phases;
 
 export function clamp(v, min = 0, max = 100) {
   return Math.max(min, Math.min(max, v));

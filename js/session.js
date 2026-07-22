@@ -19,3 +19,9 @@ export function setActiveBaby(id) {
 }
 
 export function onActiveBaby(fn) { listeners.push(fn); }
+
+/* Modo de visão da Sala: "single" (um bebê) ou "room" (todos no cômodo).
+ * O álbum usa isso para decidir entre foto individual e foto de grupo. */
+let viewMode = "single";
+export function getViewMode() { return viewMode; }
+export function setViewMode(m) { viewMode = m; }

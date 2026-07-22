@@ -15,9 +15,10 @@
  * ===================================================================== */
 
 import { addLove } from "./firebase-sync.js";
+import { BALANCE } from "./config.js";
 import { registerCare } from "./streak.js";
 
-const LOVE_PER_PX   = 0.05;   // afeto por pixel deslizado
+const LOVE_PER_PX   = BALANCE.care.lovePerPixel;   // ver balance.js
 const MAX_PER_FLUSH = 8;      // teto de afeto enviado por lote
 const FLUSH_MS      = 700;    // intervalo de envio ao banco
 const GIGGLE_MS     = 1200;   // intervalo mínimo entre risadinhas

@@ -20,7 +20,8 @@ bebe-virtual/
 ├── css/
 │   └── style.css         # todo o visual (tema + placeholders)
 ├── js/
-│   ├── config.js         # 🔑 SUAS chaves do Firebase + balanceamento
+│   ├── balance.js        # ⚙️ PAINEL DE CONTROLE: todos os números do jogo
+│   ├── config.js         # 🔑 chaves do Firebase/VAPID + identidade da sala
 │   ├── assets-map.js     # 🎨 MAPA DAS ARTES (o único arquivo que muda p/ trocar png)
 │   ├── state.js          # lógica pura: decaimento por tempo, fases, humor
 │   ├── firebase-sync.js  # sincronização em tempo real (transações)
@@ -124,6 +125,29 @@ Não precisa reinstalar. Se algum dia quiser **forçar** limpeza total do cache,
 `CACHE_VERSION = "bebe-v1"` para `"bebe-v2"` no service worker.
 
 ---
+
+## 3-. Ajustar o equilíbrio do jogo
+
+Tudo que é número ajustável está em **`js/balance.js`**, num arquivo só:
+status e velocidade de decaimento, XP e moedas, fases de crescimento, fadiga,
+taxas de cada minigame, preços (multiplicador global), cozinha, pescaria,
+dever de casa, clima, pesadelos e notificações.
+
+Atalhos úteis:
+- jogo muito corrido → baixe `status.decayPerHour`
+- comprar demora muito → baixe `economy.priceMultiplier` (ex.: `0.6`)
+- crescer demora muito → baixe os `xpNeeded` em `growth.phases`
+- pescaria difícil → aumente `fishing.netHeightPx`
+
+## 3a. Ferramentas (feitas por você)
+
+- **`parser.js` + `sprites.bat`** — varre `assets/sprites/` e registra sozinho os `.png`
+  novos no `assets-map.js`, já criando o item na loja com preço médio da categoria.
+  Fluxo: a artista larga o arquivo na pasta → você roda `sprites.bat` → pronto.
+  *Obs.: ele não varre `conditions/` de propósito (essas camadas são fixas e não
+  são vendidas — basta criar o `.png` com o nome certo que já funciona).*
+- **`Update.bat`** — `git add/commit/push` num clique (publica no GitHub Pages).
+- **`Play.bat`** — sobe o servidor local e abre o navegador.
 
 ## 3b. Notificações no celular (100% grátis, sem cartão)
 

@@ -362,7 +362,7 @@ export function onBoardChange(callback, max = 50) {
     // Vira lista ordenada por horário.
     const list = Object.entries(val)
       .map(([id, m]) => ({ id, ...m }))
-      .sort((a, b) => a.at - b.at);
+      .sort((a, b) => b.at - a.at);      // mais RECENTE primeiro
     callback(list);
   });
 }

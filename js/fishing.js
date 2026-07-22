@@ -10,6 +10,9 @@ import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { getWeather } from "./weather.js";
+import { BALANCE } from "./config.js";
+
+const F = BALANCE.fishing;
 
 /* Cada peixe tem `clima`: em qual tempo ele aparece (vazio = sempre).
  * Velocidade e nervosismo saem do VALOR: quanto mais raro, mais ligeiro. */
@@ -28,9 +31,9 @@ const PEIXES = [
 function perfil(p) {
   return {
     ...p,
-    vel: 0.8 + p.pontos * 0.16,          // 0.96 -> 3.0
-    erratico: 0.015 + p.pontos * 0.007,  // 0.02 -> 0.11
-    fuga: 0.0034 + p.pontos * 0.00035,   // raro escapa mais rápido
+    vel:      F.velBase      + p.pontos * F.velPerPoint,       // até o comum é ligeiro
+    erratico: F.erraticBase  + p.pontos * F.erraticPerPoint,
+    fuga:     F.fugaBase     + p.pontos * F.fugaPerPoint,      // raro escapa mais rápido
   };
 }
 
@@ -60,7 +63,7 @@ export function initFishing() {
   const W = (canvas.width = 220);
   const H = (canvas.height = 420);
 
-  const BAR_H = 92;            // altura da "rede" verde
+  const BAR_H = F.netHeightPx;   // altura da rede (ver balance.js)
   let barY, barV, fishY, fishV, fishTarget, progresso, peixe, estado, total, lastT = 0;
   let esperaAte = 0, fisgarAte = 0;
   let segurando = false;
@@ -72,7 +75,7 @@ export function initFishing() {
   function lancar() {
     estado = "esperando";
     peixe = sortearPeixe(total);
-    esperaAte = performance.now() + 1400 + Math.random() * 4200;
+    esperaAte = performance.now() + F.esperaMinMs + Math.random() * (F.esperaMaxMs - F.esperaMinMs);
     const w = getWeather();
     info.textContent = w ? `Tempo: ${w.desc} — atrai peixes diferentes` : "";
     msg.textContent = "Aguarde a fisgada…";
@@ -81,7 +84,7 @@ export function initFishing() {
   /* 2) o peixe mordeu: janela curta pra fisgar */
   function morder(agora) {
     estado = "mordendo";
-    fisgarAte = agora + 1100;
+    fisgarAte = agora + F.janelaFisgadaMs;
     msg.textContent = "❗ FISGUE AGORA!";
     if (navigator.vibrate) navigator.vibrate(60);
   }
@@ -127,7 +130,7 @@ export function initFishing() {
 
     // dentro da rede?
     const dentro = fishY > barY && fishY < barY + BAR_H;
-    progresso += (dentro ? 0.0055 : -(peixe.fuga || 0.0042)) * dt;
+    progresso += (dentro ? F.ganhoNaRede : -(peixe.fuga || 0.0042)) * dt;
     progresso = Math.max(0, Math.min(1, progresso));
 
     if (progresso >= 1) fisgou();

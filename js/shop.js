@@ -12,6 +12,10 @@
 import { SHOP_ITEMS, getAsset, CATEGORIES, slotsForCategory } from "./assets-map.js";
 import { buyItem, equipItem, toggleAccessory } from "./firebase-sync.js";
 import { getActiveBaby, setActiveBaby, onActiveBaby } from "./session.js";
+import { BALANCE } from "./config.js";
+
+/* Preço final = preço base (assets-map) × multiplicador global (balance). */
+const preco = (item) => Math.round(item.price * BALANCE.economy.priceMultiplier);
 
 let mode = "loja";            // "loja" | "guarda"
 let category = CATEGORIES[0].id;
@@ -128,9 +132,9 @@ function renderShop() {
     if (!owned) {
       const btn = document.createElement("button");
       btn.className = "shop-btn";
-      btn.textContent = item.price > 0 ? `Comprar · ${item.price} 🪙` : "Pegar (grátis)";
-      btn.disabled = (state.coins ?? 0) < item.price;
-      btn.onclick = () => buyItem(item);
+      btn.textContent = item.price > 0 ? `Comprar · ${preco(item)} 🪙` : "Pegar (grátis)";
+      btn.disabled = (state.coins ?? 0) < preco(item);
+      btn.onclick = () => buyItem({ ...item, price: preco(item) });
       card.appendChild(btn);
     } else if (!activeId) {
       const b = document.createElement("button");

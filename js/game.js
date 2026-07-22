@@ -17,7 +17,7 @@ import { GAME_CONFIG, ROOM_NAME } from "./config.js";
 import {
   STATUS_KEYS, applyDecay, phaseForXp, moodFor, isSick, PHASES,
 } from "./state.js";
-import { getActiveBaby, setActiveBaby, onActiveBaby } from "./session.js";
+import { getActiveBaby, setActiveBaby, onActiveBaby, setViewMode } from "./session.js";
 import { attachTouch } from "./touch.js";
 import { buildStageLayers, paintBabyLayers } from "./render-utils.js";
 import { initRooms, updateRooms } from "./rooms.js";
@@ -205,6 +205,7 @@ function applyActiveVisibility() {
 
 function setView(mode) {
   viewMode = mode;
+  setViewMode(mode);
   const single = document.getElementById("single-view");
   const roomv = document.getElementById("room-view");
   const select = document.getElementById("home-baby-select");

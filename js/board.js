@@ -5,14 +5,13 @@
  * apagado no ✕; há também "Limpar tudo".
  * ===================================================================== */
 
-import { postMessage, onBoardChange, deleteMessage, clearBoard } from "./firebase-sync.js";
+import { postMessage, onBoardChange, deleteMessage } from "./firebase-sync.js";
 import { getPlayerId, ensurePlayerName } from "./identity.js";
 
 export function initBoard() {
   const form = document.getElementById("board-form");
   const input = document.getElementById("board-input");
   const list = document.getElementById("board-list");
-  const clearBtn = document.getElementById("board-clear");
   if (!form || !input || !list) return;
 
   form.addEventListener("submit", (e) => {
@@ -20,10 +19,6 @@ export function initBoard() {
     if (!input.value.trim()) return;
     postMessage(input.value, ensurePlayerName(), getPlayerId());
     input.value = "";
-  });
-
-  if (clearBtn) clearBtn.addEventListener("click", () => {
-    if (confirm("Apagar TODOS os recados?")) clearBoard();
   });
 
   onBoardChange((messages) => {
@@ -45,6 +40,6 @@ export function initBoard() {
       el.querySelector(".board-del").addEventListener("click", () => deleteMessage(m.id));
       list.appendChild(el);
     }
-    list.scrollTop = list.scrollHeight;
+    list.scrollTop = 0;   // mais recentes já ficam no topo
   });
 }

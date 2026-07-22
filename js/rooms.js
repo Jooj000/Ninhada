@@ -14,7 +14,7 @@ import {
   serveFood, boostStatus, sootheNightmare,
 } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
-import { GAME_CONFIG } from "./config.js";
+import { GAME_CONFIG, BALANCE } from "./config.js";
 import { registerCare } from "./streak.js";
 import { applyDecay, moodFor } from "./state.js";
 import { paintBabyLayers, buildStageLayers } from "./render-utils.js";
@@ -127,7 +127,7 @@ function playCookRound(ing, n, totalN) {
 
     let pos = Math.random() * 100;
     let dir = Math.random() < 0.5 ? 1 : -1;
-    const speed = 6;                      // ritmo justo: dá pra acertar 100%
+    const speed = BALANCE.kitchen.cookSpeed;   // ver balance.js
     let raf = 0, done = false;
 
     titleEl.textContent = `Prepare ${ing.emoji} ${ing.label}`;
@@ -189,7 +189,7 @@ function initBathroom() {
 /* Esfregar deslizando: sobe higiene + borbulhas. */
 function attachScrub(stage) {
   let active = false, lastX = 0, lastY = 0, pending = 0, lastFlush = 0, lastBubble = 0;
-  const RATE = 0.06, FLUSH = 700, MAXF = 8;
+  const RATE = BALANCE.care.hygienePerPixel, FLUSH = 700, MAXF = 8;
 
   const flush = (force) => {
     const now = Date.now();
@@ -258,7 +258,7 @@ function setLight(off) {
     // enquanto a luz está apagada e a tela aberta, o sono sobe aos poucos
     bedroomTimer = setInterval(() => {
       if (document.getElementById("screen-bedroom").classList.contains("active")) {
-        boostStatus(getActiveBaby(), "sleep", 4); registerCare();
+        boostStatus(getActiveBaby(), "sleep", BALANCE.care.sleepPerTick); registerCare();
       }
     }, 1500);
   }

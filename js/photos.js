@@ -12,7 +12,7 @@
 import { ASSETS, getAsset, SLOTS } from "./assets-map.js";
 import { phaseForXp } from "./state.js";
 import { savePhoto, onPhotosChange, deletePhoto } from "./firebase-sync.js";
-import { getActiveBaby } from "./session.js";
+import { getActiveBaby, getViewMode } from "./session.js";
 import { getPlayerName } from "./identity.js";
 
 const SIZE = 512;          // resolução da foto salva
@@ -35,17 +35,18 @@ function drawContain(ctx, img) {
 }
 
 /* Monta a foto do bebê e devolve um data URL. */
-export async function renderBabyPhoto(baby) {
+export async function renderBabyPhoto(baby, semFundo = false) {
   const cv = document.createElement("canvas");
   cv.width = cv.height = SIZE;
   const ctx = cv.getContext("2d");
 
-  // Fundo: cenário se existir, senão a cor do placeholder (JPEG não tem alfa)
-  const bgAsset = ASSETS.backgrounds.nursery;
-  ctx.fillStyle = bgAsset.placeholder || "#FDEFF4";
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  const bg = await loadImg(bgAsset.src);
-  if (bg) ctx.drawImage(bg, 0, 0, SIZE, SIZE);
+  if (!semFundo) {                    // com fundo = foto final (JPEG não tem alfa)
+    const bgAsset = ASSETS.backgrounds.nursery;
+    ctx.fillStyle = bgAsset.placeholder || "#FDEFF4";
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    const bg = await loadImg(bgAsset.src);
+    if (bg) ctx.drawImage(bg, 0, 0, SIZE, SIZE);
+  }
 
   const phase = phaseForXp(baby.xp || 0);
   const eq = baby.equipped || {};
@@ -74,25 +75,66 @@ export async function renderBabyPhoto(baby) {
     if (img) drawContain(ctx, img);
   }
 
+  return semFundo ? cv.toDataURL("image/png") : cv.toDataURL("image/jpeg", QUALITY);
+}
+
+/* Monta a foto de GRUPO: todas as crianças lado a lado, como no cômodo. */
+export async function renderGroupPhoto(babies) {
+  const ids = Object.keys(babies);
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = SIZE;
+  const ctx = cv.getContext("2d");
+
+  const bgAsset = ASSETS.backgrounds.nursery;
+  ctx.fillStyle = bgAsset.placeholder || "#FDEFF4";
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  const bg = await loadImg(bgAsset.src);
+  if (bg) ctx.drawImage(bg, 0, 0, SIZE, SIZE);
+
+  const n = ids.length;
+  const escala = n <= 1 ? 1 : n === 2 ? 0.62 : n === 3 ? 0.48 : 0.42;
+
+  for (let i = 0; i < n; i++) {
+    const baby = babies[ids[i]];
+    const foto = await renderBabyPhoto(baby, true);      // só o boneco, sem fundo
+    const img = await loadImg(foto);
+    if (!img) continue;
+    const w = SIZE * escala, h = SIZE * escala;
+    const cx = ((i + 0.5) / n) * SIZE;                   // distribui na largura
+    const dy = (i % 2) * SIZE * 0.06;                    // leve escada
+    ctx.drawImage(img, cx - w / 2, SIZE - h - dy, w, h);
+  }
   return cv.toDataURL("image/jpeg", QUALITY);
 }
 
-/* Tira a foto do bebê ativo e guarda no álbum. */
+/* Tira a foto do bebê ativo (ou de TODOS, se estiver na visão do cômodo). */
 export async function takePhoto() {
   const state = window.__STATE__;
+  const babies = (state && state.babies) || {};
+  const emGrupo = getViewMode() === "room" && Object.keys(babies).length > 1;
   const id = getActiveBaby();
-  const baby = state && state.babies && state.babies[id];
-  if (!baby) return;
+  const baby = babies[id];
+  if (!baby && !emGrupo) return;
 
   const btn = document.getElementById("photo-btn");
   if (btn) { btn.disabled = true; btn.textContent = "📸…"; }
 
-  const img = await renderBabyPhoto(baby);
-  const phase = phaseForXp(baby.xp || 0);
+  let img, nome, fase;
+  if (emGrupo) {                                   // foto de TODAS as crianças
+    img = await renderGroupPhoto(babies);
+    nome = Object.values(babies).map((b) => b.name || "Bebê").join(", ");
+    fase = `${Object.keys(babies).length} crianças`;
+  } else {
+    img = await renderBabyPhoto(baby);
+    nome = baby.name || "Bebê";
+    fase = phaseForXp(baby.xp || 0).name;
+  }
+
   await savePhoto({
     img,
-    babyName: baby.name || "Bebê",
-    phase: phase.name,
+    babyName: nome,
+    phase: fase,
+    grupo: emGrupo,
     by: getPlayerName() || "",
     at: Date.now(),
   });
