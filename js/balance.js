@@ -62,6 +62,9 @@ export const BALANCE = {
     // peça continua no assets-map.js, gerenciado pelo seu parser).
     // 1 = normal · 0.5 = tudo pela metade · 2 = tudo o dobro.
     priceMultiplier: 1,
+    // Bônus ao BATER O RECORDE de um minigame (pago fora da fadiga:
+    // é conquista, não farm — e o recorde vai ficando mais difícil).
+    recordBonus: { coins: 20, xp: 40 },
   },
 
   /* ================= FADIGA (anti-farm) ================= */
@@ -86,6 +89,9 @@ export const BALANCE = {
     memory:     { minPhase: "crawling", coinsPerPoint: 0.8,  xpPerPoint: 1.4, hard: false },
     colormatch: { minPhase: "crawling", coinsPerPoint: 1,    xpPerPoint: 1.8, hard: false },
     g2048:      { minPhase: "toddler",  coinsPerPoint: 0.4,  xpPerPoint: 0.8, hard: true  },
+    match3:     { minPhase: "crawling", coinsPerPoint: 1.2,  xpPerPoint: 2,   hard: false },
+    starpopper: { minPhase: "newborn",  coinsPerPoint: 0.5,  xpPerPoint: 1,   hard: false },
+    skyjump:    { minPhase: "crawling", coinsPerPoint: 0.12, xpPerPoint: 0.25, hard: false },
   },
   // Multiplicador por faixa etária (índice da fase mínima do jogo).
   tierMultiplier: [1, 1.5, 2, 2.6],

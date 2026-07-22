@@ -10,7 +10,7 @@
  * via ctx.drawImage(imagem, ...). Deixei comentado onde plugar.
  * ===================================================================== */
 
-import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
+import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { GAME_CONFIG } from "./config.js";
@@ -79,18 +79,14 @@ export function initMinigame() {
   async function gameOver() {
     dead = true;
     running = false;
-    const rec = getRecord("flappy");
-    const novo = score > rec && score > 0;
-    setOverlay(novo ? `🏆 NOVO RECORDE: ${score}!` : `Você fez ${score}`,
-               "Toque para jogar de novo");
+    setOverlay(`Você fez ${score}`, "Toque para jogar de novo");
     if (score > 0) {
-      const r = await rewardGame(getActiveBaby(), "flappy", score);  // paga POR TUBO
-      await saveRecord("flappy", score);
+      const r = await rewardGame(getActiveBaby(), "flappy", score);  // por tubo + recorde
       registerCare();
       setOverlay(
-        novo ? `🏆 NOVO RECORDE: ${score}!` : `Você fez ${score}`,
+        r.record ? `🏆 NOVO RECORDE: ${score}!` : `Você fez ${score}`,
         r.factor === 0 ? "Esta criança se cansou — troque de bebê ou volte depois"
-                       : `+${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""} · toque p/ jogar`
+                       : `+${r.coins} 🪙  +${r.xp} XP${r.record ? " (com bônus de recorde!)" : r.factor < 1 ? " (cansado)" : ""} · toque p/ jogar`
       );
     }
   }

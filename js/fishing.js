@@ -6,7 +6,7 @@
  * o peixe escapa. Cada peixe fisgado vale pontos (peixe raro vale mais).
  * ===================================================================== */
 
-import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
+import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { getWeather } from "./weather.js";
@@ -100,10 +100,7 @@ export function initFishing() {
   }
 
   function perdeuFisgada() {
-    estado = "escapou";
-    msg.textContent = `${peixe.emoji} soltou a isca… (demorou a fisgar)`;
-    document.getElementById("fish-next").hidden = false;
-    document.getElementById("fish-stop").hidden = false;
+    encerrar("Soltou a isca… (demorou a fisgar) A pescaria acabou.");
   }
 
   function update(dt) {
@@ -145,11 +142,9 @@ export function initFishing() {
     document.getElementById("fish-stop").hidden = false;
   }
 
+  /* Perdeu o peixe = FIM da pescaria (leva o que já tinha pescado). */
   function escapou() {
-    estado = "escapou";
-    msg.textContent = `${peixe.emoji} escapou…`;
-    document.getElementById("fish-next").hidden = false;
-    document.getElementById("fish-stop").hidden = false;
+    encerrar(`${peixe.emoji} escapou… a pescaria acabou.`);
   }
 
   function draw() {
@@ -227,25 +222,26 @@ export function initFishing() {
     lancar();
   };
 
-  document.getElementById("fish-stop").onclick = async () => {
+  async function encerrar(motivo) {
+    estado = "fim";
     document.getElementById("fish-next").hidden = true;
     document.getElementById("fish-stop").hidden = true;
-    estado = "fim";
+
     if (total > 0) {
-      const rec = getRecord("fishing");
       const r = await rewardGame(getActiveBaby(), "fishing", total);
-      await saveRecord("fishing", total);
       registerCare();
-      msg.textContent = r.factor === 0
-        ? `Pescaria encerrada (${total} pts) — a criança se cansou.`
-        : `${total > rec ? "🏆 NOVO RECORDE! " : ""}${total} pts · +${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`;
+      msg.textContent = `${motivo} ` + (r.factor === 0
+        ? `(${total} pts — a criança se cansou.)`
+        : `${r.record ? "🏆 NOVO RECORDE! " : ""}${total} pts · +${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`);
     } else {
-      msg.textContent = "Nenhum peixe desta vez.";
+      msg.textContent = `${motivo} Nenhum peixe desta vez.`;
     }
     info.textContent = "Toque em “Jogar a linha” para recomeçar.";
     total = 0;
     document.getElementById("fish-cast").hidden = false;
-  };
+  }
+
+  document.getElementById("fish-stop").onclick = () => encerrar("Pescaria guardada.");
 
   document.getElementById("fish-cast").onclick = () => {
     document.getElementById("fish-cast").hidden = true;

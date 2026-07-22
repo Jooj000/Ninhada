@@ -137,6 +137,15 @@
       <button class="hub-card" data-goto="screen-2048" data-min-phase="toddler">
         <span class="hub-emoji">🔢</span><span class="hub-name">2048</span>
       </button>
+      <button class="hub-card" data-goto="screen-match3" data-min-phase="crawling">
+        <span class="hub-emoji">🍬</span><span class="hub-name">Match 3</span>
+      </button>
+      <button class="hub-card" data-goto="screen-starpopper" data-min-phase="newborn">
+        <span class="hub-emoji">⭐</span><span class="hub-name">Star Popper</span>
+      </button>
+      <button class="hub-card" data-goto="screen-skyjump" data-min-phase="crawling">
+        <span class="hub-emoji">☁️</span><span class="hub-name">Sky Jump</span>
+      </button>
       <!-- Novos minigames entram como cards aqui, com data-min-phase. -->
     </div>
   </section>
@@ -313,6 +322,45 @@
     <p id="g2048-msg" class="cook-msg"></p>
     <button id="g2048-new" class="cook-btn">Novo jogo</button>
     <p class="hint">Deslize (ou use as setas) para juntar as peças.</p>
+  </section>
+
+  <!-- ---- sub-tela: Star Popper ---- -->
+  <section id="screen-starpopper" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Star Popper</h1>
+    </header>
+    <div class="mini-wrap">
+      <canvas id="sp-canvas"></canvas>
+      <div id="sp-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
+    </div>
+    <p class="hint">Estrelas menores valem mais. Não estoure as bombas!</p>
+  </section>
+
+  <!-- ---- sub-tela: Sky Jump ---- -->
+  <section id="screen-skyjump" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Sky Jump</h1>
+    </header>
+    <div class="mini-wrap">
+      <canvas id="sj-canvas"></canvas>
+      <div id="sj-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
+    </div>
+    <p class="hint">Arraste para os lados. As plataformas rosas quebram!</p>
+  </section>
+
+  <!-- ---- sub-tela: Match 3 ---- -->
+  <section id="screen-match3" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Match 3</h1>
+    </header>
+    <p id="m3-hud" class="hint"></p>
+    <div id="m3-grid" class="m3-grid"></div>
+    <p id="m3-msg" class="cook-msg"></p>
+    <button id="m3-new" class="cook-btn" hidden>Jogar de novo</button>
+    <p class="hint">Toque em duas peças vizinhas para trocar. Faça 3 ou mais!</p>
   </section>
 
   <!-- ---- sub-tela: Dever de Casa ---- -->

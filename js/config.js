@@ -50,6 +50,7 @@ export const GAME_CONFIG = {
 
   startingCoins:       BALANCE.economy.startingCoins,
   adoptCost:           BALANCE.economy.adoptCost,
+  recordBonus:         BALANCE.economy.recordBonus,
 
   fatigueFull:         BALANCE.fatigue.full,
   fatigueTaper:        BALANCE.fatigue.taper,

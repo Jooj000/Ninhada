@@ -118,9 +118,9 @@ export function addFun(babyId, amount, xp = GAME_CONFIG.xpPerAction) {
 /* Recompensa de minigame: paga pela PONTUAÇÃO (não por jogar), com
  * multiplicador de faixa etária e desconto de fadiga. Devolve o que
  * foi realmente pago, para a tela mostrar. */
-export function rewardGame(babyId, gameId, points) {
+export function rewardGame(babyId, gameId, points, score = null) {
   const cfg = MINIGAMES[gameId] || {};
-  const out = { coins: 0, xp: 0, factor: 1 };
+  const out = { coins: 0, xp: 0, factor: 1, record: false };
   if (!babyId || !(points > 0)) return Promise.resolve(out);
 
   return runTransaction(roomRef, (room) => {
@@ -132,8 +132,20 @@ export function rewardGame(babyId, gameId, points) {
 
     const { factor, fatigue } = nextFatigue(s, `game_${gameId}`, now, cfg.hard ? (GAME_CONFIG.hardFloor ?? 0.2) : 0);
     const mult = tierMultiplier(cfg.minPhase);
-    const coins = Math.round(points * (cfg.coinsPerPoint || 0) * mult * factor);
-    const xp    = Math.round(points * (cfg.xpPerPoint    || 0) * mult * factor);
+    let coins = Math.round(points * (cfg.coinsPerPoint || 0) * mult * factor);
+    let xp    = Math.round(points * (cfg.xpPerPoint    || 0) * mult * factor);
+
+    // RECORDE: guarda o melhor e paga o bônus (não sofre fadiga).
+    const marca = score === null ? points : score;
+    const rec = (room.records && room.records[gameId]) || 0;
+    const bateu = marca > rec;
+    if (bateu) {
+      room.records = room.records || {};
+      room.records[gameId] = marca;
+      const b = GAME_CONFIG.recordBonus || { coins: 20, xp: 40 };
+      coins += b.coins; xp += b.xp;
+    }
+    out.record = bateu;
 
     s.fatigue = fatigue;
     s.xp = (s.xp ?? 0) + xp;

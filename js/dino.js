@@ -9,7 +9,7 @@
  * dá pra usar ctx.drawImage com um .png da artista. Deixei marcado.
  * ===================================================================== */
 
-import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
+import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { GAME_CONFIG } from "./config.js";
@@ -97,13 +97,12 @@ export function initDino() {
     const novo = s > rec && s > 0;
     setOverlay(novo ? `🏆 NOVO RECORDE: ${s}!` : `Você fez ${s}`, "Toque para jogar de novo");
     if (s > 0) {
-      const r = await rewardGame(getActiveBaby(), "dino", s);   // paga POR DISTÂNCIA
-      await saveRecord("dino", s);
+      const r = await rewardGame(getActiveBaby(), "dino", s);   // paga POR DISTÂNCIA + recorde
       registerCare();
       setOverlay(
-        novo ? `🏆 NOVO RECORDE: ${s}!` : `Você fez ${s}`,
+        r.record ? `🏆 NOVO RECORDE: ${s}!` : `Você fez ${s}`,
         r.factor === 0 ? "Esta criança se cansou — troque de bebê ou volte depois"
-                       : `+${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""} · toque p/ jogar`
+                       : `+${r.coins} 🪙  +${r.xp} XP${r.record ? " (com bônus de recorde!)" : r.factor < 1 ? " (cansado)" : ""} · toque p/ jogar`
       );
     }
   }

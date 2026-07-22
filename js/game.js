@@ -36,6 +36,9 @@ import { initFishing } from "./fishing.js";
 import { init2048 } from "./game2048.js";
 import { initMemory, initColorMatch } from "./arcade.js";
 import { initFoodDrop } from "./fooddrop.js";
+import { initMatch3 } from "./match3.js";
+import { initStarPopper } from "./starpopper.js";
+import { initSkyJump } from "./skyjump.js";
 
 /* Onde cada botão de cuidado leva (o status é cuidado no cômodo). */
 const ACTION_SCREEN = {
@@ -360,6 +363,9 @@ async function main() {
   initMemory();
   initColorMatch();
   initFoodDrop();
+  initMatch3();
+  initStarPopper();
+  initSkyJump();
   tick();
 
   setInterval(() => { if (room) syncDecay(); }, 60_000);

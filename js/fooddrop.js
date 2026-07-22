@@ -5,7 +5,7 @@
  * pegar coisa ruim (🌶️/🦴) custa uma vida. Acelera com o tempo.
  * ===================================================================== */
 
-import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
+import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 
@@ -70,11 +70,10 @@ export function initFoodDrop() {
     const rec = getRecord("fooddrop");
     if (pontos > 0) {
       const r = await rewardGame(getActiveBaby(), "fooddrop", pontos);
-      await saveRecord("fooddrop", pontos);
       registerCare();
-      setOverlay(pontos > rec ? `🏆 NOVO RECORDE: ${pontos}!` : `Você pegou ${pontos}`,
+      setOverlay(r.record ? `🏆 NOVO RECORDE: ${pontos}!` : `Você pegou ${pontos}`,
         r.factor === 0 ? "A criança se cansou — toque p/ jogar"
-                       : `+${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""} · toque p/ jogar`);
+                       : `+${r.coins} 🪙  +${r.xp} XP${r.record ? " (com bônus!)" : r.factor < 1 ? " (cansado)" : ""} · toque p/ jogar`);
     } else setOverlay("Fim!", "Toque para tentar de novo");
   }
 

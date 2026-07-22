@@ -7,7 +7,7 @@
  * difíceis conforme você acerta.
  * ===================================================================== */
 
-import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
+import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { GAME_CONFIG, BALANCE } from "./config.js";
@@ -251,13 +251,11 @@ export function initHomework() {
     btnStart.textContent = "Fazer outro dever";
 
     if (pontos > 0) {
-      const rec = getRecord("homework");
       const r = await rewardGame(getActiveBaby(), "homework", pontos);
-      await saveRecord("homework", pontos);
       registerCare();
       elMsg.textContent = r.factor === 0
         ? "A criança se cansou de estudar — sem recompensa agora."
-        : `${pontos > rec ? "🏆 NOVO RECORDE! " : ""}+${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`;
+        : `${r.record ? "🏆 NOVO RECORDE! " : ""}+${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`;
     } else {
       elMsg.textContent = "Nenhum acerto desta vez.";
     }

@@ -1,15 +1,20 @@
 /* =====================================================================
- * game2048.js — 2048
+ * game2048.js — 2048 (com animação)
  * ---------------------------------------------------------------------
- * Deslize (ou setas) para juntar peças iguais. Pontos = placar / 50.
- * Recorde compartilhado entre os dois jogadores.
+ * Cada peça tem IDENTIDADE própria e é posicionada de forma absoluta, e
+ * a troca de posição é animada por `transform` (CSS transition). Assim:
+ *   - peça que anda .... desliza até o lugar novo
+ *   - peça que junta ... a que sobra dá uma "pulsada"
+ *   - peça que nasce ... aparece crescendo
  * ===================================================================== */
 
-import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
+import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 
 const N = 4;
+const ANIM = 130;   // ms do deslize (bate com o CSS)
+
 const CORES = {
   2: ["#F1ECF7", "#4A3F55"], 4: ["#E6DCF0", "#4A3F55"], 8: ["#F7C7D8", "#4A3F55"],
   16: ["#F5A9C4", "#fff"], 32: ["#E888AE", "#fff"], 64: ["#B57BA6", "#fff"],
@@ -18,71 +23,113 @@ const CORES = {
 };
 
 export function init2048() {
-  const grid = document.getElementById("g2048-grid");
-  if (!grid) return;
+  const palco = document.getElementById("g2048-grid");
+  if (!palco) return;
 
-  let board, score, over, won;
+  let pecas, score, over, won, travado, proximoId;
   const elScore = document.getElementById("g2048-score");
   const elMsg = document.getElementById("g2048-msg");
   const btn = document.getElementById("g2048-new");
 
-  const vazio = () => Array.from({ length: N }, () => Array(N).fill(0));
+  /* ---- helpers ---- */
+  const ocupada = (r, c) => pecas.find((p) => p.r === r && p.c === c && !p.morre);
 
-  function novaPeca() {
+  function nascer() {
     const livres = [];
-    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (!board[r][c]) livres.push([r, c]);
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (!ocupada(r, c)) livres.push([r, c]);
     if (!livres.length) return;
     const [r, c] = livres[Math.floor(Math.random() * livres.length)];
-    board[r][c] = Math.random() < 0.9 ? 2 : 4;
+    pecas.push({ id: proximoId++, v: Math.random() < 0.9 ? 2 : 4, r, c, nova: true });
   }
 
   function reiniciar() {
-    board = vazio(); score = 0; over = false; won = false;
-    novaPeca(); novaPeca();
+    pecas = []; score = 0; over = false; won = false; travado = false; proximoId = 1;
+    nascer(); nascer();
     elMsg.textContent = "";
+    montarFundo();
     desenhar();
   }
 
-  /* Move e junta uma linha para a ESQUERDA. Devolve [nova, ganho, mudou] */
-  function comprime(linha) {
-    const v = linha.filter((x) => x);
-    let ganho = 0;
-    for (let i = 0; i < v.length - 1; i++) {
-      if (v[i] === v[i + 1]) { v[i] *= 2; ganho += v[i]; v.splice(i + 1, 1); }
-    }
-    while (v.length < N) v.push(0);
-    return [v, ganho, v.join() !== linha.join()];
+  /* Fundo fixo com as 16 casinhas (só decorativo). */
+  function montarFundo() {
+    palco.innerHTML = "";
+    const fundo = document.createElement("div");
+    fundo.className = "g2048-bg";
+    for (let i = 0; i < N * N; i++) fundo.appendChild(document.createElement("div"));
+    palco.appendChild(fundo);
+    const camada = document.createElement("div");
+    camada.className = "g2048-tiles";
+    camada.id = "g2048-tiles";
+    palco.appendChild(camada);
   }
 
-  const girar = (b) => b[0].map((_, i) => b.map((row) => row[i]).reverse());   // 90° horário
-
+  /* ---- movimento ---- */
   function mover(dir) {
-    if (over) return;
-    let b = board.map((r) => [...r]);
-    const voltas = { left: 0, down: 1, right: 2, up: 3 }[dir];
-    for (let i = 0; i < voltas; i++) b = girar(b);
+    if (over || travado) return;
+
+    // vetores de varredura: começamos pelo lado do movimento
+    const dr = dir === "up" ? -1 : dir === "down" ? 1 : 0;
+    const dc = dir === "left" ? -1 : dir === "right" ? 1 : 0;
+
+    const ordem = [...pecas].sort((a, b) => {
+      if (dr) return dr > 0 ? b.r - a.r : a.r - b.r;
+      return dc > 0 ? b.c - a.c : a.c - b.c;
+    });
+
+    const grade = Array.from({ length: N }, () => Array(N).fill(null));
+    for (const p of pecas) grade[p.r][p.c] = p;
 
     let mudou = false, ganho = 0;
-    b = b.map((linha) => {
-      const [nova, g, m] = comprime(linha);
-      ganho += g; if (m) mudou = true;
-      return nova;
-    });
-    for (let i = 0; i < (4 - voltas) % 4; i++) b = girar(b);
+    for (const p of ordem) p.juntou = false;
+
+    for (const p of ordem) {
+      grade[p.r][p.c] = null;
+      let r = p.r, c = p.c;
+      // avança enquanto a próxima casa estiver livre
+      while (true) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= N || nc < 0 || nc >= N) break;
+        const alvo = grade[nr][nc];
+        if (!alvo) { r = nr; c = nc; continue; }
+        // junta se for igual e nenhuma das duas já juntou nesta jogada
+        if (alvo.v === p.v && !alvo.juntou && !p.juntou) {
+          alvo.v *= 2; alvo.juntou = true; ganho += alvo.v;
+          p.r = nr; p.c = nc; p.morre = true;    // desliza até lá e some
+          mudou = true;
+          break;
+        }
+        break;
+      }
+      if (!p.morre) {
+        if (r !== p.r || c !== p.c) mudou = true;
+        p.r = r; p.c = c;
+        grade[r][c] = p;
+      }
+    }
 
     if (!mudou) return;
-    board = b; score += ganho;
-    novaPeca();
-    if (!won && board.some((r) => r.includes(2048))) { won = true; elMsg.textContent = "🎉 Chegou a 2048!"; }
-    if (semMovimentos()) fim();
-    desenhar();
+
+    score += ganho;
+    travado = true;
+    desenhar();                                   // anima o deslize
+
+    setTimeout(() => {
+      pecas = pecas.filter((p) => !p.morre);      // remove as que juntaram
+      nascer();
+      travado = false;
+      if (!won && pecas.some((p) => p.v === 2048)) { won = true; elMsg.textContent = "🎉 Chegou a 2048!"; }
+      desenhar();
+      if (semMovimentos()) fim();
+    }, ANIM);
   }
 
   function semMovimentos() {
+    if (pecas.length < N * N) return false;
+    const g = Array.from({ length: N }, () => Array(N).fill(0));
+    for (const p of pecas) g[p.r][p.c] = p.v;
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-      if (!board[r][c]) return false;
-      if (c < N - 1 && board[r][c] === board[r][c + 1]) return false;
-      if (r < N - 1 && board[r][c] === board[r + 1][c]) return false;
+      if (c < N - 1 && g[r][c] === g[r][c + 1]) return false;
+      if (r < N - 1 && g[r][c] === g[r + 1][c]) return false;
     }
     return true;
   }
@@ -92,47 +139,69 @@ export function init2048() {
     const pontos = Math.floor(score / 50);
     const rec = getRecord("g2048");
     if (pontos > 0) {
-      const r = await rewardGame(getActiveBaby(), "g2048", pontos);
-      await saveRecord("g2048", score);
+      const r = await rewardGame(getActiveBaby(), "g2048", pontos, score);
       registerCare();
       elMsg.textContent = r.factor === 0
-        ? `Fim! ${score} pts — a criança se cansou.`
-        : `${score > rec ? "🏆 NOVO RECORDE! " : "Fim! "}+${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`;
+        ? "Fim! " + score + " pts — a criança se cansou."
+        : (r.record ? "🏆 NOVO RECORDE! " : "Fim! ") + "+" + r.coins + " 🪙  +" + r.xp + " XP" + (r.factor < 1 ? " (cansado)" : "");
     } else elMsg.textContent = "Fim de jogo!";
   }
 
+  /* ---- desenho: cada peça vira um div posicionado por transform ---- */
   function desenhar() {
-    grid.innerHTML = "";
-    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-      const v = board[r][c];
-      const cel = document.createElement("div");
-      cel.className = "g2048-cel";
-      if (v) {
-        const [bg, fg] = CORES[v] || ["#4A3F55", "#fff"];
-        cel.style.background = bg; cel.style.color = fg;
-        cel.textContent = v;
-        cel.style.fontSize = v >= 1024 ? "1.05rem" : v >= 128 ? "1.25rem" : "1.5rem";
+    const camada = document.getElementById("g2048-tiles");
+    if (!camada) return;
+    const vivos = new Set();
+
+    for (const p of pecas) {
+      vivos.add(String(p.id));
+      let el = camada.querySelector('[data-id="' + p.id + '"]');
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "g2048-tile" + (p.nova ? " nasce" : "");
+        el.dataset.id = p.id;
+        camada.appendChild(el);
+        p.nova = false;
       }
-      grid.appendChild(cel);
+      const [bg, fg] = CORES[p.v] || ["#4A3F55", "#fff"];
+      el.style.background = bg;
+      el.style.color = fg;
+      el.textContent = p.v;
+      el.style.fontSize = p.v >= 1024 ? "1.05rem" : p.v >= 128 ? "1.25rem" : "1.5rem";
+      // cada passo = largura da peça (100%) + o vão de 8px entre as casas
+      el.style.transform =
+        "translate(calc(" + p.c + " * (100% + 8px)), calc(" + p.r + " * (100% + 8px)))";
+      el.style.zIndex = p.morre ? 1 : 2;
+      if (p.juntou) {
+        el.classList.remove("junta");
+        void el.offsetWidth;                       // reinicia a animação
+        el.classList.add("junta");
+      }
     }
-    elScore.textContent = `${score} · 🏆 ${getRecord("g2048")}`;
+    // some com os elementos de peças que não existem mais
+    camada.querySelectorAll(".g2048-tile").forEach((el) => {
+      if (!vivos.has(el.dataset.id)) el.remove();
+    });
+
+    elScore.textContent = score + " · 🏆 " + getRecord("g2048");
   }
 
-  /* controles: teclado + deslizar */
+  /* ---- controles ---- */
   window.addEventListener("keydown", (e) => {
-    if (!document.getElementById("screen-2048").classList.contains("active")) return;
+    const tela = document.getElementById("screen-2048");
+    if (!tela || !tela.classList.contains("active")) return;
     const m = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" }[e.key];
     if (m) { e.preventDefault(); mover(m); }
   });
 
   let sx = 0, sy = 0;
-  grid.addEventListener("pointerdown", (e) => { sx = e.clientX; sy = e.clientY; });
-  grid.addEventListener("pointerup", (e) => {
+  palco.addEventListener("pointerdown", (e) => { sx = e.clientX; sy = e.clientY; });
+  palco.addEventListener("pointerup", (e) => {
     const dx = e.clientX - sx, dy = e.clientY - sy;
     if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return;
     mover(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
   });
-  grid.style.touchAction = "none";
+  palco.style.touchAction = "none";
 
   btn.onclick = reiniciar;
   reiniciar();

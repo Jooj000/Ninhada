@@ -635,15 +635,29 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* ============ 2048 ============ */
 .g2048-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
-  background: #DED5E6; padding: 8px; border-radius: 16px; box-shadow: var(--shadow);
+  position: relative; aspect-ratio: 1/1; padding: 8px;
+  background: #DED5E6; border-radius: 16px; box-shadow: var(--shadow);
   touch-action: none; user-select: none;
 }
-.g2048-cel {
-  aspect-ratio: 1/1; border-radius: 10px; background: #EFE9F4;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 1.5rem; transition: background .1s;
+.g2048-bg {
+  position: absolute; inset: 8px; display: grid;
+  grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 8px;
 }
+.g2048-bg div { border-radius: 10px; background: #EFE9F4; }
+.g2048-tiles { position: absolute; inset: 8px; }
+.g2048-tile {
+  position: absolute; top: 0; left: 0;
+  width: calc((100% - 24px) / 4); height: calc((100% - 24px) / 4);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-weight: 800;
+  /* o deslize: a peça anda de uma casa à outra */
+  transition: transform .13s ease-out;
+  will-change: transform;
+}
+.g2048-tile.nasce { animation: tileNasce .16s ease-out; }
+.g2048-tile.junta { animation: tileJunta .18s ease-out; }
+@keyframes tileNasce { from { opacity: 0; } }
+@keyframes tileJunta { 50% { filter: brightness(1.25); } }
 
 /* ============ MEMÓRIA ============ */
 .mem-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -669,6 +683,29 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* ============ FOOD DROP ============ */
 #fd-canvas {
+  width: 100%; height: auto; display: block;
+  border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none;
+}
+
+/* ============ MATCH 3 ============ */
+.m3-grid {
+  display: grid; gap: 5px; padding: 8px;
+  background: #EFE3EE; border-radius: 16px; box-shadow: var(--shadow);
+}
+.m3-cel {
+  aspect-ratio: 1/1; border: 0; border-radius: 10px; cursor: pointer;
+  background: var(--surface); font-size: 1.35rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .12s, box-shadow .12s;
+}
+.m3-cel.sel { box-shadow: 0 0 0 3px var(--accent); transform: scale(1.08); }
+.m3-cel.pop { animation: m3pop .26s ease-out forwards; }
+@keyframes m3pop { to { transform: scale(0); opacity: 0; } }
+.m3-cel.shake { animation: m3shake .3s ease-in-out; }
+@keyframes m3shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+/* ============ STAR POPPER / SKY JUMP ============ */
+#sp-canvas, #sj-canvas {
   width: 100%; height: auto; display: block;
   border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none;
 }

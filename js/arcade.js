@@ -6,7 +6,7 @@
  *   no botão da COR DA TINTA (não da palavra) antes do tempo acabar.
  * ===================================================================== */
 
-import { rewardGame, saveRecord, getRecord } from "./firebase-sync.js";
+import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 
@@ -71,13 +71,11 @@ export function initMemory() {
     rodando = false;
     // 8 pares no mínimo em 8 jogadas: quanto menos jogadas, mais pontos
     const pontos = Math.max(4, 30 - Math.max(0, jogadas - 8));
-    const rec = getRecord("memory");
     const r = await rewardGame(getActiveBaby(), "memory", pontos);
-    await saveRecord("memory", pontos);
     registerCare();
     elMsg.textContent = r.factor === 0
       ? `Completou em ${jogadas} jogadas — a criança se cansou.`
-      : `${pontos > rec ? "🏆 NOVO RECORDE! " : ""}${jogadas} jogadas · +${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`;
+      : `${r.record ? "🏆 NOVO RECORDE! " : ""}${jogadas} jogadas · +${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`;
   }
 
   btn.onclick = começar;
@@ -159,13 +157,11 @@ export function initColorMatch() {
     elOps.innerHTML = ""; palco.textContent = "Fim!"; palco.style.color = "var(--ink)";
     btn.hidden = false;
     if (pontos > 0) {
-      const rec = getRecord("colormatch");
       const r = await rewardGame(getActiveBaby(), "colormatch", pontos);
-      await saveRecord("colormatch", pontos);
       registerCare();
       elMsg.textContent = r.factor === 0
         ? `${pontos} pts — a criança se cansou.`
-        : `${pontos > rec ? "🏆 NOVO RECORDE! " : ""}${pontos} pts · +${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`;
+        : `${r.record ? "🏆 NOVO RECORDE! " : ""}${pontos} pts · +${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`;
     } else elMsg.textContent = "Nenhum ponto desta vez.";
   }
 
