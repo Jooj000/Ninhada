@@ -379,6 +379,34 @@ export function removePushSubscription(playerId) {
   return remove(ref(db, `rooms/${ROOM_ID}/pushSubs/${playerId}`));
 }
 
+/* ------------------------------------------------------------------
+ * ÁLBUM DE FOTOS — rooms/{room}/photos
+ * Guardamos a imagem como data URL (JPEG pequeno) no próprio Realtime
+ * Database. Motivo: o Firebase Storage passou a exigir plano pago em
+ * projetos novos, e o RTDB grátis (1 GB) comporta centenas de fotos
+ * desse tamanho (~40-60 KB cada).
+ * ---------------------------------------------------------------- */
+function photosRef() { return ref(db, `rooms/${ROOM_ID}/photos`); }
+
+export function savePhoto(photo) {
+  return push(photosRef(), photo);
+}
+
+export function onPhotosChange(callback, max = 60) {
+  const q = query(photosRef(), limitToLast(max));
+  onValue(q, (snap) => {
+    const val = snap.val() || {};
+    const list = Object.entries(val)
+      .map(([id, p]) => ({ id, ...p }))
+      .sort((a, b) => b.at - a.at);        // mais recente primeiro
+    callback(list);
+  });
+}
+
+export function deletePhoto(id) {
+  return remove(ref(db, `rooms/${ROOM_ID}/photos/${id}`));
+}
+
 /* Apaga um recado específico pelo id. */
 export function deleteMessage(id) {
   return remove(ref(db, `rooms/${ROOM_ID}/board/${id}`));

@@ -548,3 +548,70 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   color: var(--ink); cursor: pointer; user-select: none; touch-action: none;
 }
 .duck-btn:active { background: var(--accent); color: #fff; }
+
+/* ============ ÁLBUM DE FOTOS ============ */
+.photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.photo-card {
+  position: relative; margin: 0; background: var(--surface); border-radius: 16px;
+  box-shadow: var(--shadow); overflow: hidden; padding-bottom: 4px;
+}
+.photo-card.milestone { box-shadow: 0 0 0 3px #FFD36B, var(--shadow); }
+.photo-card img { width: 100%; display: block; aspect-ratio: 1/1; object-fit: cover; }
+.photo-card figcaption {
+  font-size: .72rem; font-weight: 600; color: var(--ink-soft);
+  padding: 6px 8px; text-align: center;
+}
+.photo-del, .photo-dl {
+  position: absolute; top: 6px; border: 0; cursor: pointer;
+  width: 26px; height: 26px; border-radius: 50%; font-size: .8rem; line-height: 26px;
+  background: rgba(255,255,255,.85); color: var(--ink); text-align: center;
+  text-decoration: none; box-shadow: 0 2px 6px rgba(0,0,0,.15);
+}
+.photo-del { right: 6px; }
+.photo-del:hover { background: var(--warn); color: #fff; }
+.photo-dl { left: 6px; }
+
+/* flash da câmera */
+.camera-flash {
+  position: fixed; inset: 0; background: #fff; z-index: 90; pointer-events: none;
+  animation: flashOut .4s ease-out forwards;
+}
+@keyframes flashOut { from { opacity: .85; } to { opacity: 0; } }
+
+/* nav com 5 itens */
+.bottom-nav { grid-template-columns: repeat(5, 1fr); }
+.bottom-nav button { font-size: 1.15rem; }
+.bottom-nav button span { font-size: .62rem; }
+
+/* ============ CIRCUITO: componentes novos ============ */
+.res-lead   { stroke: #B7A98A; stroke-width: 4; }
+.resistor   { fill: #E8DCC0; stroke: #A8956E; stroke-width: 2; }
+.comp-label { fill: #4A3F55; font-weight: 700; font-size: 13px; pointer-events: none; }
+.sw-base    { stroke: #B7A98A; stroke-width: 4; }
+.sw-body    { fill: #D8CEDF; stroke: #A899B4; stroke-width: 2; }
+.sw.on .sw-body { fill: var(--good); stroke: #5FA37E; }
+.sw-knob    { fill: #fff; stroke: #A899B4; stroke-width: 1.5; }
+
+/* ============ DEVER DE CASA ============ */
+.hw-panel { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+.hw-hud { display: flex; justify-content: space-between; font-weight: 700; font-size: .85rem; color: var(--ink-soft); }
+.hw-subject { text-align: center; font-weight: 700; color: var(--primary-d); margin: 12px 0 4px; }
+.hw-question { text-align: center; font-size: 1.4rem; font-weight: 700; margin: 4px 0 16px; min-height: 2.4em; }
+.hw-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.hw-op {
+  border: 0; border-radius: 14px; padding: 16px 8px; font: inherit; font-weight: 700; font-size: 1.05rem;
+  background: #F1ECF7; color: var(--ink); cursor: pointer;
+}
+.hw-op:active { transform: scale(.96); }
+.hw-op.ok  { background: var(--good); color: #fff; }
+.hw-op.bad { background: var(--warn); color: #fff; }
+.hw-msg { text-align: center; font-weight: 600; min-height: 1.3em; margin: 12px 0; color: var(--primary-d); }
+
+/* ============ PESCARIA ============ */
+.fish-wrap { display: flex; justify-content: center; }
+#fish-canvas {
+  width: 190px; max-width: 60%; height: auto; display: block;
+  border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none;
+}
+.fish-btns { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.fish-btns button { width: 100%; max-width: 280px; }

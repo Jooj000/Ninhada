@@ -42,6 +42,7 @@
     <div class="room-controls">
       <select id="home-baby-select"></select>
       <button id="view-toggle" class="view-toggle" title="Ver todos no cômodo">👥</button>
+      <button id="photo-btn" class="view-toggle" title="Tirar foto">📸</button>
     </div>
 
     <!-- Modo "ver um": um card completo do bebê selecionado -->
@@ -118,6 +119,12 @@
       <button class="hub-card" data-goto="screen-dino" data-min-phase="crawling">
         <span class="hub-emoji">🦖</span><span class="hub-name">Dino Corrida</span>
       </button>
+      <button class="hub-card" data-goto="screen-homework" data-min-phase="toddler">
+        <span class="hub-emoji">📓</span><span class="hub-name">Dever de Casa</span>
+      </button>
+      <button class="hub-card" data-goto="screen-fishing" data-min-phase="crawling">
+        <span class="hub-emoji">🎣</span><span class="hub-name">Pescaria</span>
+      </button>
       <!-- Novos minigames entram como cards aqui, com data-min-phase. -->
     </div>
   </section>
@@ -160,6 +167,7 @@
     <header class="topbar">
       <button class="back-btn" data-goto="screen-arcade">←</button>
       <h1 class="screen-title">Feira de Ciências</h1>
+      <span id="circuit-level" class="arcade-active"></span>
     </header>
     <div id="circuit-root" class="circuit-wrap"></div>
     <p id="circuit-status" class="hint"></p>
@@ -244,11 +252,52 @@
     <p id="sleep-hint" class="touch-hint">Apague a luz para o bebê dormir.</p>
   </section>
 
+  <!-- ---- sub-tela: Dever de Casa ---- -->
+  <section id="screen-homework" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Dever de Casa</h1>
+    </header>
+    <div id="hw-root" class="hw-panel">
+      <div class="hw-hud"><span id="hw-lives">❤️❤️❤️</span><span id="hw-score"></span></div>
+      <p id="hw-subject" class="hw-subject"></p>
+      <p id="hw-question" class="hw-question"></p>
+      <div id="hw-options" class="hw-options"></div>
+      <p id="hw-msg" class="hw-msg"></p>
+      <button id="hw-start" class="cook-btn">Começar o dever</button>
+    </div>
+  </section>
+
+  <!-- ---- sub-tela: Pescaria ---- -->
+  <section id="screen-fishing" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Pescaria</h1>
+    </header>
+    <div class="fish-wrap">
+      <canvas id="fish-canvas"></canvas>
+    </div>
+    <p id="fish-info" class="hint"></p>
+    <p id="fish-msg" class="cook-msg"></p>
+    <div class="fish-btns">
+      <button id="fish-cast" class="cook-btn">🎣 Jogar a linha</button>
+      <button id="fish-next" class="cook-btn" hidden>Próximo peixe</button>
+      <button id="fish-stop" class="ghost-btn" hidden>Guardar a pescaria</button>
+    </div>
+  </section>
+
+  <!-- ============ TELA: ÁLBUM DE FOTOS ============ -->
+  <section id="screen-album" class="screen">
+    <header class="topbar"><h1 class="screen-title">Álbum</h1></header>
+    <div id="photo-grid" class="photo-grid"></div>
+  </section>
+
   <!-- ============ NAVEGAÇÃO INFERIOR ============ -->
   <nav class="bottom-nav">
     <button data-goto="screen-home">🍼<span>Cuidar</span></button>
     <button data-goto="screen-arcade">🎮<span>Jogar</span></button>
     <button data-goto="screen-board">📝<span>Recados</span></button>
+    <button data-goto="screen-album">📷<span>Álbum</span></button>
     <button data-goto="screen-shop">🛍️<span>Loja</span></button>
   </nav>
 

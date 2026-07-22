@@ -218,12 +218,18 @@ todos no mesmo retângulo. (O minigame já usa Canvas, então você tem os dois 
 | Itens da loja e preços | `assets-map.js` → `SHOP_ITEMS` | |
 | Adicionar roupa/chapéu novo | `assets-map.js` (`ASSETS` + `SHOP_ITEMS`) + png na pasta | |
 
+### Minigames prontos
+| Jogo | Libera em | Paga por |
+|------|-----------|----------|
+| Flappy Bebê | Recém-nascido | tubo passado |
+| Dino Corrida | Engatinhando | distância |
+| Pescaria | Engatinhando | peixe (raro vale mais) |
+| Feira de Ciências | Criança | circuito completo (5 níveis) |
+| Dever de Casa | Criança | acerto |
+
 ### Minigames pendentes (fila combinada)
-- **Feira de Ciências**: circuitos variados e mais complexos (vários layouts, série/paralelo,
-  resistores) pagando por circuito completo — a base de pagamento por circuito já está pronta.
-- **Dever de Casa**: intercala matérias aleatórias (contas, português, lógica).
-- **Pescaria** estilo Stardew Valley (barra de tensão + peixe fugindo).
 - Pack arcade do Pou: 2048, Memory, Color Match, Star Popper, Food Drop, Sky Jump…
+- Microfone estilo Talking Tom (grava e repete com voz fina).
 - Piano/ritmo + parser de arquivos `.osu` (último da fila).
 
 ### Ideias de próximos passos

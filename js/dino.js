@@ -26,6 +26,7 @@ export function initDino() {
   const JUMP = -11.5;
 
   let dino, obstacles, speed, dist, running, dead, ducking, raf = 0, spawnIn = 0;
+  let lastT = 0;   // p/ delta-time: o jogo roda igual em 60Hz, 90Hz ou 120Hz
 
   function reset() {
     dino = { x: 60, y: GROUND, vy: 0, w: 30, h: 40, onGround: true };
@@ -61,25 +62,26 @@ export function initDino() {
     spawnIn = Math.max(45, 95 - speed * 3) + Math.random() * 45;
   }
 
-  function update() {
+  function update(dt) {
     if (!running || dead) return;
 
-    dist += speed;
+    dist += speed * dt;
     speed = 6 + dist / 2600;                 // acelera devagar
 
-    // física do dino
-    dino.vy += GRAVITY;
-    dino.y += dino.vy;
+    // física do dino (dt = 1 significa "um frame de 60Hz")
+    dino.vy += GRAVITY * dt;
+    dino.y += dino.vy * dt;
     if (dino.y >= GROUND) { dino.y = GROUND; dino.vy = 0; dino.onGround = true; }
 
     const dh = ducking && dino.onGround ? 22 : dino.h;   // altura ao abaixar
     const dw = ducking && dino.onGround ? 44 : dino.w;
 
-    if (--spawnIn <= 0) spawn();
+    spawnIn -= dt;
+    if (spawnIn <= 0) spawn();
 
     for (const o of obstacles) {
-      o.x -= speed;
-      if (o.bird) o.flap += 0.2;
+      o.x -= speed * dt;
+      if (o.bird) o.flap += 0.2 * dt;
       // colisão AABB
       const dx = dino.x, dy = dino.y - dh;
       if (dx < o.x + o.w && dx + dw > o.x && dy < o.y + o.h && dy + dh > o.y) return gameOver();
@@ -170,7 +172,15 @@ export function initDino() {
     ctx.fillText(`🏆 ${getRecord("dino")}`, W - 14, 46);
   }
 
-  function loop() { update(); draw(); raf = requestAnimationFrame(loop); }
+  function loop(t) {
+    // dt normalizado: 1 = um frame de 60Hz. Limitado a 3 para não "teleportar"
+    // se a aba ficar parada (evita atravessar obstáculo ao voltar).
+    const dt = lastT ? Math.min(3, ((t - lastT) / 1000) * 60) : 1;
+    lastT = t;
+    update(dt);
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
 
   function setOverlay(title, sub) {
     const ov = document.getElementById("dino-overlay");
@@ -204,5 +214,5 @@ export function initDino() {
   });
 
   reset();
-  loop();
+  requestAnimationFrame(loop);
 }

@@ -119,8 +119,14 @@ export const WEATHER = {
  * `hard: true` = continua pagando um pouquinho mesmo com fadiga alta. */
 export const MINIGAMES = {
   flappy:  { minPhase: "newborn",  coinsPerPoint: 1,    xpPerPoint: 2,   hard: false },
-  dino:    { minPhase: "crawling", coinsPerPoint: 0.15, xpPerPoint: 0.3, hard: false },
-  circuit: { minPhase: "toddler",  coinsPerPoint: 12,   xpPerPoint: 15,  hard: true  },
+  // dino: a pontuação é distância, então cresce MUITO rápido (≈1500 em 30s).
+  // Taxas baixas de propósito: ~30 moedas / ~65 XP numa corrida de 30s.
+  dino:    { minPhase: "crawling", coinsPerPoint: 0.013, xpPerPoint: 0.028, hard: false },
+  circuit:  { minPhase: "toddler",  coinsPerPoint: 12,   xpPerPoint: 15,  hard: true  },
+  // dever de casa: 1 ponto por acerto; difícil de emendar muitos acertos
+  homework: { minPhase: "toddler",  coinsPerPoint: 2.5,  xpPerPoint: 6,   hard: true  },
+  // pescaria: pontos variam com a raridade do peixe
+  fishing:  { minPhase: "crawling", coinsPerPoint: 3,    xpPerPoint: 4,   hard: false },
 };
 
 /* Multiplicador por faixa etária do minigame (índice da fase mínima). */

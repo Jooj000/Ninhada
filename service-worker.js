@@ -10,7 +10,7 @@
  *     apagados. Bumpe o número abaixo se quiser forçar limpeza total.
  * ===================================================================== */
 
-const CACHE_VERSION = "bebe-v18";           // troque (v3, v4…) p/ limpar tudo
+const CACHE_VERSION = "bebe-v20";           // troque (v3, v4…) p/ limpar tudo
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -36,6 +36,9 @@ const APP_SHELL = [
   "./js/streak.js",
   "./js/push.js",
   "./js/dino.js",
+  "./js/photos.js",
+  "./js/homework.js",
+  "./js/fishing.js",
   "./js/identity.js",
 ];
 
