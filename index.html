@@ -125,6 +125,18 @@
       <button class="hub-card" data-goto="screen-fishing" data-min-phase="crawling">
         <span class="hub-emoji">🎣</span><span class="hub-name">Pescaria</span>
       </button>
+      <button class="hub-card" data-goto="screen-fooddrop" data-min-phase="newborn">
+        <span class="hub-emoji">🧺</span><span class="hub-name">Food Drop</span>
+      </button>
+      <button class="hub-card" data-goto="screen-memory" data-min-phase="crawling">
+        <span class="hub-emoji">🃏</span><span class="hub-name">Memória</span>
+      </button>
+      <button class="hub-card" data-goto="screen-colormatch" data-min-phase="crawling">
+        <span class="hub-emoji">🎨</span><span class="hub-name">Color Match</span>
+      </button>
+      <button class="hub-card" data-goto="screen-2048" data-min-phase="toddler">
+        <span class="hub-emoji">🔢</span><span class="hub-name">2048</span>
+      </button>
       <!-- Novos minigames entram como cards aqui, com data-min-phase. -->
     </div>
   </section>
@@ -249,6 +261,58 @@
     <button id="soothe-btn" class="soothe-btn" hidden>🤍 Acender a luz e acalmar</button>
     <button id="light-btn" class="light-btn">🌙 Apagar a luz</button>
     <p id="sleep-hint" class="touch-hint">Apague a luz para o bebê dormir.</p>
+  </section>
+
+  <!-- ---- sub-tela: Food Drop ---- -->
+  <section id="screen-fooddrop" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Food Drop</h1>
+    </header>
+    <div class="mini-wrap">
+      <canvas id="fd-canvas"></canvas>
+      <div id="fd-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
+    </div>
+    <p id="fd-msg" class="hint">Arraste a cesta. Cuidado com 🌶️ 🦴 🧦!</p>
+  </section>
+
+  <!-- ---- sub-tela: Memória ---- -->
+  <section id="screen-memory" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Memória</h1>
+    </header>
+    <p id="mem-info" class="hint"></p>
+    <div id="mem-grid" class="mem-grid"></div>
+    <p id="mem-msg" class="cook-msg"></p>
+    <button id="mem-new" class="cook-btn">Novo jogo</button>
+  </section>
+
+  <!-- ---- sub-tela: Color Match ---- -->
+  <section id="screen-colormatch" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Color Match</h1>
+    </header>
+    <p id="cm-hud" class="hint"></p>
+    <div class="cm-timer-bar"><div id="cm-timer" class="cm-timer-fill"></div></div>
+    <p id="cm-word" class="cm-word">Toque na COR DA TINTA</p>
+    <div id="cm-options" class="cm-options"></div>
+    <p id="cm-msg" class="cook-msg"></p>
+    <button id="cm-new" class="cook-btn">Começar</button>
+  </section>
+
+  <!-- ---- sub-tela: 2048 ---- -->
+  <section id="screen-2048" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">2048</h1>
+    </header>
+    <p id="g2048-score" class="hint"></p>
+    <div id="g2048-grid" class="g2048-grid"></div>
+    <p id="g2048-msg" class="cook-msg"></p>
+    <button id="g2048-new" class="cook-btn">Novo jogo</button>
+    <p class="hint">Deslize (ou use as setas) para juntar as peças.</p>
   </section>
 
   <!-- ---- sub-tela: Dever de Casa ---- -->

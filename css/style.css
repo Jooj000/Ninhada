@@ -632,3 +632,43 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   font-size: .72rem; font-weight: 700; color: var(--ink);
 }
 .hw-op:disabled { opacity: .75; cursor: default; }
+
+/* ============ 2048 ============ */
+.g2048-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  background: #DED5E6; padding: 8px; border-radius: 16px; box-shadow: var(--shadow);
+  touch-action: none; user-select: none;
+}
+.g2048-cel {
+  aspect-ratio: 1/1; border-radius: 10px; background: #EFE9F4;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 1.5rem; transition: background .1s;
+}
+
+/* ============ MEMÓRIA ============ */
+.mem-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.mem-card {
+  aspect-ratio: 1/1; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--primary); color: #fff; font-size: 1.6rem; font-weight: 700;
+  box-shadow: var(--shadow); transition: transform .12s, background .15s;
+}
+.mem-card.open { background: var(--surface); }
+.mem-card.done { background: #D9F0E2; opacity: .75; cursor: default; }
+.mem-card:active { transform: scale(.95); }
+
+/* ============ COLOR MATCH ============ */
+.cm-word {
+  text-align: center; font-size: 2.4rem; font-weight: 900; letter-spacing: 1px;
+  margin: 18px 0; min-height: 1.4em;
+}
+.cm-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.cm-op { border: 0; border-radius: 14px; aspect-ratio: 1/1; cursor: pointer; box-shadow: var(--shadow); }
+.cm-op:active { transform: scale(.94); }
+.cm-timer-bar { height: 10px; border-radius: 999px; background: #EAE2F1; overflow: hidden; }
+.cm-timer-fill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--good), var(--accent)); }
+
+/* ============ FOOD DROP ============ */
+#fd-canvas {
+  width: 100%; height: auto; display: block;
+  border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none;
+}

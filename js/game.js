@@ -33,6 +33,9 @@ import { initDino } from "./dino.js";
 import { initPhotos, checkMilestones } from "./photos.js";
 import { initHomework } from "./homework.js";
 import { initFishing } from "./fishing.js";
+import { init2048 } from "./game2048.js";
+import { initMemory, initColorMatch } from "./arcade.js";
+import { initFoodDrop } from "./fooddrop.js";
 
 /* Onde cada botão de cuidado leva (o status é cuidado no cômodo). */
 const ACTION_SCREEN = {
@@ -353,6 +356,10 @@ async function main() {
   initPhotos();
   initHomework();
   initFishing();
+  init2048();
+  initMemory();
+  initColorMatch();
+  initFoodDrop();
   tick();
 
   setInterval(() => { if (room) syncDecay(); }, 60_000);

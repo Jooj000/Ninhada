@@ -81,6 +81,11 @@ export const BALANCE = {
     fishing:  { minPhase: "crawling", coinsPerPoint: 1.5,  xpPerPoint: 2,   hard: false },
     circuit:  { minPhase: "toddler",  coinsPerPoint: 2.5,  xpPerPoint: 3.5, hard: false  },
     homework: { minPhase: "toddler",  coinsPerPoint: 1.25, xpPerPoint: 3,   hard: true  },
+    // ----- pack arcade -----
+    fooddrop:   { minPhase: "newborn",  coinsPerPoint: 0.8,  xpPerPoint: 1.6, hard: false },
+    memory:     { minPhase: "crawling", coinsPerPoint: 0.8,  xpPerPoint: 1.4, hard: false },
+    colormatch: { minPhase: "crawling", coinsPerPoint: 1,    xpPerPoint: 1.8, hard: false },
+    g2048:      { minPhase: "toddler",  coinsPerPoint: 0.4,  xpPerPoint: 0.8, hard: true  },
   },
   // Multiplicador por faixa etária (índice da fase mínima do jogo).
   tierMultiplier: [1, 1.5, 2, 2.6],
