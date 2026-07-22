@@ -1,0 +1,16 @@
+{
+  "//": "COLE ISTO em: Realtime Database -> aba Regras (Rules). Depois publique.",
+  "//2": "Versao SIMPLES para começar (aberta): permite ler/escrever no quarto.",
+  "//3": "Como é um jogo privado só de vocês dois e o app é secreto, dá para",
+  "//4": "usar assim no início. Quando quiser mais segurança, ative Auth Anônima",
+  "//5": "no Firebase e troque por regras com 'auth != null' (ver README).",
+
+  "rules": {
+    "rooms": {
+      "$room": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}

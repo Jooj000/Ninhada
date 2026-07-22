@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>Nosso Bebê</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#B57BA6" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Fonte fofa (com fallback do sistema caso esteja offline) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Banner de pesadelo (aparece quando um bebê acorda chorando) -->
+  <div id="nightmare-banner" class="nightmare-banner" hidden>
+    <span id="nightmare-text"></span>
+    <button id="nightmare-go" class="nightmare-go">Acudir</button>
+  </div>
+
+
+  <!-- ============ TELA: SALA (cômodo principal) ============ -->
+  <section id="screen-home" class="screen active">
+    <header class="topbar">
+      <h1 id="room-title" class="screen-title">Sala</h1>
+      <div class="topbar-right">
+        <button id="push-btn" class="push-btn" title="Ligar notificações">🔕</button>
+        <span id="streak-pill" class="streak-pill" hidden></span>
+        <span id="weather-pill" class="weather-pill" hidden></span>
+        <div class="coins-pill"><span class="coin-ico">🪙</span><span id="coins">0</span></div>
+      </div>
+    </header>
+
+    <div class="room-controls">
+      <select id="home-baby-select"></select>
+      <button id="view-toggle" class="view-toggle" title="Ver todos no cômodo">👥</button>
+    </div>
+
+    <!-- Modo "ver um": um card completo do bebê selecionado -->
+    <div id="single-view"></div>
+
+    <!-- Modo "ver todos": bebês distribuídos pelo cômodo -->
+    <div id="room-view" class="room-view" hidden></div>
+
+    <button id="adopt-btn" class="adopt-btn">➕ Adotar bebê</button>
+  </section>
+
+  <!-- MOLDE de um card de bebê (clonado pelo game.js para cada criança) -->
+  <template id="baby-card-tpl">
+    <div class="baby-card">
+      <div class="baby-head">
+        <span class="baby-name" contenteditable="true" spellcheck="false"></span>
+        <span class="baby-phase"></span>
+      </div>
+
+      <div class="baby-stage" data-mood="happy"></div>
+
+      <p class="mood-text"></p>
+      <p class="touch-hint">Cabeça, corpo e cócegas: toque e deslize pra dar carinho 💛</p>
+
+      <div class="bars">
+        <div class="bar" data-key="hunger"  data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
+        <div class="bar" data-key="sleep"   data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
+        <div class="bar" data-key="hygiene" data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
+        <div class="bar" data-key="fun"     data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
+        <div class="bar" data-key="love"    data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
+      </div>
+
+      <div class="actions">
+        <button class="action-btn" data-action="feed"><span class="btn-icon"></span><span>Alimentar</span></button>
+        <button class="action-btn" data-action="sleep"><span class="btn-icon"></span><span>Ninar</span></button>
+        <button class="action-btn" data-action="clean"><span class="btn-icon"></span><span>Banho</span></button>
+        <button class="action-btn" data-action="play"><span class="btn-icon"></span><span>Brincar</span></button>
+      </div>
+    </div>
+  </template>
+
+  <!-- ============ TELA: LOJA ============ -->
+  <section id="screen-shop" class="screen">
+    <header class="topbar">
+      <h1 class="screen-title">Lojinha</h1>
+      <div class="coins-pill"><span class="coin-ico">🪙</span><span id="coins-shop">0</span></div>
+    </header>
+    <div class="shop-baby-bar">
+      <label for="shop-baby-select">Vestindo:</label>
+      <select id="shop-baby-select"></select>
+    </div>
+    <div class="shop-mode">
+      <button id="mode-loja" class="mode-btn active">🛍️ Loja</button>
+      <button id="mode-guarda" class="mode-btn">👚 Guarda-roupa</button>
+    </div>
+    <div id="shop-tabs" class="shop-tabs"></div>
+    <div id="shop-grid" class="shop-grid"></div>
+  </section>
+
+  <!-- ============ TELA: HUB DE MINIGAMES ============ -->
+  <section id="screen-arcade" class="screen">
+    <header class="topbar">
+      <h1 class="screen-title">Jogar</h1>
+      <span id="arcade-active" class="arcade-active"></span>
+    </header>
+    <p class="hint">A diversão sobe jogando! Cada rodada anima o bebê selecionado.</p>
+    <div class="mini-hub">
+      <button class="hub-card" data-goto="screen-flappy" data-min-phase="newborn">
+        <span class="hub-emoji">🐤</span><span class="hub-name">Flappy Bebê</span>
+      </button>
+      <button class="hub-card" data-goto="screen-circuit" data-min-phase="toddler">
+        <span class="hub-emoji">💡</span><span class="hub-name">Feira de Ciências</span>
+      </button>
+      <!-- Novos minigames entram como cards aqui, com data-min-phase. -->
+    </div>
+  </section>
+
+  <!-- ---- sub-tela: Flappy ---- -->
+  <section id="screen-flappy" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Flappy Bebê</h1>
+    </header>
+    <div class="mini-wrap">
+      <canvas id="mini-canvas"></canvas>
+      <div id="mini-overlay" class="mini-overlay">
+        <div class="mini-title"></div>
+        <div class="mini-sub"></div>
+      </div>
+    </div>
+    <p class="hint">Ganhe 1 🪙 por cano. As moedas vão para a loja dos dois!</p>
+  </section>
+
+  <!-- ---- sub-tela: Circuito ---- -->
+  <section id="screen-circuit" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Feira de Ciências</h1>
+    </header>
+    <div id="circuit-root" class="circuit-wrap"></div>
+    <p id="circuit-status" class="hint"></p>
+    <div class="circuit-controls">
+      <button id="circuit-clear" class="ghost-btn">Limpar fios</button>
+      <button id="circuit-new" class="ghost-btn">Novo desafio</button>
+    </div>
+  </section>
+
+  <!-- ============ TELA: QUADRO DE AVISOS ============ -->
+  <section id="screen-board" class="screen">
+    <header class="topbar">
+      <h1 class="screen-title">Recados</h1>
+      <button id="board-clear" class="ghost-btn small">Limpar tudo</button>
+    </header>
+    <div id="board-list" class="board-list"></div>
+    <form id="board-form" class="board-form">
+      <input id="board-input" class="board-input" maxlength="280"
+             placeholder="Escreva um recado…" autocomplete="off" />
+      <button class="board-send" type="submit">Enviar</button>
+    </form>
+  </section>
+
+  <!-- ============ CÔMODO: COZINHA (fome) ============ -->
+  <section id="screen-kitchen" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-home">←</button>
+      <h1 class="screen-title">Cozinha</h1>
+      <div class="coins-pill"><span class="coin-ico">🪙</span><span id="coins-kitchen">0</span></div>
+    </header>
+    <div id="kitchen-baby" class="room-baby-view"></div>
+
+    <h2 class="room-h2">Comida pronta <small>(só sacia)</small></h2>
+    <div id="ready-foods" class="food-row"></div>
+
+    <h2 class="room-h2">Cozinhar <small>(2 ingredientes = fome + XP)</small></h2>
+    <div class="pot-area">
+      <div id="pot" class="pot"><span class="pot-pan">🍲</span><span id="pot-slots" class="pot-slots"></span></div>
+      <button id="cook-btn" class="cook-btn">Cozinhar</button>
+    </div>
+    <p id="cook-msg" class="cook-msg"></p>
+    <div id="ingredients" class="food-row"></div>
+
+    <h2 class="room-h2">Caderno de receitas</h2>
+    <div id="recipe-book" class="recipe-book"></div>
+
+    <!-- Minigame de cozinhar: um round rápido POR ingrediente -->
+    <div id="cook-game" class="cook-game" hidden>
+      <div class="cook-panel">
+        <button id="cook-cancel" class="cook-cancel" title="Cancelar">✕</button>
+        <p id="cook-title" class="cook-title">Prepare o ingrediente</p>
+        <div class="cook-track">
+          <div class="cook-zone-ok"></div>
+          <div class="cook-zone-perfect"></div>
+          <div id="cook-marker" class="cook-marker"></div>
+        </div>
+        <p id="cook-rounds" class="cook-rounds"></p>
+        <button id="cook-tap" class="cook-tap">Mexer 🥄</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CÔMODO: BANHEIRO (higiene) ============ -->
+  <section id="screen-bathroom" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-home">←</button>
+      <h1 class="screen-title">Banheiro</h1>
+    </header>
+    <div id="bathroom-baby" class="room-baby-view"></div>
+    <p class="touch-hint">Esfregue o bebê deslizando o dedo para dar banho 🫧</p>
+  </section>
+
+  <!-- ============ CÔMODO: QUARTO (sono) ============ -->
+  <section id="screen-bedroom" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-home">←</button>
+      <h1 class="screen-title">Quarto</h1>
+    </header>
+    <div id="bedroom-baby" class="room-baby-view"></div>
+    <button id="soothe-btn" class="soothe-btn" hidden>🤍 Acender a luz e acalmar</button>
+    <button id="light-btn" class="light-btn">🌙 Apagar a luz</button>
+    <p id="sleep-hint" class="touch-hint">Apague a luz para o bebê dormir.</p>
+  </section>
+
+  <!-- ============ NAVEGAÇÃO INFERIOR ============ -->
+  <nav class="bottom-nav">
+    <button data-goto="screen-home">🍼<span>Cuidar</span></button>
+    <button data-goto="screen-arcade">🎮<span>Jogar</span></button>
+    <button data-goto="screen-board">📝<span>Recados</span></button>
+    <button data-goto="screen-shop">🛍️<span>Loja</span></button>
+  </nav>
+
+  <!-- Registro do Service Worker (PWA + auto-update) -->
+  <script src="js/register-sw.js"></script>
+  <!-- Jogo (módulos ES) -->
+  <script type="module" src="js/game.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "bebe-notifier",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Disparador gratuito de notificacoes (Web Push) para o Nosso Bebe",
+  "scripts": {
+    "start": "node notifier.js",
+    "loop": "node notifier.js --loop",
+    "keys": "npx web-push generate-vapid-keys"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7",
+    "dotenv": "^16.4.5"
+  }
+}

@@ -1,0 +1,3 @@
+Camada "camisa" — PNG (ou GIF animado) 512x512, fundo TRANSPARENTE, mesmo
+enquadramento da pose base (assets/sprites/baby/). Nomes esperados estão
+em js/assets-map.js (ASSETS.camisa). GIF anima sozinho.

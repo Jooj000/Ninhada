@@ -1,0 +1,2 @@
+CENÁRIOS — 512x512 (ou 1:1). Pode ser opaco (preenche o palco).
+Nome: nursery.png.

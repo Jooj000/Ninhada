@@ -1,0 +1,3 @@
+ÍCONES DOS BOTÕES (opcional) — quadrados, ex 96x96, transparente.
+Nomes: feed.png, sleep.png, clean.png, play.png, love.png.
+Se não existirem, o jogo usa emojis automaticamente.

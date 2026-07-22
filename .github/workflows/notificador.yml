@@ -1,0 +1,27 @@
+# Roda o notificador de graça no GitHub Actions (sem servidor, sem cartão).
+# Configure os segredos em: Settings -> Secrets and variables -> Actions
+name: Notificador
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # a cada 15 minutos
+  workflow_dispatch:          # permite rodar na mão pelo site do GitHub
+
+jobs:
+  notificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+        working-directory: server
+      - run: node notifier.js
+        working-directory: server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ROOM_ID: ${{ secrets.ROOM_ID }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}

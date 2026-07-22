@@ -1,0 +1,3 @@
+ACESSÓRIOS (chapéu, laço, óculos) — camada acima da roupa. 512x512.
+Desenhe no lugar certo da cabeça, resto transparente.
+Nomes: hat_bear.png, bow_pink.png.

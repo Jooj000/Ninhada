@@ -1,0 +1,4 @@
+ÁUDIO DA RISADINHA (cócegas) — opcional.
+Coloque aqui: laugh.mp3
+Se não existir, o jogo sintetiza uma risadinha sozinho (Web Audio).
+Formatos: mp3 (mais compatível). Dica: 1–2 s, curtinho e fofo.

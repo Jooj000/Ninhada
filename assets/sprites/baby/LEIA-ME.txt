@@ -1,0 +1,7 @@
+CORPO DO BEBÊ (base) — 1 png por fase, 512x512, fundo TRANSPARENTE.
+Nomes esperados (editáveis em js/assets-map.js → ASSETS.baby):
+  newborn.png   (recém-nascido)
+  crawling.png  (engatinhando)
+  toddler.png   (criança)
+  child.png     (criança grande)
+Desenhe o bebê centralizado/embaixo, mesmo enquadramento em todas as fases.

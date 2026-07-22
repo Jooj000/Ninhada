@@ -1,0 +1,4 @@
+ROUPAS — camada que fica POR CIMA do corpo. 512x512, transparente.
+Desenhe a roupa JÁ na posição do corpo (mesmo enquadramento do bebê),
+o resto transparente. Assim encaixa sozinho ao empilhar.
+Nomes: body_stars.png, overall.png (editáveis em assets-map.js).
