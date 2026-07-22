@@ -47,8 +47,14 @@ export const GAME_CONFIG = {
   // Diversão ganha ao terminar uma rodada de minigame COM aquele bebê.
   funPerMinigame: 30,
 
-  // XP ganho por ação de cuidado.
-  xpPerAction: 5,
+  // Moedas extras por terminar um minigame (além do placar).
+  coinsPerMinigame: 10,
+
+  // XP por ação "pontual" (terminar minigame, servir comida).
+  xpPerAction: 12,
+  // XP por pulso de cuidado contínuo (carinho, esfregar no banho, ninar).
+  // Vale pouco de propósito: o ganho vem de insistir no cuidado.
+  xpPerCare: 2,
 
   // Bebê fica "doente" se a MÉDIA dos status cair abaixo disso.
   sickThreshold: 20,

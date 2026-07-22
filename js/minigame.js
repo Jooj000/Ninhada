@@ -10,7 +10,7 @@
  * via ctx.drawImage(imagem, ...). Deixei comentado onde plugar.
  * ===================================================================== */
 
-import { addCoins, addFun } from "./firebase-sync.js";
+import { addCoins, addFun, saveRecord, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { GAME_CONFIG } from "./config.js";
@@ -78,11 +78,15 @@ export function initMinigame() {
   async function gameOver() {
     dead = true;
     running = false;
-    setOverlay(`Você fez ${score} 🪙`, "Toque para jogar de novo");
+    const rec = getRecord("flappy");
+    const novo = score > rec && score > 0;
+    setOverlay(novo ? `🏆 NOVO RECORDE: ${score}!` : `Você fez ${score}`,
+               "Toque para jogar de novo");
     if (score > 0) {
-      await addCoins(score);                               // moedas p/ a casa
-      await addFun(getActiveBaby(), GAME_CONFIG.funPerMinigame);
-      registerCare(); // diversão p/ o bebê
+      await addCoins(score + (GAME_CONFIG.coinsPerMinigame || 0));  // moedas p/ a casa
+      await addFun(getActiveBaby(), GAME_CONFIG.funPerMinigame);    // diversão + XP
+      await saveRecord("flappy", score);
+      registerCare();
     }
   }
 
@@ -115,6 +119,10 @@ export function initMinigame() {
     ctx.font = "bold 28px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(score, W / 2, 48);
+    // recorde da casa (compartilhado entre os dois)
+    ctx.font = "bold 14px system-ui, sans-serif";
+    ctx.fillStyle = "#5a6b7a";
+    ctx.fillText(`🏆 recorde ${getRecord("flappy")}`, W / 2, 72);
   }
 
   function loop() { update(); draw(); requestAnimationFrame(loop); }

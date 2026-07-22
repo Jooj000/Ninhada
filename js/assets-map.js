@@ -7,7 +7,7 @@
  * As camadas são definidas UMA vez em SLOTS (ordem = de trás pra frente).
  * Loja, guarda-roupa e a renderização derivam tudo daqui.
  *
- * ARTE (fundo TRANSPARENTE, 512x512, mesmo enquadramento da pose):
+ * ARTE (fundo TRANSPARENTE, 1024x1024, mesmo enquadramento da pose):
  *   - Corpo/pose:  assets/sprites/baby/    (newborn.png, crawling.png, ...)
  *   - Pele/corpo:  assets/sprites/corpo/
  *   - Cabelo:      assets/sprites/cabelo/
@@ -111,23 +111,23 @@ export const ASSETS = {
 
 /* Catálogo da loja: item aponta pra uma categoria + preço. */
 export const SHOP_ITEMS = [
-  { id: "pele_clara",      category: "corpo",      price: 0  },
-  { id: "pele_media",      category: "corpo",      price: 0  },
-  { id: "pele_escura",     category: "corpo",      price: 0  },
-  { id: "cabelo_castanho", category: "cabelo",     price: 30 },
-  { id: "cabelo_loiro",    category: "cabelo",     price: 30 },
-  { id: "body_stars",      category: "camisa",     price: 40 },
-  { id: "camisa_listrada", category: "camisa",     price: 45 },
-  { id: "camisa",          category: "camisa",     price: 45 },
-  { id: "calca_jeans",     category: "calca",      price: 40 },
-  { id: "saia",            category: "calca",      price: 35 },
-  { id: "tenis",           category: "sapatos",    price: 35 },
-  { id: "hat_bear",        category: "acessorios", price: 35 },
-  { id: "bow_pink",        category: "acessorios", price: 25 },
-  { id: "laco",            category: "acessorios", price: 25 },
-  { id: "pulseiras",       category: "acessorios", price: 30 },
-  { id: "rattle",          category: "brinquedos", price: 30 },
-  { id: "teddy",           category: "brinquedos", price: 80 },
+  { id: "pele_clara",      category: "corpo",      price: 0   },
+  { id: "pele_media",      category: "corpo",      price: 0   },
+  { id: "pele_escura",     category: "corpo",      price: 0   },
+  { id: "cabelo_castanho", category: "cabelo",     price: 180 },
+  { id: "cabelo_loiro",    category: "cabelo",     price: 180 },
+  { id: "body_stars",      category: "camisa",     price: 240 },
+  { id: "camisa_listrada", category: "camisa",     price: 260 },
+  { id: "camisa",          category: "camisa",     price: 220 },
+  { id: "calca_jeans",     category: "calca",      price: 240 },
+  { id: "saia",            category: "calca",      price: 210 },
+  { id: "tenis",           category: "sapatos",    price: 200 },
+  { id: "hat_bear",        category: "acessorios", price: 190 },
+  { id: "bow_pink",        category: "acessorios", price: 140 },
+  { id: "laco",            category: "acessorios", price: 140 },
+  { id: "pulseiras",       category: "acessorios", price: 160 },
+  { id: "rattle",          category: "brinquedos", price: 170 },
+  { id: "teddy",           category: "brinquedos", price: 420 },
 ];
 
 export function getAsset(category, id) {

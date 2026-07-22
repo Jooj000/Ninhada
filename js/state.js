@@ -15,10 +15,10 @@ export const STATUS_KEYS = ["hunger", "sleep", "hygiene", "fun", "love"];
 
 /* Fases de vida em ordem. O bebê sobe de fase ao atingir o xpNeeded. */
 export const PHASES = [
-  { id: "newborn",  name: "Recém-nascido", xpNeeded: 0 },
-  { id: "crawling", name: "Engatinhando",  xpNeeded: 100 },
-  { id: "toddler",  name: "Criança",       xpNeeded: 300 },
-  { id: "child",    name: "Criança grande", xpNeeded: 700 },
+  { id: "newborn",  name: "Recém-nascido",  xpNeeded: 0 },
+  { id: "crawling", name: "Engatinhando",   xpNeeded: 600 },
+  { id: "toddler",  name: "Criança",        xpNeeded: 2500 },
+  { id: "child",    name: "Criança grande", xpNeeded: 6000 },
 ];
 
 export function clamp(v, min = 0, max = 100) {

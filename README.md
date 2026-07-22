@@ -4,6 +4,9 @@ Pet virtual estilo *Pou*, mas cooperativo: você e sua namorada cuidam do mesmo 
 em celulares diferentes, com **status sincronizado em tempo real**. Sem Play Store,
 instalável na tela inicial, atualiza sozinho quando você sobe código novo.
 
+- **Programador (você):** mexe no código.
+- **Artista (ela):** desenha os `.png` e larga nas pastas certas. **Nada quebra sem arte** — o jogo mostra *placeholders* coloridos até os desenhos chegarem.
+
 ---
 
 ## 1. Estrutura de pastas
@@ -171,7 +174,7 @@ como *background worker*, com as mesmas variáveis de ambiente.
 ## 4. Fluxo da arte + sobreposição de imagens (chapéu em cima do bebê)
 
 ### Como a artista entrega
-- PNG com **fundo transparente**, **512×512** para tudo que empilha (bebê, roupa, chapéu, brinquedo).
+- PNG com **fundo transparente**, **1024×1024** para tudo que empilha (bebê, roupa, chapéu, brinquedo).
 - **Mesmo enquadramento em todas as camadas:** ela desenha a roupa/chapéu já na posição do
   corpo, com o resto transparente. Assim, empilhando, encaixa sozinho.
 - Salva na pasta certa e usa os nomes do `LEIA-ME.txt`. Se usar outro nome, você só troca a
@@ -222,4 +225,3 @@ todos no mesmo retângulo. (O minigame já usa Canvas, então você tem os dois 
 - Sistema de "quem cuidou mais" (registrar quem tocou cada botão).
 
 Divirtam-se! 💜
-"# Ninhada" 

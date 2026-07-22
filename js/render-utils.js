@@ -87,7 +87,7 @@ export function buildStageLayers(stageEl, includeBg = true) {
 
 /* Pinta uma ZONA com VÁRIOS sprites de uma vez (acessórios ilimitados).
  * Usa múltiplos background-image na mesma camada (todos no mesmo
- * enquadramento 512x512, então se empilham certinho). */
+ * enquadramento 1024x1024, então se empilham certinho). */
 export function paintMultiLayer(el, srcs) {
   if (!el) return;
   const key = srcs.join("|");

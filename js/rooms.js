@@ -14,6 +14,7 @@ import {
   serveFood, boostStatus, sootheNightmare,
 } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
+import { GAME_CONFIG } from "./config.js";
 import { registerCare } from "./streak.js";
 import { applyDecay, moodFor } from "./state.js";
 import { paintBabyLayers, buildStageLayers } from "./render-utils.js";
@@ -49,7 +50,7 @@ function initKitchen() {
     const b = document.createElement("button");
     b.className = "food-btn";
     b.innerHTML = `<span class="food-emoji">${f.emoji}</span><span>${f.label}</span><small>${f.cost} 🪙</small>`;
-    b.onclick = () => { serveFood(getActiveBaby(), { hunger: f.hunger, xp: 0, cost: f.cost }); registerCare(); };
+    b.onclick = () => { serveFood(getActiveBaby(), { hunger: f.hunger, xp: GAME_CONFIG.xpPerCare, cost: f.cost }); registerCare(); };
     readyRow.appendChild(b);
   });
 
@@ -126,7 +127,7 @@ function playCookRound(ing, n, totalN) {
 
     let pos = Math.random() * 100;
     let dir = Math.random() < 0.5 ? 1 : -1;
-    const speed = 14;                     // ~3x mais rápido = bem difícil
+    const speed = 6;                      // ritmo justo: dá pra acertar 100%
     let raf = 0, done = false;
 
     titleEl.textContent = `Prepare ${ing.emoji} ${ing.label}`;

@@ -115,6 +115,9 @@
       <button class="hub-card" data-goto="screen-circuit" data-min-phase="toddler">
         <span class="hub-emoji">💡</span><span class="hub-name">Feira de Ciências</span>
       </button>
+      <button class="hub-card" data-goto="screen-dino" data-min-phase="crawling">
+        <span class="hub-emoji">🦖</span><span class="hub-name">Dino Corrida</span>
+      </button>
       <!-- Novos minigames entram como cards aqui, com data-min-phase. -->
     </div>
   </section>
@@ -133,6 +136,23 @@
       </div>
     </div>
     <p class="hint">Ganhe 1 🪙 por cano. As moedas vão para a loja dos dois!</p>
+  </section>
+
+  <!-- ---- sub-tela: Dino ---- -->
+  <section id="screen-dino" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Dino Corrida</h1>
+    </header>
+    <div class="mini-wrap dino-wrap">
+      <canvas id="dino-canvas"></canvas>
+      <div id="dino-overlay" class="mini-overlay">
+        <div class="mini-title"></div>
+        <div class="mini-sub"></div>
+      </div>
+    </div>
+    <button id="dino-duck" class="duck-btn">⬇️ Abaixar (segure)</button>
+    <p class="hint">Toque na tela para pular. Ganhe moedas pela distância!</p>
   </section>
 
   <!-- ---- sub-tela: Circuito ---- -->

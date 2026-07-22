@@ -84,22 +84,43 @@ export function syncDecay() {
   });
 }
 
-/* Genérica: aplica decaimento e soma `amount` num status do bebê. */
-export function boostStatus(babyId, key, amount) {
+/* Genérica: aplica decaimento, soma `amount` num status e concede XP.
+ * TODO cuidado dá XP (banho, sono, carinho, minigame) — não só cozinhar. */
+export function boostStatus(babyId, key, amount, xp = GAME_CONFIG.xpPerCare) {
   if (!babyId || amount <= 0) return Promise.resolve();
   return runTransaction(babyRef(babyId), (baby) => {
     if (!baby) return baby;
     const s = applyDecay(baby, Date.now());
     s[key] = clamp((s[key] ?? 0) + amount);
+    s.xp = (s.xp ?? 0) + (xp || 0);
     return s;
   });
 }
 
 /* Aumenta o afeto de um bebê (usado pelo sistema de toque/carinho). */
-export function addLove(babyId, amount) { return boostStatus(babyId, "love", amount); }
+export function addLove(babyId, amount, xp = GAME_CONFIG.xpPerCare) {
+  return boostStatus(babyId, "love", amount, xp);
+}
 
 /* Aumenta a diversão de um bebê (usado pelos minigames). */
-export function addFun(babyId, amount) { return boostStatus(babyId, "fun", amount); }
+export function addFun(babyId, amount, xp = GAME_CONFIG.xpPerAction) {
+  return boostStatus(babyId, "fun", amount, xp);
+}
+
+/* ------------------------------------------------------------------
+ * RECORDES dos minigames (compartilhados entre os dois jogadores)
+ * rooms/{room}/records/{gameId}  — guarda só o maior.
+ * ---------------------------------------------------------------- */
+export function saveRecord(gameId, score) {
+  return runTransaction(ref(db, `rooms/${ROOM_ID}/records/${gameId}`), (best) => {
+    return Math.max(best || 0, Math.round(score || 0));
+  });
+}
+
+export function getRecord(gameId) {
+  const r = (window.__STATE__ && window.__STATE__.records) || {};
+  return r[gameId] || 0;
+}
 
 /* ------------------------------------------------------------------
  * COZINHA: servir comida. Debita moedas (custo), sacia a fome, pode

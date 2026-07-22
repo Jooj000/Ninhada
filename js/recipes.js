@@ -8,8 +8,8 @@
 
 /* Comida pronta: SÓ sacia a fome (sem XP). Comprada na hora. */
 export const READY_FOODS = [
-  { id: "mamadeira", label: "Mamadeira", emoji: "🍼", hunger: 30, cost: 6 },
-  { id: "papinha",   label: "Papinha",   emoji: "🍚", hunger: 25, cost: 5 },
+  { id: "mamadeira", label: "Mamadeira", emoji: "🍼", hunger: 30, cost: 2 },
+  { id: "papinha",   label: "Papinha",   emoji: "🍚", hunger: 25, cost: 2 },
 ];
 
 /* Ingredientes crus: combine 2 na panela pra cozinhar (dá XP). */
@@ -21,7 +21,7 @@ export const INGREDIENTS = [
   { id: "cenoura", label: "Cenoura", emoji: "🥕" },
 ];
 
-export const INGREDIENT_COST = 3;   // por ingrediente colocado na panela
+export const INGREDIENT_COST = 1;   // por ingrediente colocado na panela
 
 /* Receitas conhecidas: dupla de ingredientes -> prato (fome + XP).
  * IMPORTANTE: `id` é usado como CHAVE no Firebase, então é sempre ASCII
