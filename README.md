@@ -4,9 +4,6 @@ Pet virtual estilo *Pou*, mas cooperativo: você e sua namorada cuidam do mesmo 
 em celulares diferentes, com **status sincronizado em tempo real**. Sem Play Store,
 instalável na tela inicial, atualiza sozinho quando você sobe código novo.
 
-- **Programador (você):** mexe no código.
-- **Artista (ela):** desenha os `.png` e larga nas pastas certas. **Nada quebra sem arte** — o jogo mostra *placeholders* coloridos até os desenhos chegarem.
-
 ---
 
 ## 1. Estrutura de pastas
