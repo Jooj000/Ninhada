@@ -40,6 +40,7 @@ Object.keys(categoryPrices).forEach(cat => {
 
 const defaultPrices = {
   corpo: 0,
+  olhos: 0,
   cabelo: 180,
   camisa: 220,
   calca: 220,
@@ -54,6 +55,7 @@ const folderMapping = {
   'baby': { group: 'baby', shopCat: null },
   'corpo': { group: 'corpo', shopCat: 'corpo' },
   'cabelo': { group: 'cabelo', shopCat: 'cabelo' },
+  'olhos': { group: 'olhos', shopCat: 'olhos' },
   'camisa': { group: 'camisa', shopCat: 'camisa' },
   'clothes': { group: 'camisa', shopCat: 'camisa' },
   'calca': { group: 'calca', shopCat: 'calca' },
@@ -79,13 +81,24 @@ Object.keys(folderMapping).forEach(folderName => {
 
   const files = fs.readdirSync(folderPath);
   files.forEach(file => {
-    if (path.extname(file).toLowerCase() === '.png') {
-      const id = path.basename(file, '.png');
-      const srcPath = `assets/sprites/${folderName}/${file}`;
+    const ext = path.extname(file).toLowerCase();
+    if (ext === '.png' || ext === '.gif') {
+      // Nome do arquivo pode ter ESPAÇOS: "cabelo cacheado.png"
+      //   id    -> cabelo_cacheado   (chave segura p/ JS e Firebase)
+      //   label -> Cabelo Cacheado   (texto bonito na tela)
+      //   src   -> caminho com %20   (URL válida)
+      const rawName = path.basename(file, ext);
+      const id = rawName
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // tira acentos
+        .trim().replace(/\s+/g, '_')                        // espaços -> _
+        .replace(/[^A-Za-z0-9_-]/g, '')                     // só o que é seguro
+        .toLowerCase();
+      const srcPath = `assets/sprites/${folderName}/${encodeURIComponent(file)}`;
 
       // Adiciona ao ASSETS se não existir
       if (!ASSETS[group][id]) {
-        const label = id.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        const label = rawName.trim().split(/[\s_]+/)
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         const placeholder = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
         
         ASSETS[group][id] = {
@@ -138,7 +151,7 @@ function generateAssetsCode(assets) {
   code += `  baby: ${formatAssetGroup(assets.baby, 2)},\n\n`;
 
   code += `  /* ---- Camadas equipáveis (chave = id da categoria) ---- */\n`;
-  const categoriesToPrint = ['corpo', 'cabelo', 'camisa', 'calca', 'sapatos', 'acessorios', 'brinquedos'];
+  const categoriesToPrint = ['corpo', 'olhos', 'cabelo', 'camisa', 'calca', 'sapatos', 'acessorios', 'brinquedos'];
   categoriesToPrint.forEach(cat => {
     if (assets[cat]) {
       code += `  ${cat}: ${formatAssetGroup(assets[cat], 2)},\n`;

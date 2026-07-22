@@ -18,18 +18,25 @@ export function initSkyJump() {
   const H = (canvas.height = 460);
 
   const GRAV = 0.42, PULO = -11.4, LARG = 62, ALT = 12;
+  const N_PLATS = 6;      // menos plataformas = dá pra errar de verdade
+  const VAO = 92;         // distância vertical entre elas
   let heroi, plats, altura, camera, rodando, morto, lastT = 0, alvoX = null;
+  let moedas, metrosPagos;
 
   function novaPlat(y) {
-    const quebra = altura > 400 && Math.random() < 0.18;
-    return { x: 10 + Math.random() * (W - LARG - 20), y, quebra, usada: false };
+    const quebra = altura > 300 && Math.random() < 0.28;    // mais quebradiças
+    const p = { x: 10 + Math.random() * (W - LARG - 20), y, quebra, usada: false };
+    // ~28% das plataformas trazem uma moeda flutuando acima
+    if (Math.random() < 0.28) p.moeda = { dy: -26, pego: false };
+    return p;
   }
 
   function reset() {
     heroi = { x: W / 2 - 16, y: H - 120, vy: 0, vx: 0, w: 32, h: 32 };
     plats = [{ x: W / 2 - LARG / 2, y: H - 60, quebra: false, usada: false }];
-    for (let i = 1; i < 9; i++) plats.push(novaPlat(H - 60 - i * 62));
+    for (let i = 1; i < N_PLATS; i++) plats.push(novaPlat(H - 60 - i * VAO));
     altura = 0; camera = 0; rodando = false; morto = false; alvoX = null;
+    moedas = 0; metrosPagos = 0;
     setOverlay("Toque para começar", "Arraste para os lados!");
     desenhar();
   }
@@ -75,23 +82,36 @@ export function initSkyJump() {
 
     // recicla plataformas que saíram por baixo
     plats = plats.filter((p) => p.y < H + 30);
-    while (plats.length < 9) {
+    while (plats.length < N_PLATS) {
       const maisAlta = Math.min(...plats.map((p) => p.y));
-      plats.push(novaPlat(maisAlta - (48 + Math.random() * 34)));
+      plats.push(novaPlat(maisAlta - (VAO - 18 + Math.random() * 36)));
+    }
+
+    // pegar moedas (basta encostar)
+    for (const p of plats) {
+      if (!p.moeda || p.moeda.pego) continue;
+      const mx = p.x + LARG / 2, my = p.y + p.moeda.dy;
+      if (Math.abs(heroi.x + heroi.w / 2 - mx) < 24 &&
+          Math.abs(heroi.y + heroi.h / 2 - my) < 26) {
+        p.moeda.pego = true; moedas++;
+      }
     }
 
     if (heroi.y > H + 40) fim();
   }
 
-  const pontos = () => Math.floor(altura / 10);
+  const metros = () => Math.floor(altura / 10);
+  /* 1 ponto por moeda pega + 1 ponto a cada 100 m percorridos.
+   * Cada ponto vale 1 moeda + 3 XP (antes do multiplicador de idade). */
+  const pontos = () => moedas + Math.floor(metros() / 100);
 
   async function fim() {
     morto = true; rodando = false;
     const p = pontos();
     if (p > 0) {
-      const r = await rewardGame(getActiveBaby(), "skyjump", p);
+      const r = await rewardGame(getActiveBaby(), "skyjump", p, metros());
       registerCare();
-      setOverlay(r.record ? `🏆 NOVO RECORDE: ${p}!` : `Você subiu ${p}`,
+      setOverlay(r.record ? `🏆 NOVO RECORDE: ${metros()} m!` : `Você subiu ${metros()} m`,
         r.factor === 0 ? "A criança se cansou — toque p/ jogar"
           : `+${r.coins} 🪙  +${r.xp} XP${r.record ? " (com bônus!)" : r.factor < 1 ? " (cansado)" : ""} · toque p/ jogar`);
     } else setOverlay("Caiu!", "Toque para tentar de novo");
@@ -113,15 +133,23 @@ export function initSkyJump() {
       if (p.sumiu) continue;
       ctx.fillStyle = p.quebra ? "#E0A0A0" : "#7EC8A0";
       ctx.beginPath(); ctx.roundRect(p.x, p.y, LARG, ALT, 6); ctx.fill();
+      if (p.moeda && !p.moeda.pego) {
+        ctx.font = "20px system-ui, sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("🪙", p.x + LARG / 2, p.y + p.moeda.dy);
+      }
     }
 
+    // o bebê: base do emoji EXATAMENTE nos pés (senão ele afunda na plataforma)
     ctx.font = "30px system-ui, sans-serif";
     ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
     ctx.fillText("👶", heroi.x + heroi.w / 2, heroi.y + heroi.h);
+    ctx.textBaseline = "alphabetic";
 
     ctx.textAlign = "left";
     ctx.font = "bold 16px system-ui, sans-serif"; ctx.fillStyle = "#4A3F55";
-    ctx.fillText(`${pontos()}`, 12, 26);
+    ctx.fillText(`${metros()} m · 🪙 ${moedas}`, 12, 26);
     ctx.textAlign = "right"; ctx.font = "bold 12px system-ui, sans-serif";
     ctx.fillStyle = "#8A7E96";
     ctx.fillText(`🏆 ${getRecord("skyjump")}`, W - 12, 26);

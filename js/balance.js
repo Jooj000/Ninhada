@@ -79,19 +79,22 @@ export const BALANCE = {
   // Recompensa é sempre POR PONTO (nunca por só abrir o jogo).
   // `minPhase` define em que idade libera E o multiplicador de valor.
   minigames: {
-    flappy:   { minPhase: "newborn",  coinsPerPoint: 1,    xpPerPoint: 2,   hard: false },
-    dino:     { minPhase: "crawling", coinsPerPoint: 0.010, xpPerPoint: 0.025, hard: false },
-    fishing:  { minPhase: "crawling", coinsPerPoint: 1.5,  xpPerPoint: 2,   hard: false },
-    circuit:  { minPhase: "toddler",  coinsPerPoint: 2.5,  xpPerPoint: 3.5, hard: false  },
-    homework: { minPhase: "toddler",  coinsPerPoint: 1.25, xpPerPoint: 3,   hard: true  },
+    // Alvo de equilíbrio (como no Pou): partida MÉDIA ≈ 15 moedas,
+    // partida BOA ≈ 30, partida muito sortuda ≈ 60. Nunca mais que isso.
+    flappy:     { minPhase: "newborn",  coinsPerPoint: 1,     xpPerPoint: 2,    hard: false },
+    dino:       { minPhase: "crawling", coinsPerPoint: 0.010, xpPerPoint: 0.025, hard: false },
+    fishing:    { minPhase: "crawling", coinsPerPoint: 2,     xpPerPoint: 2.6,  hard: false },
+    circuit:    { minPhase: "toddler",  coinsPerPoint: 2.5,   xpPerPoint: 3.5,  hard: false },
+    homework:   { minPhase: "toddler",  coinsPerPoint: 1.25,  xpPerPoint: 3,    hard: true  },
     // ----- pack arcade -----
-    fooddrop:   { minPhase: "newborn",  coinsPerPoint: 0.8,  xpPerPoint: 1.6, hard: false },
-    memory:     { minPhase: "crawling", coinsPerPoint: 0.8,  xpPerPoint: 1.4, hard: false },
-    colormatch: { minPhase: "crawling", coinsPerPoint: 1,    xpPerPoint: 1.8, hard: false },
-    g2048:      { minPhase: "toddler",  coinsPerPoint: 0.4,  xpPerPoint: 0.8, hard: true  },
-    match3:     { minPhase: "crawling", coinsPerPoint: 1.2,  xpPerPoint: 2,   hard: false },
-    starpopper: { minPhase: "newborn",  coinsPerPoint: 0.5,  xpPerPoint: 1,   hard: false },
-    skyjump:    { minPhase: "crawling", coinsPerPoint: 0.12, xpPerPoint: 0.25, hard: false },
+    fooddrop:   { minPhase: "newborn",  coinsPerPoint: 0.8,   xpPerPoint: 1.6,  hard: false },
+    memory:     { minPhase: "crawling", coinsPerPoint: 0.55,  xpPerPoint: 1.1,  hard: false },
+    colormatch: { minPhase: "crawling", coinsPerPoint: 1,     xpPerPoint: 1.8,  hard: false },
+    g2048:      { minPhase: "toddler",  coinsPerPoint: 0.25,  xpPerPoint: 0.55, hard: true  },
+    match3:     { minPhase: "crawling", coinsPerPoint: 1.2,   xpPerPoint: 2,    hard: false },
+    starpopper: { minPhase: "crawling", coinsPerPoint: 0.22,  xpPerPoint: 0.5,  hard: false },
+    // sky jump: 1 ponto = 1 moeda pega OU 100 m subidos
+    skyjump:    { minPhase: "crawling", coinsPerPoint: 1,     xpPerPoint: 3,    hard: false },
   },
   // Multiplicador por faixa etária (índice da fase mínima do jogo).
   tierMultiplier: [1, 1.5, 2, 2.6],

@@ -1,0 +1,8 @@
+OLHOS — camada equipável, fica SOBRE a pele e SOB o cabelo/expressão.
+PNG ou GIF 1024x1024, fundo TRANSPARENTE, mesmo enquadramento da pose.
+Desenhe só os olhos (o resto transparente).
+
+Nomes atuais: olhos_castanhos.png, olhos_azuis.png, olhos_verdes.png
+Pode usar ESPAÇO no nome do arquivo ("olhos grandes.png") — o parser
+converte para o código (olhos_grandes) e mantém o nome bonito na tela.
+GIF anima sozinho (útil para piscar).
