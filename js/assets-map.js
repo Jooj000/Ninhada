@@ -58,48 +58,49 @@ export function slotsForCategory(cat) {
 export const ASSETS = {
   /* Cenário */
   backgrounds: {
-    nursery: { src: "assets/backgrounds/nursery.png", placeholder: "#FDEFF4", label: "Quarto do bebê" },
+    nursery: {src:"assets/backgrounds/nursery.png",placeholder:"#FDEFF4",label:"Quarto do bebê"},
   },
 
   /* POSE base (não equipável) — muda por fase só pra crescer. */
   baby: {
-    newborn:  { src: "assets/sprites/baby/newborn.png",  placeholder: "#F7C7D8", label: "Recém-nascido" },
-    crawling: { src: "assets/sprites/baby/crawling.png", placeholder: "#F5B7C9", label: "Engatinhando" },
-    toddler:  { src: "assets/sprites/baby/toddler.png",  placeholder: "#F0A0BC", label: "Criança" },
-    child:    { src: "assets/sprites/baby/child.png",    placeholder: "#E888AE", label: "Criança grande" },
+    newborn: {src:"assets/sprites/baby/newborn.png",placeholder:"#F7C7D8",label:"Recém-nascido"},
+    crawling: {src:"assets/sprites/baby/crawling.png",placeholder:"#F5B7C9",label:"Engatinhando"},
+    toddler: {src:"assets/sprites/baby/toddler.png",placeholder:"#F0A0BC",label:"Criança"},
+    child: {src:"assets/sprites/baby/child.png",placeholder:"#E888AE",label:"Criança grande"},
   },
 
   /* ---- Camadas equipáveis (chave = id da categoria) ---- */
   corpo: {
-    pele_clara:  { src: "assets/sprites/corpo/pele_clara.png",  placeholder: "#FBD9B8", label: "Pele Clara" },
-    pele_media:  { src: "assets/sprites/corpo/pele_media.png",  placeholder: "#E0A878", label: "Pele Média" },
-    pele_escura: { src: "assets/sprites/corpo/pele_escura.png", placeholder: "#9C6B45", label: "Pele Escura" },
+    pele_clara: {src:"assets/sprites/corpo/pele_clara.png",placeholder:"#FBD9B8",label:"Pele Clara"},
+    pele_media: {src:"assets/sprites/corpo/pele_media.png",placeholder:"#E0A878",label:"Pele Média"},
+    pele_escura: {src:"assets/sprites/corpo/pele_escura.png",placeholder:"#9C6B45",label:"Pele Escura"},
   },
   cabelo: {
-    cabelo_castanho: { src: "assets/sprites/cabelo/cabelo_castanho.png", placeholder: "#6B4A2B", label: "Cabelo Castanho" },
-    cabelo_loiro:    { src: "assets/sprites/cabelo/cabelo_loiro.png",    placeholder: "#E8C46B", label: "Cabelo Loiro" },
+    cabelo_castanho: {src:"assets/sprites/cabelo/cabelo_castanho.png",placeholder:"#6B4A2B",label:"Cabelo Castanho"},
+    cabelo_loiro: {src:"assets/sprites/cabelo/cabelo_loiro.png",placeholder:"#E8C46B",label:"Cabelo Loiro"},
   },
   camisa: {
-    body_stars:     { src: "assets/sprites/clothes/body_stars.png",   placeholder: "#8FB8FF", label: "Body Estrelas" },
-    camisa_listrada:{ src: "assets/sprites/camisa/camisa_listrada.png", placeholder: "#7EC8A0", label: "Camisa Listrada" },
-    camisa:         { src: "assets/sprites/camisa/camisa.png",         placeholder: "#A0C8FF", label: "Camisa Lisa" },
+    body_stars: {src:"assets/sprites/clothes/body_stars.png",placeholder:"#8FB8FF",label:"Body Estrelas"},
+    camisa_listrada: {src:"assets/sprites/camisa/camisa_listrada.png",placeholder:"#7EC8A0",label:"Camisa Listrada"},
+    camisa: {src:"assets/sprites/camisa/camisa.png",placeholder:"#A0C8FF",label:"Camisa Lisa"},
   },
   calca: {
-    calca_jeans: { src: "assets/sprites/calca/calca_jeans.png", placeholder: "#5B7DA6", label: "Calça Jeans" },
-    saia:        { src: "assets/sprites/calca/saia.png",        placeholder: "#D46A6A", label: "Saia" },
+    calca_jeans: {src:"assets/sprites/calca/calca_jeans.png",placeholder:"#5B7DA6",label:"Calça Jeans"},
+    saia: {src:"assets/sprites/calca/saia.png",placeholder:"#D46A6A",label:"Saia"},
   },
   sapatos: {
-    tenis: { src: "assets/sprites/sapatos/tenis.png", placeholder: "#D46A6A", label: "Tênis" },
+    tenis: {src:"assets/sprites/sapatos/tenis.png",placeholder:"#D46A6A",label:"Tênis"},
   },
   acessorios: {
-    hat_bear: { src: "assets/sprites/accessories/hat_bear.png", placeholder: "#C9A06B", label: "Toca de Urso" },
-    bow_pink: { src: "assets/sprites/accessories/bow_pink.png", placeholder: "#FF9EC4", label: "Laço Rosa" },
-    laco:     { src: "assets/sprites/accessories/laco.png",     placeholder: "#FFB4A2", label: "Laço" },
-    pulseiras:{ src: "assets/sprites/accessories/pulseiras.png", placeholder: "#A2C4FF", label: "Pulseiras" },
+    hat_bear: {src:"assets/sprites/accessories/hat_bear.png",placeholder:"#C9A06B",label:"Toca de Urso"},
+    bow_pink: {src:"assets/sprites/accessories/bow_pink.png",placeholder:"#FF9EC4",label:"Laço Rosa"},
+    laco: {src:"assets/sprites/accessories/laco.png",placeholder:"#FFB4A2",label:"Laço"},
+    pulseiras: {src:"assets/sprites/accessories/pulseiras.png",placeholder:"#A2C4FF",label:"Pulseiras"},
   },
   brinquedos: {
-    rattle: { src: "assets/sprites/toys/rattle.png", placeholder: "#FFD36B", label: "Chocalho" },
-    teddy:  { src: "assets/sprites/toys/teddy.png",  placeholder: "#B78A5E", label: "Ursinho" },
+    rattle: {src:"assets/sprites/toys/rattle.png",placeholder:"#FFD36B",label:"Chocalho"},
+    teddy: {src:"assets/sprites/toys/teddy.png",placeholder:"#B78A5E",label:"Ursinho"},
+    teto: {src:"assets/sprites/toys/teto.png",placeholder:"#2702d6",label:"Teto"},
   },
 
   /* ---- CONDIÇÕES (aparecem sozinhas conforme o status cai) ----
@@ -107,41 +108,43 @@ export const ASSETS = {
    * `placeholder: null` = INVISÍVEL enquanto o .png não existir, para
    * não sujar a tela. Basta criar o arquivo que ele passa a aparecer. */
   conditions: {
-    sono:    { src: "assets/sprites/conditions/sono.png",    placeholder: null, label: "Com sono" },
-    fome:    { src: "assets/sprites/conditions/fome.png",    placeholder: null, label: "Com fome" },
-    carente: { src: "assets/sprites/conditions/carente.png", placeholder: null, label: "Carente" },
-    sujo:    { src: "assets/sprites/conditions/sujo.png",    placeholder: null, label: "Sujo" },
-    doente:  { src: "assets/sprites/conditions/doente.png",  placeholder: null, label: "Doente" },
+    sono: {src:"assets/sprites/conditions/sono.png",placeholder:null,label:"Com sono"},
+    fome: {src:"assets/sprites/conditions/fome.png",placeholder:null,label:"Com fome"},
+    carente: {src:"assets/sprites/conditions/carente.png",placeholder:null,label:"Carente"},
+    sujo: {src:"assets/sprites/conditions/sujo.png",placeholder:null,label:"Sujo"},
+    doente: {src:"assets/sprites/conditions/doente.png",placeholder:null,label:"Doente"},
   },
 
   /* Ícones de botões (opcional; senão usa emoji) */
   ui: {
-    feed:  { src: "assets/ui/feed.png",  placeholder: "#FFB4A2", emoji: "🍼", label: "Alimentar" },
-    sleep: { src: "assets/ui/sleep.png", placeholder: "#A2C4FF", emoji: "😴", label: "Ninar" },
-    clean: { src: "assets/ui/clean.png", placeholder: "#A2E4FF", emoji: "🛁", label: "Banho" },
-    play:  { src: "assets/ui/play.png",  placeholder: "#C4FFA2", emoji: "🎈", label: "Brincar" },
+    feed: {src:"assets/ui/feed.png",placeholder:"#FFB4A2",emoji:"🍼",label:"Alimentar"},
+    sleep: {src:"assets/ui/sleep.png",placeholder:"#A2C4FF",emoji:"😴",label:"Ninar"},
+    clean: {src:"assets/ui/clean.png",placeholder:"#A2E4FF",emoji:"🛁",label:"Banho"},
+    play: {src:"assets/ui/play.png",placeholder:"#C4FFA2",emoji:"🎈",label:"Brincar"},
   },
 };
 
+
 /* Catálogo da loja: item aponta pra uma categoria + preço. */
 export const SHOP_ITEMS = [
-  { id: "pele_clara",      category: "corpo",      price: 0   },
-  { id: "pele_media",      category: "corpo",      price: 0   },
-  { id: "pele_escura",     category: "corpo",      price: 0   },
-  { id: "cabelo_castanho", category: "cabelo",     price: 180 },
-  { id: "cabelo_loiro",    category: "cabelo",     price: 180 },
-  { id: "body_stars",      category: "camisa",     price: 240 },
-  { id: "camisa_listrada", category: "camisa",     price: 260 },
-  { id: "camisa",          category: "camisa",     price: 220 },
-  { id: "calca_jeans",     category: "calca",      price: 240 },
-  { id: "saia",            category: "calca",      price: 210 },
-  { id: "tenis",           category: "sapatos",    price: 200 },
-  { id: "hat_bear",        category: "acessorios", price: 190 },
-  { id: "bow_pink",        category: "acessorios", price: 140 },
-  { id: "laco",            category: "acessorios", price: 140 },
-  { id: "pulseiras",       category: "acessorios", price: 160 },
-  { id: "rattle",          category: "brinquedos", price: 170 },
-  { id: "teddy",           category: "brinquedos", price: 420 },
+  { id: "pele_clara",        category: "corpo",                            price: 0   },
+  { id: "pele_media",        category: "corpo",                            price: 0   },
+  { id: "pele_escura",       category: "corpo",                            price: 0   },
+  { id: "cabelo_castanho",   category: "cabelo",                           price: 180   },
+  { id: "cabelo_loiro",      category: "cabelo",                           price: 180   },
+  { id: "body_stars",        category: "camisa",                           price: 240   },
+  { id: "camisa_listrada",   category: "camisa",                           price: 260   },
+  { id: "camisa",            category: "camisa",                           price: 220   },
+  { id: "calca_jeans",       category: "calca",                            price: 240   },
+  { id: "saia",              category: "calca",                            price: 210   },
+  { id: "tenis",             category: "sapatos",                          price: 200   },
+  { id: "hat_bear",          category: "acessorios",                       price: 190   },
+  { id: "bow_pink",          category: "acessorios",                       price: 140   },
+  { id: "laco",              category: "acessorios",                       price: 140   },
+  { id: "pulseiras",         category: "acessorios",                       price: 160   },
+  { id: "rattle",            category: "brinquedos",                       price: 170   },
+  { id: "teddy",             category: "brinquedos",                       price: 420   },
+  { id: "teto",              category: "brinquedos",                       price: 295   },
 ];
 
 export function getAsset(category, id) {
