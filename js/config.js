@@ -78,7 +78,7 @@ export const GAME_CONFIG = {
  * A PÚBLICA vai aqui; a PRIVADA fica só no notificador (server/.env).
  * Sem a chave, o app funciona normal — só não envia push. */
 export const PUSH = {
-  vapidPublicKey: "COLE_A_CHAVE_PUBLICA_AQUI",
+  vapidPublicKey: "BJFpt5fM_kAGqxYrkqdcvifVKCRE9k_zt7esf_VSLJV3Ih34T3oRQCYX4rqbVwMRHzFoQjE1F_pR_ybcXTBiUxo",
 };
 
 /* Quando avisar (usado pelo notificador e pelos avisos locais). */
