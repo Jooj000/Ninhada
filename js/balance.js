@@ -184,21 +184,26 @@ export const BALANCE = {
      * Resultado: o boneco DEMORA a ganhar velocidade, CONTINUA deslizando
      * quando o celular volta ao centro e para aos poucos. */
     filtroInclinacao: 0.18,     // passa-baixa (0..1): menor = mais suave
-    zonaMortaGraus: 6,          // até ±6° ele nem se mexe
+    zonaMortaGraus: 11,         // até ±11° ele nem se mexe (zona morta larga)
     grausMax: 24,               // leitura do sensor satura aqui
     /* Calibrados para a velocidade terminal NATURAL (aceleração ÷ atrito)
      * já dar ~velMaxH: o teto quase nunca é acionado, então o movimento
      * é físico e não "no limite do joystick". Com estes números:
-     *   inclinação máxima -> topo de velocidade em ~0,5 s
-     *   nivelou o aparelho -> desliza ~85 px por ~0,9 s antes de parar
-     *   num único pulo (~0,75 s) já dá pra atravessar meia tela
+     *   inclinação máxima -> topo de velocidade em ~1,0 s
+     *   meia inclinação    -> só 1/4 da força (curva quadrática)
+     *   nivelou o aparelho -> desliza ~100 px por ~1,2 s antes de parar
      * Ainda é massa com inércia, mas responde dentro do arco de UM pulo
      * — antes demorava mais que o pulo inteiro e parecia travado. */
-    acelPorGrau: 0.030,         // aceleração por grau ALÉM da zona morta
-    atritoH: 0.93,              // por frame: desacelera devagar ao nivelar
+    /* A aceleração NÃO é linear com o ângulo: segue uma curva
+     * (t^curvaInclinacao), com t indo de 0 na borda da zona morta a 1 na
+     * inclinação máxima. Assim inclinar pouco quase não acelera e o
+     * ajuste fino fica fácil; a força total só vem no ângulo cheio. */
+    curvaInclinacao: 2,         // 1 = linear · 2 = quadrática (suave no começo)
+    acelMax: 0.26,              // aceleração no ÂNGULO MÁXIMO (era ~0,5 linear)
+    atritoH: 0.955,             // por frame: desacelera devagar ao nivelar
     velMaxH: 6.5,               // ÚNICO teto: a velocidade (nunca a aceleração)
     acelToque: 0.0011,          // arrastar: aceleração rumo ao dedo (por px)
-    acelSeta: 0.2,              // setas do teclado: aceleração constante
+    acelSeta: 0.20,             // setas do teclado: aceleração constante
   },
 
   /* ================= MATCH 3 ================= */

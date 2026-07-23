@@ -5,7 +5,8 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
+  "_comment_orientation": "any (era portrait): Dino e Hill Drive são jogos DEITADOS e precisam girar no celular",
   "background_color": "#F1ECF7",
   "theme_color": "#B57BA6",
   "icons": [

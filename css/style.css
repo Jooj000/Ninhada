@@ -1463,3 +1463,23 @@ body {
   background: rgba(255,255,255,.78); backdrop-filter: blur(2px);
   font-size: .74rem;
 }
+
+/* =====================================================================
+ * ============ V6 — GIRAR A TELA NOS JOGOS DEITADOS =================
+ * O manifest era "portrait", o que impedia o celular de girar. Agora é
+ * "any"; aqui só garantimos que, DEITADO, os jogos largos aproveitem a
+ * tela toda e os verticais continuem numa coluna proporcional.
+ * ===================================================================== */
+@media (orientation: landscape) {
+  /* deitados: ocupam tudo */
+  #screen-dino .game-stage,
+  #screen-hilldrive .game-stage { max-width: none; }
+
+  /* verticais: a coluna passa a ser limitada pela ALTURA disponível */
+  .game-stage { max-width: min(100%, calc(100dvh * 0.62)); }
+  .fish-hud { max-width: min(100%, calc(100dvh * 0.62)); }
+
+  /* pedais/controles não podem comer a tela deitada */
+  .game-back { top: calc(8px + env(safe-area-inset-top)); }
+  .dom-game-body { padding-top: calc(52px + env(safe-area-inset-top)); }
+}

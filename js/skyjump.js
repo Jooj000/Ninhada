@@ -20,10 +20,16 @@ export function initSkyJump() {
   const view = fullscreenCanvas(canvas, "screen-skyjump");
   const ctx = view.ctx;
 
-  let W = 360, H = 640, LARG = 66, N_PLATS = 8;
-  const ALT = 12;
-  const GRAV = SJ.gravidade, PULO = -SJ.forcaPulo;
-  const VAO_MIN = SJ.vaoMin, VAO_MAX = SJ.vaoMax;
+  /* PROPORÇÕES DO ORIGINAL (canvas 320×460): o vertical escala por
+   * sy = H/460 e o horizontal por sx = W/320. Gravidade e impulso
+   * escalam juntos, então a altura do pulo é sempre a MESMA fração da
+   * tela. (Antes a física era absoluta: no PC o mapa ficava enorme e os
+   * pulos, minúsculos.) */
+  const REF_W = 320, REF_H = 460;
+  let W = 360, H = 640, sx = 1, sy = 1;
+  let LARG = 66, N_PLATS = 8, ALT = 12;
+  let GRAV = SJ.gravidade, PULO = -SJ.forcaPulo;
+  let VAO_MIN = SJ.vaoMin, VAO_MAX = SJ.vaoMax;
   const sorteiaVao = () => VAO_MIN + Math.random() * (VAO_MAX - VAO_MIN);
 
   let heroi, plats, altura, camera, rodando, morto, lastT = 0, alvoX = null;
@@ -33,23 +39,31 @@ export function initSkyJump() {
 
   function medidas() {
     if (view.fit()) { W = view.w; H = view.h; }
-    LARG = Math.max(58, Math.min(96, W * 0.18));
-    // o vão é FIXO (física absoluta) — tela alta = mais plataformas visíveis
+    sx = W / REF_W; sy = H / REF_H;
+
+    GRAV = SJ.gravidade * sy;          // juntos = altura do pulo proporcional
+    PULO = -SJ.forcaPulo * sy;
+    VAO_MIN = SJ.vaoMin * sy;          // o vão acompanha o pulo
+    VAO_MAX = SJ.vaoMax * sy;
+    LARG = 66 * sx;
+    ALT = 12 * sy;
+    // com o vão proporcional, o número de plataformas na tela é constante
     N_PLATS = Math.ceil(H / ((VAO_MIN + VAO_MAX) / 2)) + 3;
   }
 
   function novaPlat(y) {
-    const quebra = altura > 300 && Math.random() < SJ.chanceQuebra;
-    const p = { x: 10 + Math.random() * (W - LARG - 20), y, quebra, usada: false };
-    if (Math.random() < SJ.chanceMoeda) p.moeda = { dy: -26, pego: false };
+    const quebra = altura > 300 * sy && Math.random() < SJ.chanceQuebra;
+    const p = { x: 10 * sx + Math.random() * Math.max(10, W - LARG - 20 * sx), y, quebra, usada: false };
+    if (Math.random() < SJ.chanceMoeda) p.moeda = { dy: -26 * sy, pego: false };
     return p;
   }
 
   function reset() {
     medidas();
-    heroi = { x: W / 2 - 16, y: H - 120, vy: 0, vx: 0, w: 32, h: 32 };
-    plats = [{ x: W / 2 - LARG / 2, y: H - 60, quebra: false, usada: false }];
-    { let y = H - 60; for (let i = 1; i < N_PLATS; i++) { y -= sorteiaVao(); plats.push(novaPlat(y)); } }
+    const TAM = 32 * Math.min(sx, sy);
+    heroi = { x: W / 2 - TAM / 2, y: H - 120 * sy, vy: 0, vx: 0, w: TAM, h: TAM };
+    plats = [{ x: W / 2 - LARG / 2, y: H - 60 * sy, quebra: false, usada: false }];
+    { let y = H - 60 * sy; for (let i = 1; i < N_PLATS; i++) { y -= sorteiaVao(); plats.push(novaPlat(y)); } }
     altura = 0; camera = 0; rodando = false; morto = false; alvoX = null;
     moedas = 0; lastT = 0; setaX = 0; grausSuaves = 0;
     setOverlay("Toque para começar", "Arraste para os lados!");
@@ -79,23 +93,35 @@ export function initSkyJump() {
     let ax = 0;
 
     if (tiltLigado) {
-      // grausSuaves já vem filtrado (passa-baixa) do sensor
-      const zona = SJ.zonaMortaGraus ?? 6;
-      const g = Math.abs(grausSuaves) - zona;
-      if (g > 0) ax += Math.sign(grausSuaves) * g * (SJ.acelPorGrau ?? 0.030);
+      /* A ACELERAÇÃO VARIA COM O ÂNGULO, e não de forma linear: usamos
+       * uma curva (expoente > 1). Perto da zona morta a resposta é bem
+       * mansa — dá para fazer ajuste fino sem o boneco disparar; só
+       * inclinando de verdade é que vem a força toda.
+       *
+       *   t  = (|graus| − zona) / (grausMax − zona)   ∈ [0, 1]
+       *   ax = sinal · t^curva · acelMax
+       */
+      const zona = SJ.zonaMortaGraus ?? 10;
+      const gMax = SJ.grausMax ?? 24;
+      const excesso = Math.abs(grausSuaves) - zona;
+      if (excesso > 0) {
+        const t = Math.min(1, excesso / Math.max(1, gMax - zona));
+        const forca = Math.pow(t, SJ.curvaInclinacao ?? 2);
+        ax += Math.sign(grausSuaves) * forca * (SJ.acelMax ?? 0.29) * sx;
+      }
       // dentro da zona morta não soma nada: o boneco segue por INÉRCIA
     }
     if (alvoX !== null) {
       // arrastar o dedo também ACELERA rumo ao ponto (não teleporta a vel.)
-      ax += (alvoX - (heroi.x + heroi.w / 2)) * (SJ.acelToque ?? 0.0011);
+      ax += (alvoX - (heroi.x + heroi.w / 2)) * (SJ.acelToque ?? 0.0011);   // já é proporcional à distância
     }
-    if (setaX !== 0) ax += setaX * (SJ.acelSeta ?? 0.2);
+    if (setaX !== 0) ax += setaX * (SJ.acelSeta ?? 0.29) * sx;
 
     heroi.vx += ax * dt;                       // integra: v = ∫a
     heroi.vx *= Math.pow(SJ.atritoH ?? 0.93, dt);   // atrito suave e contínuo
 
     // ÚNICO limite é a velocidade — a aceleração nunca é cortada
-    const VMAX = SJ.velMaxH ?? 6.5;
+    const VMAX = (SJ.velMaxH ?? 6.5) * sx;    // teto também proporcional
     heroi.vx = Math.max(-VMAX, Math.min(VMAX, heroi.vx));
 
     heroi.x += heroi.vx * dt;
@@ -124,7 +150,7 @@ export function initSkyJump() {
       for (const p of plats) p.y += d;
     }
 
-    plats = plats.filter((p) => p.y < H + 30);
+    plats = plats.filter((p) => p.y < H + 30 * sy);
     while (plats.length < N_PLATS) {
       const maisAlta = Math.min(...plats.map((p) => p.y));
       plats.push(novaPlat(maisAlta - sorteiaVao()));
@@ -133,16 +159,17 @@ export function initSkyJump() {
     for (const p of plats) {
       if (!p.moeda || p.moeda.pego) continue;
       const mx = p.x + LARG / 2, my = p.y + p.moeda.dy;
-      if (Math.abs(heroi.x + heroi.w / 2 - mx) < 24 &&
-          Math.abs(heroi.y + heroi.h / 2 - my) < 26) {
+      if (Math.abs(heroi.x + heroi.w / 2 - mx) < 24 * sx &&
+          Math.abs(heroi.y + heroi.h / 2 - my) < 26 * sy) {
         p.moeda.pego = true; moedas++;
       }
     }
 
-    if (heroi.y > H + 40) fim();
+    if (heroi.y > H + 40 * sy) fim();
   }
 
-  const metros = () => Math.floor(altura / 10);
+  // metros medidos NA ESCALA DE REFERÊNCIA: a pontuação não muda com a tela
+  const metros = () => Math.floor(altura / (10 * sy));
   /* 1 ponto a cada 100 m. As 🪙 NÃO viram pontos: pagam 1:1 por fora. */
   const pontos = () => Math.floor(metros() / 100);
 
@@ -184,7 +211,7 @@ export function initSkyJump() {
     }
     ctx.textBaseline = "alphabetic";
 
-    desenharBebe(ctx, heroi.x + heroi.w / 2, heroi.y + heroi.h, 42,
+    desenharBebe(ctx, heroi.x + heroi.w / 2, heroi.y + heroi.h, 42 * Math.min(sx, sy),
                  { espelhar: heroi.vx < -0.4 });
 
     ctx.textAlign = "left";

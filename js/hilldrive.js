@@ -37,6 +37,7 @@ export function initHillDrive() {
   let carro, cam, rodando, morto, lastT = 0, moedas, pegas;
   let ultimaMoedaX = 0;
   let acelera = 0;            // +1 acelerando, -1 freando/ré
+  let empinada = 0;           // ângulo extra do "cavalinho" com as rodas no chão
 
   function medidas() {
     if (view.fit()) { W = view.w; H = view.h; }
