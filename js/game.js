@@ -630,7 +630,18 @@ function atualizarBanner(state) {
 }
 
 /* ================= BOOTSTRAP ================================== */
+/* O manifest pedia "portrait", o que TRAVA a rotação em app instalado.
+ * Trocamos para "any", mas um PWA já instalado guarda o manifest antigo —
+ * então destravamos também em tempo de execução. */
+function liberarRotacao() {
+  try {
+    const so = window.screen && window.screen.orientation;
+    if (so && typeof so.unlock === "function") so.unlock();
+  } catch (_) { /* navegador sem suporte: segue o jogo */ }
+}
+
 async function main() {
+  liberarRotacao();
   try {
     await initSync();
   } catch (err) {

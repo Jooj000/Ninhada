@@ -21,9 +21,16 @@ export function fullscreenCanvas(canvas, screenId) {
     const host = canvas.parentElement || canvas;
     const r = host.getBoundingClientRect();
     if (r.width < 10 || r.height < 10) return false;   // tela ainda oculta
-    view.dpr = Math.min(3, window.devicePixelRatio || 1);
-    view.w = Math.round(r.width);
-    view.h = Math.round(r.height);
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    const w = Math.round(r.width), h = Math.round(r.height);
+
+    /* Se nada mudou, NÃO mexe em canvas.width/height: cada atribuição
+     * realoca o buffer inteiro e limpa a tela. Tocar rápido para
+     * recomeçar dispara vários reset() seguidos, e realocar em rajada
+     * derrubava o FPS. */
+    if (view.ready && w === view.w && h === view.h && dpr === view.dpr) return true;
+
+    view.dpr = dpr; view.w = w; view.h = h;
     canvas.width = Math.round(view.w * view.dpr);
     canvas.height = Math.round(view.h * view.dpr);
     canvas.style.width = "100%";

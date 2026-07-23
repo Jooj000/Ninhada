@@ -15,6 +15,10 @@ import { desenharBebe } from "./baby-sprite.js";
 import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 export function initSkyJump() {
+  /* Conta as partidas. Uma recompensa que chega DEPOIS de o jogador
+   * já ter recomeçado pertence a outra partida e deve ser ignorada —
+   * era isso que fazia a tela de morte reaparecer por cima do jogo. */
+  let runId = 0;
   const canvas = document.getElementById("sj-canvas");
   if (!canvas) return;
   const view = fullscreenCanvas(canvas, "screen-skyjump");
@@ -59,6 +63,7 @@ export function initSkyJump() {
   }
 
   function reset() {
+    runId++;                      // nova partida: invalida recompensas pendentes
     medidas();
     const TAM = 32 * Math.min(sx, sy);
     heroi = { x: W / 2 - TAM / 2, y: H - 120 * sy, vy: 0, vx: 0, w: TAM, h: TAM };
@@ -72,7 +77,8 @@ export function initSkyJump() {
 
   function comecar() {
     if (morto) { reset(); return; }
-    if (!rodando) { rodando = true; heroi.vy = PULO; setOverlay("", ""); }
+    if (!rodando) { rodando = true; heroi.vy = PULO; }
+    setOverlay("", "");   // sempre limpa o overlay
   }
 
   function update(dt) {
@@ -177,7 +183,9 @@ export function initSkyJump() {
     morto = true; rodando = false;
     const p = pontos();
     if (p > 0 || moedas > 0) {
+      const meuRun = runId;
       const r = await rewardGame(getActiveBaby(), "skyjump", p, metros(), moedas);
+      if (meuRun !== runId) return;   // o jogador já recomeçou: não mexe na tela
       registerCare();
       setOverlay(r.record ? `🏆 NOVO RECORDE: ${metros()} m!` : `Você subiu ${metros()} m · 🪙${moedas}`,
         r.factor === 0 && moedas === 0 ? "A criança se cansou — toque p/ jogar"
@@ -253,9 +261,19 @@ export function initSkyJump() {
       if (e.gamma == null) return;
       const g = SJ.grausMax ?? 24;
       const bruto = Math.max(-g, Math.min(g, e.gamma));
-      /* FILTRO PASSA-BAIXA (suavização exponencial): o acelerômetro
-       * treme o tempo todo; sem isso o boneco vibraria junto. */
-      const k = SJ.filtroInclinacao ?? 0.18;
+
+      /* FILTRO PASSA-BAIXA ADAPTATIVO.
+       * Um filtro de ganho fixo atrasa TUDO por igual: como o sensor
+       * costuma reportar a 10–30 Hz, virar o celular de uma vez levava
+       * de 200 a 400 ms só para o valor filtrado cruzar a zona morta —
+       * era esse o "delay" antes de o boneco sair do lugar.
+       * Agora o ganho CRESCE com o tamanho da variação: virada grande e
+       * proposital passa quase direto (~1 leitura), enquanto o tremor de
+       * mão, que é pequeno, continua sendo suavizado. */
+      const base = SJ.filtroInclinacao ?? 0.18;
+      const salto = SJ.saltoInclinacao ?? 8;         // graus p/ considerar "de propósito"
+      const delta = Math.abs(bruto - grausSuaves);
+      const k = Math.min(1, base + (1 - base) * Math.min(1, delta / salto));
       grausSuaves += (bruto - grausSuaves) * k;
     });
   }

@@ -15,6 +15,10 @@ import { registerCare } from "./streak.js";
 import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 export function initDino() {
+  /* Conta as partidas. Uma recompensa que chega DEPOIS de o jogador
+   * já ter recomeçado pertence a outra partida e deve ser ignorada —
+   * era isso que fazia a tela de morte reaparecer por cima do jogo. */
+  let runId = 0;
   const canvas = document.getElementById("dino-canvas");
   if (!canvas) return;
   const view = fullscreenCanvas(canvas, "screen-dino");
@@ -34,6 +38,7 @@ export function initDino() {
   }
 
   function reset() {
+    runId++;                      // nova partida: invalida recompensas pendentes
     medidas();
     dino = { x: W * 0.16, y: GROUND, vy: 0, w: 30 * s, h: 40 * s, onGround: true };
     obstacles = [];
@@ -52,7 +57,7 @@ export function initDino() {
 
   function jump() {
     if (dead) { reset(); return; }
-    if (!running) setOverlay("", "");
+    setOverlay("", "");           // sempre limpa: nunca deixa a tela de morte presa
     running = true;
     if (dino.onGround) { dino.vy = JUMP; dino.onGround = false; }
   }
@@ -99,7 +104,9 @@ export function initDino() {
     const sc = score();
     setOverlay(`Você fez ${sc}`, "Toque para jogar de novo");
     if (sc > 0) {
+      const meuRun = runId;
       const r = await rewardGame(getActiveBaby(), "dino", sc);
+      if (meuRun !== runId) return;   // o jogador já recomeçou: não mexe na tela
       registerCare();
       setOverlay(
         r.record ? `🏆 NOVO RECORDE: ${sc}!` : `Você fez ${sc}`,

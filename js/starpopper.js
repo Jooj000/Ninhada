@@ -110,6 +110,10 @@ export function sortearCor(massa, fallback = null) {
 
 /* ---------------- jogo ---------------- */
 export function initStarPopper() {
+  /* Conta as partidas. Uma recompensa que chega DEPOIS de o jogador
+   * já ter recomeçado pertence a outra partida e deve ser ignorada —
+   * era isso que fazia a tela de morte reaparecer por cima do jogo. */
+  let runId = 0;
   const canvas = document.getElementById("sp-canvas");
   if (!canvas) return;
   const view = fullscreenCanvas(canvas, "screen-starpopper");
@@ -181,6 +185,7 @@ export function initStarPopper() {
   }
 
   function reset() {
+    runId++;                      // nova partida: invalida recompensas pendentes
     medidas();
     lastT = 0;
     moedasEm.clear();
@@ -196,7 +201,7 @@ export function initStarPopper() {
 
   function comecar() {
     if (morto) { reset(); return; }
-    if (!rodando) { rodando = true; setOverlay("", ""); }
+    rodando = true; setOverlay("", "");   // sempre limpa o overlay
   }
 
   /* ---- conversões mundo <-> massa ---- */
@@ -317,7 +322,9 @@ export function initStarPopper() {
     morto = true; rodando = false;
     // pontos passam pelo balanceamento; as 🪙 pagam 1:1 direto
     if (pontos > 0 || moedas > 0) {
+      const meuRun = runId;
       const r = await rewardGame(getActiveBaby(), "starpopper", pontos, pontos, moedas);
+      if (meuRun !== runId) return;   // o jogador já recomeçou: não mexe na tela
       registerCare();
       setOverlay(r.record ? `🏆 NOVO RECORDE: ${pontos}!` : `${pontos} bolhas · 🪙${moedas}`,
         r.factor === 0 ? "A criança se cansou — toque p/ jogar"

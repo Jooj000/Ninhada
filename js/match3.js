@@ -83,6 +83,10 @@ export function trocaValida(g, a, b) {
 
 /* ---------------- jogo ---------------- */
 export function initMatch3() {
+  /* Conta as partidas. Uma recompensa que chega DEPOIS de o jogador
+   * já ter recomeçado pertence a outra partida e deve ser ignorada —
+   * era isso que fazia a tela de morte reaparecer por cima do jogo. */
+  let runId = 0;
   const grid = document.getElementById("m3-grid");
   if (!grid) return;
 
@@ -97,6 +101,7 @@ export function initMatch3() {
   }
 
   function comecar() {
+    runId++;                      // nova partida: invalida recompensas pendentes
     g = novoTabuleiro();
     pontos = 0; moedas = 0; jogadas = JOGADAS; sel = null; travado = false; rodando = true;
     elMsg.textContent = ""; btn.hidden = true;
@@ -174,7 +179,9 @@ export function initMatch3() {
     rodando = false; btn.hidden = false;
     const pts = Math.floor(pontos / 100);
     if (pts > 0 || moedas > 0) {
+      const meuRun = runId;
       const r = await rewardGame(getActiveBaby(), "match3", pts, pontos, moedas);
+      if (meuRun !== runId) return;   // o jogador já recomeçou: não mexe na tela
       registerCare();
       elMsg.textContent = r.factor === 0 && moedas === 0
         ? pontos + " pts — a criança se cansou."

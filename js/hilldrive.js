@@ -27,6 +27,10 @@ import { desenharBebe } from "./baby-sprite.js";
 import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 export function initHillDrive() {
+  /* Conta as partidas. Uma recompensa que chega DEPOIS de o jogador
+   * já ter recomeçado pertence a outra partida e deve ser ignorada —
+   * era isso que fazia a tela de morte reaparecer por cima do jogo. */
+  let runId = 0;
   const canvas = document.getElementById("hd-canvas");
   if (!canvas) return;
   const view = fullscreenCanvas(canvas, "screen-hilldrive");
@@ -65,6 +69,7 @@ export function initHillDrive() {
   const normAng = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
   function reset() {
+    runId++;                      // nova partida: invalida recompensas pendentes
     medidas();
     carro = {
       x: 60 * s, y: solo(60 * s) - CLR,
@@ -89,7 +94,7 @@ export function initHillDrive() {
 
   function comecar() {
     if (morto) { reset(); return; }
-    if (!rodando) { rodando = true; setOverlay("", ""); }
+    rodando = true; setOverlay("", "");   // sempre limpa o overlay
   }
 
   const distancia = () => Math.max(0, Math.floor(carro.x / (10 * s)));
@@ -229,7 +234,9 @@ export function initHillDrive() {
     const pontos = distancia();
     if (pontos > 0 || pegas > 0) {
       // as 🪙 pegas pagam 1:1 direto; a distância paga pouquinho
+      const meuRun = runId;
       const r = await rewardGame(getActiveBaby(), "hilldrive", pontos, distancia(), pegas);
+      if (meuRun !== runId) return;   // o jogador já recomeçou: não mexe na tela
       registerCare();
       setOverlay(r.record ? `🏆 NOVO RECORDE: ${distancia()} m!` : `${motivo} ${distancia()} m · 🪙${pegas}`,
         r.factor === 0 && pegas === 0 ? "A criança se cansou — toque p/ jogar"

@@ -60,7 +60,7 @@ export function initCliffJump() {
 
   function comecar() {
     if (morto) { reset(); return; }
-    if (!rodando) { rodando = true; setOverlay("", ""); }
+    rodando = true; setOverlay("", "");   // sempre limpa o overlay
   }
 
   function pular() {

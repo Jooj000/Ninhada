@@ -59,6 +59,10 @@ function sortearPeixe(total) {
 }
 
 export function initFishing() {
+  /* Conta as partidas. Uma recompensa que chega DEPOIS de o jogador
+   * já ter recomeçado pertence a outra partida e deve ser ignorada —
+   * era isso que fazia a tela de morte reaparecer por cima do jogo. */
+  let runId = 0;
   const canvas = document.getElementById("fish-canvas");
   if (!canvas) return;
   const view = fullscreenCanvas(canvas, "screen-fishing");
@@ -309,7 +313,9 @@ export function initFishing() {
 
     const bonusBau = baus * (F.bauCoins ?? 5);
     if (total > 0 || bonusBau > 0) {
+      const meuRun = runId;
       const r = await rewardGame(getActiveBaby(), "fishing", total, null, bonusBau);
+      if (meuRun !== runId) return;   // o jogador já recomeçou: não mexe na tela
       registerCare();
       msg.textContent = `${motivo} ` + (r.factor === 0 && bonusBau === 0
         ? `(${total} pts — a criança se cansou.)`
@@ -362,6 +368,7 @@ export function initFishing() {
 
   /* ---- ciclo de vida: sair = zerar tudo ---- */
   function resetTela() {
+    runId++;                      // nova partida: invalida recompensas pendentes
     medidas();
     estado = "fim"; total = 0; caught = {}; baus = 0; bau = null; bauSorteado = false;
     segurando = false; lastT = 0;

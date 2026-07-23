@@ -13,6 +13,10 @@ import { registerCare } from "./streak.js";
 import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 export function initMinigame() {
+  /* Conta as partidas. Uma recompensa que chega DEPOIS de o jogador
+   * já ter recomeçado pertence a outra partida e deve ser ignorada —
+   * era isso que fazia a tela de morte reaparecer por cima do jogo. */
+  let runId = 0;
   const canvas = document.getElementById("mini-canvas");
   if (!canvas) return;
   const view = fullscreenCanvas(canvas, "screen-flappy");
@@ -34,6 +38,7 @@ export function initMinigame() {
   let bird, pipes, score, running, dead;
 
   function reset() {
+    runId++;                      // nova partida: invalida recompensas pendentes
     if (view.fit()) { W = view.w; H = view.h; }
     sx = W / REF_W; sy = H / REF_H;
 
@@ -63,7 +68,7 @@ export function initMinigame() {
 
   function flap() {
     if (dead) { reset(); return; }
-    if (!running) setOverlay("", "");
+    setOverlay("", "");           // sempre limpa: nunca deixa a tela de morte presa
     running = true;
     bird.vy = FLAP;
   }
@@ -92,7 +97,9 @@ export function initMinigame() {
     running = false;
     setOverlay(`Você fez ${score}`, "Toque para jogar de novo");
     if (score > 0) {
+      const meuRun = runId;
       const r = await rewardGame(getActiveBaby(), "flappy", score);
+      if (meuRun !== runId) return;   // o jogador já recomeçou: não mexe na tela
       registerCare();
       setOverlay(
         r.record ? `🏆 NOVO RECORDE: ${score}!` : `Você fez ${score}`,

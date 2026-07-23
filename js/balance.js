@@ -183,7 +183,8 @@ export const BALANCE = {
      *   -> atrito -> posição
      * Resultado: o boneco DEMORA a ganhar velocidade, CONTINUA deslizando
      * quando o celular volta ao centro e para aos poucos. */
-    filtroInclinacao: 0.18,     // passa-baixa (0..1): menor = mais suave
+    filtroInclinacao: 0.18,     // passa-baixa (0..1): ganho MÍNIMO, p/ tremores
+    saltoInclinacao: 8,         // virada ≥8° é "de propósito" e passa na hora
     zonaMortaGraus: 11,         // até ±11° ele nem se mexe (zona morta larga)
     grausMax: 24,               // leitura do sensor satura aqui
     /* Calibrados para a velocidade terminal NATURAL (aceleração ÷ atrito)

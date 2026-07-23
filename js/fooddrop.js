@@ -23,6 +23,10 @@ const BONS = [
 const RUINS = ["🧦", "🧸", "📎", "🪨", "👟", "🧴", "🪥", "⚽", "🧽", "🔑", "🧲", "✏️"];
 
 export function initFoodDrop() {
+  /* Conta as partidas. Uma recompensa que chega DEPOIS de o jogador
+   * já ter recomeçado pertence a outra partida e deve ser ignorada —
+   * era isso que fazia a tela de morte reaparecer por cima do jogo. */
+  let runId = 0;
   const canvas = document.getElementById("fd-canvas");
   if (!canvas) return;
   const view = fullscreenCanvas(canvas, "screen-fooddrop");
@@ -40,6 +44,7 @@ export function initFoodDrop() {
   }
 
   function reset() {
+    runId++;                      // nova partida: invalida recompensas pendentes
     medidas();
     cesta = { x: W / 2, w: Math.max(70, Math.min(110, W * 0.22)) };
     itens = []; avisos = []; pontos = 0; vidas = 3; vel = 2.2 * sy; spawn = 50;
@@ -50,7 +55,7 @@ export function initFoodDrop() {
 
   function começar() {
     if (morto) { reset(); return; }
-    if (!rodando) { rodando = true; setOverlay("", ""); }
+    rodando = true; setOverlay("", "");   // sempre limpa o overlay
   }
 
   function soltar() {
@@ -101,7 +106,9 @@ export function initFoodDrop() {
   async function fim() {
     morto = true; rodando = false;
     if (pontos > 0) {
+      const meuRun = runId;
       const r = await rewardGame(getActiveBaby(), "fooddrop", pontos);
+      if (meuRun !== runId) return;   // o jogador já recomeçou: não mexe na tela
       registerCare();
       setOverlay(r.record ? `🏆 NOVO RECORDE: ${pontos}!` : `Você pegou ${pontos}`,
         r.factor === 0 ? "A criança se cansou — toque p/ jogar"

@@ -16,6 +16,10 @@ import { desenharBebe } from "./baby-sprite.js";
 import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 export function initGoal() {
+  /* Conta as partidas. Uma recompensa que chega DEPOIS de o jogador
+   * já ter recomeçado pertence a outra partida e deve ser ignorada —
+   * era isso que fazia a tela de morte reaparecer por cima do jogo. */
+  let runId = 0;
   const canvas = document.getElementById("gl-canvas");
   if (!canvas) return;
   const view = fullscreenCanvas(canvas, "screen-goal");
@@ -39,6 +43,7 @@ export function initGoal() {
   }
 
   function reset() {
+    runId++;                      // nova partida: invalida recompensas pendentes
     medidas();
     lastT = 0;
     gols = 0; chances = 3; rodando = false; morto = false; estado = "mira";
@@ -62,7 +67,7 @@ export function initGoal() {
 
   function comecar() {
     if (morto) { reset(); return; }
-    if (!rodando) { rodando = true; setOverlay("", ""); }
+    rodando = true; setOverlay("", "");   // sempre limpa o overlay
   }
 
   /* Chuta: só a DIREÇÃO importa; a velocidade é sempre a mesma. */
@@ -124,7 +129,9 @@ export function initGoal() {
   async function fim() {
     morto = true; rodando = false;
     if (gols > 0) {
+      const meuRun = runId;
       const r = await rewardGame(getActiveBaby(), "goal", gols);
+      if (meuRun !== runId) return;   // o jogador já recomeçou: não mexe na tela
       registerCare();
       setOverlay(r.record ? `🏆 NOVO RECORDE: ${gols} gols!` : `${gols} gol(s)`,
         r.factor === 0 ? "A criança se cansou — toque p/ jogar"
