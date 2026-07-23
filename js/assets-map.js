@@ -74,7 +74,7 @@ export const ASSETS = {
 
   /* ---- Camadas equipáveis (chave = id da categoria) ---- */
   corpo: {
-    pele_clara: {src:"assets/sprites/corpo/pele%20clara.png",placeholder:"#FBD9B8",label:"Pele Clara"},
+    pele_clara: {src:"assets/sprites/corpo/Pele%20Clara.png",placeholder:"#FBD9B8",label:"Pele Clara"},
     pele_morena: {src:"assets/sprites/corpo/Pele%20Morena.png",placeholder:"#b6fa89",label:"Pele Morena"},
   },
   face: {
@@ -97,8 +97,8 @@ export const ASSETS = {
     bota_galinha: {src:"assets/sprites/sapatos/Bota%20Galinha.png",placeholder:"#73db7d",label:"Bota Galinha"},
   },
   acessorios: {
-    lacos_vermelhos: {src:"assets/sprites/accessories/lacos%20vermelhos.png",placeholder:"#FFB4A2",label:"Laços vermelhos"},
-    pulseiras_coloridas: {src:"assets/sprites/accessories/pulseiras%20coloridas.png",placeholder:"#A2C4FF",label:"Pulseiras coloridas"},
+    lacos_vermelhos: {src:"assets/sprites/accessories/Lacos%20Vermelhos.png",placeholder:"#FFB4A2",label:"Laços vermelhos"},
+    pulseiras_coloridas: {src:"assets/sprites/accessories/Pulseiras%20Coloridas.png",placeholder:"#A2C4FF",label:"Pulseiras coloridas"},
   },
   brinquedos: {
     teto: {src:"assets/sprites/toys/teto.png",placeholder:"#2702d6",label:"Teto"},
