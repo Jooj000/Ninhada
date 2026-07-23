@@ -800,3 +800,28 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   background: #4A3F55; color: #fff; border-radius: 12px; padding: 10px 14px;
   font-size: .78rem; line-height: 1.4; box-shadow: 0 6px 20px rgba(0,0,0,.25);
 }
+
+/* ============ BANNER LATERAL DA CRIANÇA (PC) ============ */
+.banner-bebe { display: none; }
+
+@media (min-width: 1000px) {
+  .banner-bebe {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    position: fixed; left: max(16px, calc(50vw - 480px)); top: 50%;
+    transform: translateY(-50%);
+    width: 210px; padding: 16px 12px 18px;
+    background: var(--surface); border-radius: 22px; box-shadow: var(--shadow);
+    z-index: 20; pointer-events: none;
+  }
+  .banner-stage {
+    width: 180px; height: 180px; position: relative;
+    background: transparent; box-shadow: none; border-radius: 16px;
+  }
+  .banner-nome { font-weight: 800; font-size: 1rem; color: var(--ink); }
+  .banner-fase { font-size: .74rem; color: var(--ink-soft); }
+}
+/* telas muito largas: afasta um pouco mais do conteúdo */
+@media (min-width: 1400px) {
+  .banner-bebe { left: calc(50vw - 520px); width: 240px; }
+  .banner-stage { width: 210px; height: 210px; }
+}

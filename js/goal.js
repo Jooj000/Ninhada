@@ -12,6 +12,7 @@
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { desenharBebe } from "./baby-sprite.js";
 
 export function initGoal() {
   const canvas = document.getElementById("gl-canvas");
@@ -143,17 +144,19 @@ export function initGoal() {
     ctx.textAlign = "center";
     ctx.fillText("MIRE AQUI", alvo.x, GY + GH / 2);
 
-    // goleiro = a criança, que se joga
-    const gy = LINHA - 6 - goleiro.pulo * 16;
-    const inclina = (goleiro.x - W / 2) / (GW / 2) * goleiro.pulo * 0.8;
-    ctx.save();
-    ctx.translate(goleiro.x, gy);
-    ctx.rotate(inclina);
-    ctx.font = "40px system-ui, sans-serif";
-    ctx.textAlign = "center"; ctx.textBaseline = "bottom";
-    ctx.fillText(goleiro.defendeu ? "🧤" : "👶", 0, 0);
-    ctx.restore();
-    ctx.textBaseline = "alphabetic";
+    // GOLEIRA = a própria criança (boneco completo equipado), que se joga
+    const gy = LINHA - 4 - goleiro.pulo * 18;
+    const inclina = (goleiro.x - W / 2) / (GW / 2) * goleiro.pulo * 0.9;
+    desenharBebe(ctx, goleiro.x, gy, 68, {
+      giro: inclina,
+      espelhar: goleiro.x < W / 2,
+    });
+    if (goleiro.defendeu) {                     // luva só no momento da defesa
+      ctx.font = "22px system-ui, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("🧤", goleiro.x + (goleiro.x < W / 2 ? -24 : 24), gy - 40);
+      ctx.textBaseline = "alphabetic";
+    }
 
     // mira: só direção (uma seta horizontal)
     if (estado === "mira" && rodando) {

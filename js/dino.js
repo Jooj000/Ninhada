@@ -10,6 +10,7 @@
  * ===================================================================== */
 
 import { rewardGame, getRecord } from "./firebase-sync.js";
+import { desenharBebe } from "./baby-sprite.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { GAME_CONFIG } from "./config.js";
@@ -109,21 +110,30 @@ export function initDino() {
 
   /* ------------------------- desenho ------------------------- */
   function drawDino() {
-    // TROCAR ARTE AQUI: ctx.drawImage(dinoImg, dino.x, dino.y - h, w, h);
+    // Dinossauro correndo com a criança montada em cima.
     const duck = ducking && dino.onGround;
     const h = duck ? 22 : dino.h;
     const w = duck ? 44 : dino.w;
-    ctx.fillStyle = "#7EC8A0";
-    ctx.fillRect(dino.x, dino.y - h, w, h);
-    ctx.fillStyle = "#4A3F55";                       // olhinho
-    ctx.fillRect(dino.x + w - 10, dino.y - h + 6, 4, 4);
-    if (!duck) {                                     // perninhas correndo
-      const step = Math.floor(dist / 6) % 2 === 0;
-      ctx.fillStyle = "#7EC8A0";
-      ctx.fillRect(dino.x + 4, dino.y, 7, step ? 6 : 2);
-      ctx.fillRect(dino.x + 18, dino.y, 7, step ? 2 : 6);
+    const cx = dino.x + w / 2;
+    const pes = dino.y;
+
+    // o dino balança de leve enquanto corre
+    const passo = dino.onGround ? Math.sin(dist / 7) * 1.5 : 0;
+
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.font = `${h + 14}px system-ui, sans-serif`;
+    ctx.fillText("🦖", cx, pes + 4 + passo);
+    ctx.restore();
+
+    // a criança montada (some quando está abaixada, senão bate nos pássaros)
+    if (!duck) {
+      desenharBebe(ctx, cx + 2, pes - h * 0.62 + passo, h * 0.85);
     }
+    ctx.textBaseline = "alphabetic";
   }
+
 
   function drawObstacle(o) {
     if (o.bird) {

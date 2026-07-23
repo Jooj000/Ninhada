@@ -143,10 +143,12 @@ export const BALANCE = {
     // Rotação no ar: acelerar empina, frear abaixa o nariz.
     torqueAr: 0.011,
     atritoAngular: 0.985,
-    // TOMBA se aterrissar torto mais que isto (rad) — menor = mais difícil.
-    anguloQueda: 0.75,
-    // ou se capotar de vez (girou demais no ar)
-    anguloCapota: 2.1,
+    // Só perde quando a CABEÇA da criança encosta no chão (como no
+    // Hill Climb Racing). Inclinar o carro por si só não derruba.
+    // Altura da cabeça MEDIDA A PARTIR DO CHÃO (fração do tamanho do carro).
+    // A cabeça gira em volta do ponto onde as rodas tocam o solo, então
+    // tombar além de ~85° é o que encosta a cabeça.
+    alturaCabeca: 0.78,
     tamanhoCarro: 46,
     moedaMin: 450, moedaMax: 800,   // moedas bem mais espaçadas
   },
@@ -164,9 +166,9 @@ export const BALANCE = {
     chanceQuebra: 0.28,
     // A inclinação define a VELOCIDADE direto (não acelera aos poucos),
     // senão dá a sensação de atraso ao virar o celular.
-    velMaxInclinacao: 6.5,
-    respostaInclinacao: 0.45,   // 1 = instantâneo · 0.45 = suave mas rápido
-    grausMax: 26,               // inclinar 26° já é o máximo
+    velMaxInclinacao: 11,
+    respostaInclinacao: 0.7,    // 1 = instantâneo
+    grausMax: 5,                // basta inclinar 5° para ir com tudo
   },
 
   /* ================= STAR POPPER ================= */

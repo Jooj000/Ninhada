@@ -13,6 +13,7 @@ import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { HILLDRIVE as HD } from "./config.js";
+import { desenharBebe } from "./baby-sprite.js";
 
 export function initHillDrive() {
   const canvas = document.getElementById("hd-canvas");
@@ -104,19 +105,29 @@ export function initHillDrive() {
       carro.va *= Math.pow(HD.atritoAngular, dt);
       carro.ang += carro.va * dt;
 
-      if (Math.abs(carro.ang) > HD.anguloCapota) return fim("Capotou no ar! 🙃");
-
       if (carro.y >= chao - 20) {
-        const diff = Math.abs(((carro.ang - inc) + Math.PI) % (Math.PI * 2) - Math.PI);
-        if (diff > HD.anguloQueda) return fim("Aterrissou torto! 💥");
         carro.y = chao - 20;
         carro.vy = 0;
         carro.vx *= 0.93;                       // pousada custa um pouco de velocidade
+        // o carro se endireita ao tocar o chão (mas devagar: dá pra tombar)
+        carro.va *= 0.35;
       }
     }
 
     carro.x += carro.vx * dt;
     if (carro.x < 0) { carro.x = 0; carro.vx = 0; }
+
+    /* PERDE SÓ SE A CABEÇA DA CRIANÇA BATER NO CHÃO.
+     * O carro gira em volta do PONTO DE CONTATO DAS RODAS (não do centro),
+     * que é o que acontece de verdade quando um carrinho tomba. A cabeça
+     * fica a `h` acima desse ponto, então girando por `ang`:
+     *     cabeça = ( x + h·sen(ang) , chaoDoCarro − h·cos(ang) )
+     * Ou seja: inclinar não derruba; deitar o carro (~85°+) sim.        */
+    const h = HD.tamanhoCarro * (HD.alturaCabeca ?? 0.78);
+    const apoio = solo(carro.x);
+    const cabecaX = carro.x + h * Math.sin(carro.ang);
+    const cabecaY = apoio - h * Math.cos(carro.ang);
+    if (cabecaY >= solo(cabecaX) - 2) return fim("Bateu a cabeça! 🤕");
 
     cam = carro.x - 110;
 
@@ -188,13 +199,13 @@ export function initHillDrive() {
     ctx.save();
     ctx.translate(carro.x - cam, carro.y);
     ctx.rotate(carro.ang);
-    // o emoji do carro aponta para a ESQUERDA; espelho para ele "andar" p/ direita
+    // a criança vai DENTRO, aparecendo da cintura para cima
+    desenharBebe(ctx, 0, -HD.tamanhoCarro * 0.16, HD.tamanhoCarro * 0.72, { soCabeca: true });
+    // o emoji do carro aponta para a ESQUERDA; espelho p/ ele "andar" à direita
     ctx.scale(-1, 1);
     ctx.font = `${HD.tamanhoCarro}px system-ui, sans-serif`;
-    ctx.fillText("🚙", 0, 4);
-    ctx.scale(-1, 1);                            // desespelha o bebê
-    ctx.font = `${Math.round(HD.tamanhoCarro * 0.5)}px system-ui, sans-serif`;
-    ctx.fillText("👶", 1, -HD.tamanhoCarro * 0.34);
+    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.fillText("🚙", 0, HD.tamanhoCarro * 0.34);
     ctx.restore();
     ctx.textBaseline = "alphabetic";
 

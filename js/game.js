@@ -318,6 +318,34 @@ function wireNav() {
 }
 
 /* ================= BOOTSTRAP ================================== */
+/* ---------------------------------------------------------------------
+ * BANNER LATERAL (só em tela larga, tipo PC): mostra a criança ativa
+ * inteirinha, com tudo o que está vestindo.
+ * Fica no escopo do módulo (não dentro de main) para não haver risco de
+ * ser chamado antes de existir, e é blindado: se der problema aqui, o
+ * resto da atualização de estado continua funcionando.
+ * ------------------------------------------------------------------- */
+let bannerRefs = null;
+function atualizarBanner(state) {
+  try {
+    const alvo = document.getElementById("banner-stage");
+    if (!alvo) return;
+    const box = document.getElementById("banner-bebe");
+    const baby = state && state.babies && state.babies[getActiveBaby()];
+    if (!baby) { if (box) box.style.display = "none"; return; }
+    if (box) box.style.display = "";
+    if (!bannerRefs) bannerRefs = buildStageLayers(alvo, false);
+    paintBabyLayers(bannerRefs, baby);
+    alvo.dataset.mood = moodFor(baby);
+    const nome = document.getElementById("banner-nome");
+    const fase = document.getElementById("banner-fase");
+    if (nome) nome.textContent = baby.name || "Bebê";
+    if (fase) fase.textContent = phaseForXp(baby.xp || 0).name;
+  } catch (e) {
+    console.error("[Ninhada] banner lateral:", e);
+  }
+}
+
 async function main() {
   document.getElementById("room-title").textContent = ROOM_NAME;
 
@@ -339,6 +367,7 @@ async function main() {
     if (ck) ck.textContent = coins;
     reconcile(state.babies);
     updateStreak(state);
+    atualizarBanner(state);
     checkMilestones(state);
     updateArcadeLocks();
     const adopt = document.getElementById("adopt-btn");

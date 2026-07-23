@@ -11,6 +11,7 @@
  * ===================================================================== */
 
 import { rewardGame, getRecord } from "./firebase-sync.js";
+import { desenharBebe } from "./baby-sprite.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { GAME_CONFIG } from "./config.js";
@@ -93,16 +94,24 @@ export function initMinigame() {
 
   /* ---------------- desenho ---------------- */
   function drawBird() {
-    // TROCAR ARTE AQUI: ctx.drawImage(birdImg, bird.x-24, bird.y-24, 48, 48);
-    ctx.fillStyle = "#FFC93C";
-    ctx.beginPath();
-    ctx.arc(bird.x, bird.y, bird.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#333";
-    ctx.beginPath();
-    ctx.arc(bird.x + 5, bird.y - 4, 3, 0, Math.PI * 2);
-    ctx.fill();
+    // O aviãozinho inclina conforme sobe/desce, e a criança aparece
+    // da cabecinha para cima na cabine — o boneco COMPLETO equipado.
+    const inclina = Math.max(-0.5, Math.min(0.7, bird.vy * 0.05));
+    ctx.save();
+    ctx.translate(bird.x, bird.y);
+    ctx.rotate(inclina);
+
+    // criança primeiro (fica ATRÁS do avião)
+    desenharBebe(ctx, -2, -bird.r * 0.35, bird.r * 2.1, { soCabeca: true });
+
+    ctx.font = `${bird.r * 2.6}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("✈️", 0, bird.r * 0.15);
+    ctx.restore();
+    ctx.textBaseline = "alphabetic";
   }
+
 
   function drawPipe(p) {
     // TROCAR ARTE AQUI por um .png de cano/nuvem, se a artista fizer.

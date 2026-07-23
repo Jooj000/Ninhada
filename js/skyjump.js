@@ -10,6 +10,7 @@ import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { SKYJUMP as SJ } from "./config.js";
+import { desenharBebe } from "./baby-sprite.js";
 
 export function initSkyJump() {
   const canvas = document.getElementById("sj-canvas");
@@ -154,12 +155,9 @@ export function initSkyJump() {
       }
     }
 
-    // o bebê: base do emoji EXATAMENTE nos pés (senão ele afunda na plataforma)
-    ctx.font = "30px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillText("👶", heroi.x + heroi.w / 2, heroi.y + heroi.h);
-    ctx.textBaseline = "alphabetic";
+    // a criança inteira, com os pés exatamente na base da hitbox
+    desenharBebe(ctx, heroi.x + heroi.w / 2, heroi.y + heroi.h, 42,
+                 { espelhar: heroi.vx < -0.4 });
 
     ctx.textAlign = "left";
     ctx.font = "bold 16px system-ui, sans-serif"; ctx.fillStyle = "#4A3F55";
