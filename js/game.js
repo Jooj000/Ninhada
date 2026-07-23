@@ -482,21 +482,38 @@ function setView(mode) {
   }
 }
 
-/* ================= LOOP VISUAL ================================== */
+/* ================= LOOP VISUAL ==================================
+ * BLINDADO: um erro em qualquer parte do desenho NÃO pode matar o
+ * requestAnimationFrame. Antes, uma única exceção aqui congelava a tela
+ * inteira (status parados, criança sem atualizar) e o motivo real ficava
+ * escondido no console. Agora o erro é avisado uma vez e o loop segue. */
+let erroAvisado = false;
 function tick() {
+  try {
+    desenharQuadro();
+  } catch (e) {
+    if (!erroAvisado) { erroAvisado = true; console.error("[Ninhada] erro no loop visual:", e); }
+  }
+  requestAnimationFrame(tick);
+}
+
+function desenharQuadro() {
   if (room && room.babies) {
     const now = Date.now();
     const activeId = getActiveBaby();
     for (const [id, baby] of Object.entries(room.babies)) {
       const decayed = applyDecay(baby, now);
       if (id === activeId) updateChips(decayed);
-      if (viewMode === "single" && cards[id] && id === activeId) updateCard(cards[id], decayed);
-      if (viewMode === "room" && tiles[id]) updateTile(tiles[id], decayed);
+      try {
+        if (viewMode === "single" && cards[id] && id === activeId) updateCard(cards[id], decayed);
+        if (viewMode === "room" && tiles[id]) updateTile(tiles[id], decayed);
+      } catch (e) {
+        if (!erroAvisado) { erroAvisado = true; console.error("[Ninhada] erro ao desenhar a criança:", e); }
+      }
     }
     updateRooms(room);        // menu de cozinhar (quando aberto)
     updateNightmares(room);   // banner de pesadelo
   }
-  requestAnimationFrame(tick);
 }
 
 /* ================= NAVEGAÇÃO / UI ============================== */

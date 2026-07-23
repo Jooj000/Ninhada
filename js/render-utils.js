@@ -7,7 +7,7 @@
  *                   pintam bloco de cor (só corpo/cenário usam placeholder).
  * ===================================================================== */
 
-import { ASSETS, getAsset, SLOTS } from "./assets-map.js";
+import { ASSETS, getAsset, SLOTS, variacoesDeSrc } from "./assets-map.js";
 import { phaseForXp } from "./state.js";
 import { GAME_CONFIG } from "./config.js";
 
