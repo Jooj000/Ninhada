@@ -1531,3 +1531,77 @@ body {
   aspect-ratio: auto;
   overflow: visible;
 }
+
+/* =====================================================================
+ * ============ V8 — PC: FUNDO CHEIO + CONTEÚDO NA ESCALA DO CELULAR ==
+ * Correção do V7: antes eu estreitava a CENA inteira, o que cortava o
+ * fundo. Agora o fundo ocupa a tela toda (normal) e só o CONTEÚDO fica
+ * numa coluna com a proporção de um celular — a criança volta à escala
+ * certa e o banner usa a sobra da lateral.
+ * ===================================================================== */
+@media (min-width: 1000px) {
+  /* desfaz o estreitamento da cena (o fundo volta a preencher tudo) */
+  .screen.scene.active {
+    left: 0; right: 0; width: auto; transform: none;
+  }
+
+  /* só o CONTEÚDO fica na coluna de celular, centralizado */
+  .scene-top, .scene-controls, .scene-stage,
+  .scene-msg, .hotspots, .scene-nav {
+    width: 100%;
+    max-width: var(--coluna);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* banner na sobra da esquerda */
+  .banner-bebe { width: calc((100vw - var(--coluna)) / 2); }
+
+  /* ---- MODO GRUPO: widescreen, a turma inteira em destaque ---- */
+  .modo-grupo .scene-stage,
+  .modo-grupo .scene-msg,
+  .modo-grupo .hotspots,
+  .modo-grupo .scene-nav { max-width: none; }
+  .modo-grupo .room-view { padding: 0 6vw; }
+}
+
+/* ---- ícones do topo agrupados (estavam espalhados na tela larga) ---- */
+.top-row1 {
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.top-row1 #push-btn { margin-right: auto; }   /* sino na ponta esquerda */
+.top-row1 .weather-pill { margin-left: auto; } /* clima na ponta direita */
+
+/* ---- GRUPO: a turma tem que CABER (nada de cabeça cortada) ---- */
+.room-view {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.room-baby {
+  max-height: 78%;
+  display: flex; flex-direction: column; align-items: center;
+}
+.room-baby .mini-stage {
+  max-height: calc(100% - 1.2em);   /* deixa espaço para o nome */
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  height: auto;
+}
+
+/* o grupo agora é uma LINHA que sempre cabe (sem posicionamento absoluto) */
+.room-view {
+  gap: 1.5%;
+  padding-bottom: 2%;
+}
+.room-baby {
+  position: relative;   /* anula o absolute do layout antigo */
+  left: auto; bottom: auto; transform: none;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* a lista suspensa de crianças não existe mais (quem escolhe é o modo grupo) */
+#home-baby-select { display: none !important; }

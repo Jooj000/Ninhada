@@ -413,13 +413,20 @@ function updateTile(refs, baby) {
 function layoutTiles() {
   const ids = Object.keys(tiles);
   const n = ids.length;
-  // ~1,6x maior também no modo grupo (com teto para não se sobreporem)
-  const w = n <= 1 ? 92 : n === 2 ? 62 : n === 3 ? 46 : 40;
+  /* Larguras em % do palco. Precisam CABER na altura: uma criança
+   * ocupando 92% da largura ficava mais alta que o palco e a cabeça
+   * saía pela borda de cima. O CSS ainda limita a altura (max-height). */
+  const w = n <= 1 ? 46 : n === 2 ? 38 : n === 3 ? 31 : 26;
+  /* Layout em LINHA (flex), não mais posicionamento absoluto com
+   * percentuais fixos: assim a turma inteira sempre CABE no palco —
+   * é o "enquadramento" que faltava, e nenhuma cabeça sai pela borda. */
   ids.forEach((id, i) => {
     const el = tiles[id].el;
     el.style.width = `${w}%`;
-    el.style.left = `${((i + 0.5) / n) * 100}%`;
-    el.style.bottom = `${4 + (i % 2) * 10}%`;
+    el.style.left = "";
+    el.style.bottom = "";
+    // leve escadinha para dar profundidade, sem empurrar ninguém pra fora
+    el.style.alignSelf = i % 2 ? "flex-end" : "center";
   });
 }
 
@@ -438,21 +445,10 @@ function reconcile(babies) {
   applyActiveVisibility();
 }
 
-function syncSelect(babies) {
-  const select = document.getElementById("home-baby-select");
-  const ids = Object.keys(babies || {});
-  const sig = ids.map((id) => `${id}:${babies[id].name || ""}`).join("|");
-  if (select.dataset.sig !== sig) {
-    select.dataset.sig = sig;
-    select.innerHTML = "";
-    for (const id of ids) {
-      const opt = document.createElement("option");
-      opt.value = id; opt.textContent = babies[id].name || "Bebê";
-      select.appendChild(opt);
-    }
-  }
-  if (getActiveBaby()) select.value = getActiveBaby();
-}
+/* A lista suspensa de crianças foi removida: quem escolhe é o MODO GRUPO
+ * (toque na criança para deixá-la ativa). Mantido como no-op para não
+ * espalhar ifs pelo reconcile. */
+function syncSelect() { /* sem lista: nada a sincronizar */ }
 
 function applyActiveVisibility() {
   const active = getActiveBaby();
@@ -466,7 +462,6 @@ function setView(mode) {
   setViewMode(mode);
   const single = document.getElementById("single-view");
   const roomv = document.getElementById("room-view");
-  const select = document.getElementById("home-baby-select");
   const toggle = document.getElementById("view-toggle");
   const adopt = document.getElementById("adopt-btn");
 
@@ -476,11 +471,11 @@ function setView(mode) {
   if (cena) cena.classList.toggle("modo-grupo", mode === "room");
 
   if (mode === "room") {
-    single.hidden = true; roomv.hidden = false; select.style.display = "none";
+    single.hidden = true; roomv.hidden = false;
     toggle.textContent = "👤"; toggle.title = "Ver um por vez";
     adopt.hidden = false;                       // adotar só aparece em grupo
   } else {
-    single.hidden = false; roomv.hidden = true; select.style.display = "";
+    single.hidden = false; roomv.hidden = true;
     toggle.textContent = "👥"; toggle.title = "Ver todos no cômodo";
     adopt.hidden = true;
     applyActiveVisibility();
@@ -590,9 +585,6 @@ function wireNav() {
   document.getElementById("room-prev").addEventListener("click", () => setRoom(roomIdx - 1));
   document.getElementById("room-next").addEventListener("click", () => setRoom(roomIdx + 1));
 
-  document.getElementById("home-baby-select")
-    .addEventListener("change", (e) => setActiveBaby(e.target.value));
-
   document.getElementById("view-toggle")
     .addEventListener("click", () => setView(viewMode === "single" ? "room" : "single"));
 
@@ -605,8 +597,6 @@ function wireNav() {
   });
 
   onActiveBaby(() => {
-    const sel = document.getElementById("home-baby-select");
-    if (getActiveBaby()) sel.value = getActiveBaby();
     applyActiveVisibility();
     updateTrayLocks();
     renderHotspots();

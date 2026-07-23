@@ -39,6 +39,7 @@ export function initSkyJump() {
   let heroi, plats, altura, camera, rodando, morto, lastT = 0, alvoX = null;
   let moedas;
   let setaX = 0;                 // -1 / 0 / +1 pelas setas do teclado
+  let estabiliza = 0;            // 1 logo após inverter o sentido, decai a 0
   let grausSuaves = 0;           // leitura do sensor JÁ filtrada
 
   function medidas() {
@@ -70,7 +71,7 @@ export function initSkyJump() {
     plats = [{ x: W / 2 - LARG / 2, y: H - 60 * sy, quebra: false, usada: false }];
     { let y = H - 60 * sy; for (let i = 1; i < N_PLATS; i++) { y -= sorteiaVao(); plats.push(novaPlat(y)); } }
     altura = 0; camera = 0; rodando = false; morto = false; alvoX = null;
-    moedas = 0; lastT = 0; setaX = 0; grausSuaves = 0;
+    moedas = 0; lastT = 0; setaX = 0; grausSuaves = 0; estabiliza = 0;
     setOverlay("Toque para começar", "Arraste para os lados!");
     desenhar();
   }
@@ -123,8 +124,27 @@ export function initSkyJump() {
     }
     if (setaX !== 0) ax += setaX * (SJ.acelSeta ?? 0.29) * sx;
 
+    /* ---- INVERSÃO DE SENTIDO ----
+     * Virar o celular de 45° à direita para 45° à esquerda deve FREAR
+     * rápido, mas não catapultar o boneco para o outro lado: o jogador
+     * precisa de um instante para centralizar o aparelho.
+     *   1) enquanto a inclinação se opõe à velocidade, ela vira FREIO
+     *      (um pouco mais forte que a aceleração normal);
+     *   2) assim que a velocidade cruza o zero, a aceleração volta
+     *      SUAVEMENTE ao normal em ~0,3 s.
+     * Nada trava o boneco no centro — é um amortecimento passageiro. */
+    const opondo = ax !== 0 && heroi.vx !== 0 && Math.sign(ax) !== Math.sign(heroi.vx);
+    if (opondo) {
+      ax *= (SJ.freioInversao ?? 1.35);        // freia mais rápido
+      estabiliza = 1;                          // arma o amortecimento
+    } else if (estabiliza > 0) {
+      const passo = dt / Math.max(1, (SJ.estabilizaFrames ?? 18));
+      estabiliza = Math.max(0, estabiliza - passo);
+      ax *= 1 - estabiliza * (1 - (SJ.estabilizaMin ?? 0.35));
+    }
+
     heroi.vx += ax * dt;                       // integra: v = ∫a
-    heroi.vx *= Math.pow(SJ.atritoH ?? 0.93, dt);   // atrito suave e contínuo
+    heroi.vx *= Math.pow(SJ.atritoH ?? 0.945, dt);   // atrito suave e contínuo
 
     // ÚNICO limite é a velocidade — a aceleração nunca é cortada
     const VMAX = (SJ.velMaxH ?? 6.5) * sx;    // teto também proporcional

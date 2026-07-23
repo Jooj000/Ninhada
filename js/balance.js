@@ -206,7 +206,11 @@ export const BALANCE = {
      * ajuste fino fica fácil; a força total só vem no ângulo cheio. */
     curvaInclinacao: 1,         // LINEAR: inclinou pouco, já responde na hora
     acelMax: 0.30,              // aceleração no ÂNGULO MÁXIMO
-    atritoH: 0.955,             // por frame: desacelera devagar ao nivelar
+    atritoH: 0.945,             // por frame: freia um pouquinho mais que antes
+    /* Inversão brusca de sentido: freia rápido, mas sem catapultar. */
+    freioInversao: 1.35,        // força extra quando a inclinação se opõe à velocidade
+    estabilizaFrames: 18,       // ~0,3 s para a aceleração voltar ao normal
+    estabilizaMin: 0.35,        // no instante da virada, só 35% da força
     velMaxH: 6.5,               // ÚNICO teto: a velocidade (nunca a aceleração)
     acelToque: 0.0011,          // arrastar: aceleração rumo ao dedo (por px)
     acelSeta: 0.20,             // setas do teclado: aceleração constante
