@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>Nosso Bebê</title>
+  <title>Nossas Cria</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json" />
+  <!-- arquivo NOVO de propósito: um PWA já instalado só relê o
+       manifest quando a URL muda — era isso que mantinha o app
+       preso em "portrait" mesmo depois da correção. -->
+  <link rel="manifest" href="manifest.webmanifest?v=2" />
   <meta name="theme-color" content="#B57BA6" />
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />

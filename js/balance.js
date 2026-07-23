@@ -183,24 +183,29 @@ export const BALANCE = {
      *   -> atrito -> posição
      * Resultado: o boneco DEMORA a ganhar velocidade, CONTINUA deslizando
      * quando o celular volta ao centro e para aos poucos. */
-    filtroInclinacao: 0.18,     // passa-baixa (0..1): ganho MÍNIMO, p/ tremores
-    saltoInclinacao: 8,         // virada ≥8° é "de propósito" e passa na hora
-    zonaMortaGraus: 11,         // até ±11° ele nem se mexe (zona morta larga)
+    /* O amortecimento estava EMPILHADO: filtro lento + zona morta larga
+     * + curva quadrática + atrito, tudo somando atraso ANTES de o boneco
+     * sair do lugar. Agora o freio vem só DEPOIS do movimento começar
+     * (inércia + atrito), como no Doodle Jump/Pou. */
+    filtroInclinacao: 0.45,     // passa-baixa: ganho MÍNIMO (só contra tremor)
+    saltoInclinacao: 4,         // virada ≥4° é "de propósito" e passa na hora
+    zonaMortaGraus: 3,          // só o bastante p/ o boneco não vibrar parado
     grausMax: 24,               // leitura do sensor satura aqui
     /* Calibrados para a velocidade terminal NATURAL (aceleração ÷ atrito)
      * já dar ~velMaxH: o teto quase nunca é acionado, então o movimento
      * é físico e não "no limite do joystick". Com estes números:
-     *   inclinação máxima -> topo de velocidade em ~1,0 s
-     *   meia inclinação    -> só 1/4 da força (curva quadrática)
-     *   nivelou o aparelho -> desliza ~100 px por ~1,2 s antes de parar
+     *   10° de inclinação  -> já sai do lugar em ~0,2 s (era >1 s)
+     *   a força é PROPORCIONAL ao ângulo (linear), sem ponto morto largo
+     *   nivelou o aparelho -> desliza ~135 px por ~1,4 s: o "peso" está
+     *   na INÉRCIA depois de andar, não numa demora para começar
      * Ainda é massa com inércia, mas responde dentro do arco de UM pulo
      * — antes demorava mais que o pulo inteiro e parecia travado. */
     /* A aceleração NÃO é linear com o ângulo: segue uma curva
      * (t^curvaInclinacao), com t indo de 0 na borda da zona morta a 1 na
      * inclinação máxima. Assim inclinar pouco quase não acelera e o
      * ajuste fino fica fácil; a força total só vem no ângulo cheio. */
-    curvaInclinacao: 2,         // 1 = linear · 2 = quadrática (suave no começo)
-    acelMax: 0.26,              // aceleração no ÂNGULO MÁXIMO (era ~0,5 linear)
+    curvaInclinacao: 1,         // LINEAR: inclinou pouco, já responde na hora
+    acelMax: 0.30,              // aceleração no ÂNGULO MÁXIMO
     atritoH: 0.955,             // por frame: desacelera devagar ao nivelar
     velMaxH: 6.5,               // ÚNICO teto: a velocidade (nunca a aceleração)
     acelToque: 0.0011,          // arrastar: aceleração rumo ao dedo (por px)

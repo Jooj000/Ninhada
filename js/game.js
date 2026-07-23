@@ -470,6 +470,11 @@ function setView(mode) {
   const toggle = document.getElementById("view-toggle");
   const adopt = document.getElementById("adopt-btn");
 
+  // o CSS usa isto no PC: solo = coluna de celular + banner ao lado;
+  // grupo = widescreen, com a turma toda em destaque
+  const cena = document.getElementById("screen-home");
+  if (cena) cena.classList.toggle("modo-grupo", mode === "room");
+
   if (mode === "room") {
     single.hidden = true; roomv.hidden = false; select.style.display = "none";
     toggle.textContent = "👤"; toggle.title = "Ver um por vez";
@@ -521,6 +526,7 @@ let currentScreen = "screen-home";
 let cameFromTray = false;
 
 export function showScreen(id) {
+  if (id === "screen-dino" || id === "screen-hilldrive") liberarRotacao();
   const prev = currentScreen;
   if (prev === id) return;
   currentScreen = id;
@@ -636,7 +642,10 @@ function atualizarBanner(state) {
 function liberarRotacao() {
   try {
     const so = window.screen && window.screen.orientation;
-    if (so && typeof so.unlock === "function") so.unlock();
+    if (so && typeof so.unlock === "function") {
+      const r = so.unlock();
+      if (r && typeof r.catch === "function") r.catch(() => {});
+    }
   } catch (_) { /* navegador sem suporte: segue o jogo */ }
 }
 

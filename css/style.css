@@ -1483,3 +1483,51 @@ body {
   .game-back { top: calc(8px + env(safe-area-inset-top)); }
   .dom-game-body { padding-top: calc(52px + env(safe-area-inset-top)); }
 }
+
+/* =====================================================================
+ * ============ V7 — O PC IMITA O CELULAR (sem bordas) ================
+ * No desktop a cena vira uma COLUNA vertical na proporção de celular,
+ * com o fundo do cômodo dentro dela e o banner na sobra lateral.
+ * No modo GRUPO a coluna se abre em widescreen para a turma caber.
+ * ===================================================================== */
+@media (min-width: 1000px) {
+  :root { --coluna: min(480px, calc(100dvh * 0.56)); }
+
+  /* a cena deixa de ocupar a largura toda e vira a "tela do celular" */
+  .screen.scene.active {
+    left: 50%;
+    right: auto;
+    width: var(--coluna);
+    transform: translateX(-50%);
+    /* sem moldura: nada de borda, sombra ou cantos */
+    border: 0; box-shadow: none; border-radius: 0;
+  }
+
+  /* o fundo do cômodo acompanha a coluna (não vaza para os lados) */
+  .screen.scene.active .scene-bg { border-radius: 0; }
+
+  /* a sobra da tela fica com a cor de fundo do app */
+  body { background: var(--bg); }
+
+  /* banner na sobra da esquerda, do tamanho exato do vão */
+  .banner-bebe { width: calc((100vw - var(--coluna)) / 2); }
+
+  /* ---- MODO GRUPO: widescreen, a turma em destaque ---- */
+  .screen.scene.modo-grupo.active {
+    left: 0; right: 0; width: auto; transform: none;
+  }
+  .modo-grupo .room-view { padding: 0 4vw; }
+  /* com a cena ocupando tudo, o banner sai de cena */
+  .modo-grupo ~ .banner-bebe, body:has(.modo-grupo.active) .banner-bebe { display: none; }
+}
+
+/* O GRUPO NÃO TEM FUNDO PRÓPRIO: quem aparece é o fundo do cômodo.
+   (restos do visual antigo em caixinha) */
+.room-view, .scene-stage .room-view, #room-view {
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  aspect-ratio: auto;
+  overflow: visible;
+}

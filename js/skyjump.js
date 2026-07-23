@@ -107,13 +107,13 @@ export function initSkyJump() {
        *   t  = (|graus| − zona) / (grausMax − zona)   ∈ [0, 1]
        *   ax = sinal · t^curva · acelMax
        */
-      const zona = SJ.zonaMortaGraus ?? 10;
+      const zona = SJ.zonaMortaGraus ?? 3;
       const gMax = SJ.grausMax ?? 24;
       const excesso = Math.abs(grausSuaves) - zona;
       if (excesso > 0) {
         const t = Math.min(1, excesso / Math.max(1, gMax - zona));
-        const forca = Math.pow(t, SJ.curvaInclinacao ?? 2);
-        ax += Math.sign(grausSuaves) * forca * (SJ.acelMax ?? 0.29) * sx;
+        const forca = Math.pow(t, SJ.curvaInclinacao ?? 1);
+        ax += Math.sign(grausSuaves) * forca * (SJ.acelMax ?? 0.30) * sx;
       }
       // dentro da zona morta não soma nada: o boneco segue por INÉRCIA
     }
@@ -270,8 +270,8 @@ export function initSkyJump() {
        * Agora o ganho CRESCE com o tamanho da variação: virada grande e
        * proposital passa quase direto (~1 leitura), enquanto o tremor de
        * mão, que é pequeno, continua sendo suavizado. */
-      const base = SJ.filtroInclinacao ?? 0.18;
-      const salto = SJ.saltoInclinacao ?? 8;         // graus p/ considerar "de propósito"
+      const base = SJ.filtroInclinacao ?? 0.45;
+      const salto = SJ.saltoInclinacao ?? 4;         // graus p/ considerar "de propósito"
       const delta = Math.abs(bruto - grausSuaves);
       const k = Math.min(1, base + (1 - base) * Math.min(1, delta / salto));
       grausSuaves += (bruto - grausSuaves) * k;
