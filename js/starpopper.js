@@ -142,7 +142,10 @@ export function initStarPopper() {
       massa.set(K(dq, dr), cor);
       if (Math.random() < 0.15) marcarMoeda(K(dq, dr));
     }
-    for (let i = 0; i < 8; i++) crescer(true);   // massa inicial com as cores da rodada
+    // Massa INICIAL bem maior: a rodada já começa com um "planeta" de
+    // bolhas em volta do Pou preto (e engorda a cada rodada vencida).
+    const alvo = (SP.bolhasIniciais ?? 22) + (rodada - 1) * (SP.bolhasIniciaisExtra ?? 4);
+    for (let i = 0; i < alvo; i++) crescer(true);
     cresceEm = CRESCE_MS;
   }
 

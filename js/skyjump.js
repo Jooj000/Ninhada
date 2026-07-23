@@ -28,6 +28,8 @@ export function initSkyJump() {
 
   let heroi, plats, altura, camera, rodando, morto, lastT = 0, alvoX = null;
   let moedas;
+  let setaX = 0;                 // -1 / 0 / +1 pelas setas do teclado
+  let grausSuaves = 0;           // leitura do sensor JÁ filtrada
 
   function medidas() {
     if (view.fit()) { W = view.w; H = view.h; }
@@ -49,7 +51,7 @@ export function initSkyJump() {
     plats = [{ x: W / 2 - LARG / 2, y: H - 60, quebra: false, usada: false }];
     { let y = H - 60; for (let i = 1; i < N_PLATS; i++) { y -= sorteiaVao(); plats.push(novaPlat(y)); } }
     altura = 0; camera = 0; rodando = false; morto = false; alvoX = null;
-    moedas = 0; lastT = 0;
+    moedas = 0; lastT = 0; setaX = 0; grausSuaves = 0;
     setOverlay("Toque para começar", "Arraste para os lados!");
     desenhar();
   }
@@ -62,21 +64,35 @@ export function initSkyJump() {
   function update(dt) {
     if (!rodando || morto) return;
 
-    /* horizontal: o dedo manda; sem dedo, vale a inclinação.
-     * TUDO devagarinho de propósito: teto de velocidade E de aceleração. */
-    const VMAX = SJ.velMaxH ?? SJ.velMaxToque ?? 6;
-    const AMAX = (SJ.acelMax ?? 0.55) * dt;
-    let alvoVx = 0;
+    /* ============ HORIZONTAL: MASSA e INÉRCIA ============
+     * O celular NÃO é joystick: a inclinação não DEFINE a velocidade,
+     * ela gera ACELERAÇÃO. O fluxo é
+     *   inclinação -> filtro -> zona morta -> aceleração -> velocidade
+     *   -> atrito -> posição
+     * Assim o boneco demora a engrenar, CONTINUA deslizando quando o
+     * aparelho volta ao centro e para aos poucos. */
+    let ax = 0;
+
     if (alvoX !== null) {
-      alvoVx = (alvoX - (heroi.x + heroi.w / 2)) * (SJ.seguirFator ?? 0.09);
+      // arrastar o dedo também ACELERA rumo ao ponto (não teleporta a vel.)
+      ax = (alvoX - (heroi.x + heroi.w / 2)) * (SJ.acelToque ?? 0.014);
+    } else if (setaX !== 0) {
+      ax = setaX * (SJ.acelSeta ?? 0.42);
     } else if (tiltLigado) {
-      alvoVx = Math.abs(inclinacao) < 0.05 ? 0 : inclinacao * (SJ.velMaxInclinacao ?? 6);
-    } else {
-      alvoVx = heroi.vx * 0.9;     // sem entrada: perde velocidade suave
+      // grausSuaves já vem filtrado (passa-baixa) do sensor
+      const zona = SJ.zonaMortaGraus ?? 7;
+      const g = Math.abs(grausSuaves) - zona;
+      if (g > 0) ax = Math.sign(grausSuaves) * g * (SJ.acelPorGrau ?? 0.012);
+      // dentro da zona morta ax = 0: o boneco segue por INÉRCIA
     }
-    alvoVx = Math.max(-VMAX, Math.min(VMAX, alvoVx));
-    // acelera (e desacelera) no máximo AMAX por passo — nada de tranco
-    heroi.vx += Math.max(-AMAX, Math.min(AMAX, alvoVx - heroi.vx));
+
+    heroi.vx += ax * dt;                       // integra: v = ∫a
+    heroi.vx *= Math.pow(SJ.atritoH ?? 0.985, dt);   // atrito suave e contínuo
+
+    // ÚNICO limite é a velocidade — a aceleração nunca é cortada
+    const VMAX = SJ.velMaxH ?? 6.5;
+    heroi.vx = Math.max(-VMAX, Math.min(VMAX, heroi.vx));
+
     heroi.x += heroi.vx * dt;
     if (heroi.x + heroi.w < 0) heroi.x = W;       // atravessa a borda
     else if (heroi.x > W) heroi.x = -heroi.w;
@@ -193,7 +209,7 @@ export function initSkyJump() {
   }
 
   /* ---------------- INCLINAÇÃO (só celular) ---------------- */
-  let inclinacao = 0, tiltLigado = false;
+  let tiltLigado = false;
 
   const ehCelular = () =>
     window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
@@ -203,8 +219,12 @@ export function initSkyJump() {
     tiltLigado = true;
     window.addEventListener("deviceorientation", (e) => {
       if (e.gamma == null) return;
-      const g = SJ.grausMax ?? 18;
-      inclinacao = Math.max(-g, Math.min(g, e.gamma)) / g;
+      const g = SJ.grausMax ?? 24;
+      const bruto = Math.max(-g, Math.min(g, e.gamma));
+      /* FILTRO PASSA-BAIXA (suavização exponencial): o acelerômetro
+       * treme o tempo todo; sem isso o boneco vibraria junto. */
+      const k = SJ.filtroInclinacao ?? 0.18;
+      grausSuaves += (bruto - grausSuaves) * k;
     });
   }
 
@@ -236,11 +256,12 @@ export function initSkyJump() {
   window.addEventListener("keydown", (e) => {
     const tela = document.getElementById("screen-skyjump");
     if (!tela || !tela.classList.contains("active")) return;
-    if (e.key === "ArrowLeft") { e.preventDefault(); alvoX = heroi.x - 60; }
-    if (e.key === "ArrowRight") { e.preventDefault(); alvoX = heroi.x + 92; }
+    if (e.key === "ArrowLeft")  { e.preventDefault(); setaX = -1; }
+    if (e.key === "ArrowRight") { e.preventDefault(); setaX = 1; }
   });
   window.addEventListener("keyup", (e) => {
-    if (e.key === "ArrowLeft" || e.key === "ArrowRight") alvoX = null;
+    if (e.key === "ArrowLeft" && setaX < 0) setaX = 0;
+    if (e.key === "ArrowRight" && setaX > 0) setaX = 0;
   });
 
   view.onResize = reset;

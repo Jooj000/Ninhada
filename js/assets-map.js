@@ -144,6 +144,33 @@ export const SHOP_ITEMS = [
   {id:"teto", category:"brinquedos", price:100},
 ];
 
+/* Busca IGNORANDO maiúsculas/minúsculas: "Cabelo_Liso", "cabelo_liso" e
+ * "CABELO_LISO" acham a mesma arte (o parser pode ter gerado o id numa
+ * caixa e o Firebase guardado noutra). */
 export function getAsset(category, id) {
-  return ASSETS[category] ? ASSETS[category][id] : null;
+  if (!category || id == null) return null;
+  const grupo = ASSETS[category] ||
+    ASSETS[Object.keys(ASSETS).find((k) => k.toLowerCase() === String(category).toLowerCase())];
+  if (!grupo) return null;
+  if (grupo[id]) return grupo[id];
+  const alvo = String(id).toLowerCase();
+  const chave = Object.keys(grupo).find((k) => k.toLowerCase() === alvo);
+  return chave ? grupo[chave] : null;
+}
+
+/* O disco/servidor DIFERENCIA maiúsculas de minúsculas no nome do
+ * arquivo, mas o autor da arte não tem que se preocupar com isso: se
+ * "gato.png" não existir, tentamos .PNG, .gif, .GIF… na mesma ordem.
+ * Devolve a lista de caminhos a tentar, do mais provável ao menos. */
+export function variacoesDeSrc(src) {
+  if (!src) return [];
+  const ponto = src.lastIndexOf(".");
+  if (ponto < 0) return [src];
+  const base = src.slice(0, ponto), ext = src.slice(ponto + 1);
+  const tentativas = [ext, ext.toLowerCase(), ext.toUpperCase(),
+                      "png", "PNG", "gif", "GIF"];
+  const vistos = new Set();
+  return tentativas
+    .filter((e) => (vistos.has(e) ? false : vistos.add(e)))
+    .map((e) => `${base}.${e}`);
 }

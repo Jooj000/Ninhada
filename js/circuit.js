@@ -1,380 +1,553 @@
 /* =====================================================================
- * circuit.js — FEIRA DE CIÊNCIAS (eletrônica de verdade)
+ * circuit.js — FEIRA DE CIÊNCIAS (montagem de circuitos numa GRID)
  * ---------------------------------------------------------------------
- * Agora é um laboratório: bateria, resistores, LEDs e chave, com
- * TENSÃO e CORRENTE calculadas de verdade pelo circuit-solver.js.
+ * O tabuleiro é uma grade. A bateria, as lâmpadas e (às vezes) um
+ * resistor já vêm posicionados; a criança escolhe uma peça na paleta
+ * (fio reto, curva, T, cruz) e toca nas casas para ENCAIXAR o caminho.
+ * Tocar de novo na mesma casa com a mesma peça GIRA a peça.
  *
- * O que se aprende, um nível de cada vez:
- *   1. Lei de Ohm .......... I = V / R
- *   2. Série ............... mesma corrente, tensões se somam
- *   3. Paralelo ............ mesma tensão, correntes se somam
- *   4. LED com resistor .... R = (Vfonte − Vf) / I    (o clássico!)
- *   5. Desafio ............. escolher o resistor certo sozinho
+ * A eletricidade é DE VERDADE: as peças viram nós e componentes e o
+ * circuit-solver.js resolve tensões e correntes (análise nodal).
  *
- * Os VALORES são sorteados a cada partida (bateria, resistores, LED),
- * então não dá para decorar: tem que calcular.
- *
- * MULTÍMETRO: toque em qualquer componente para ver V, I e R nele.
+ * Progressão:
+ *   - 4 desafios INTRODUTÓRIOS fixos (o tutorial);
+ *   - depois, DESAFIOS ALEATÓRIOS infinitos: posições, orientações e
+ *     objetivo sorteados (acender 1, 2 livres, em série, em paralelo,
+ *     ou proteger a lâmpada com o resistor).
  * ===================================================================== */
 
-import { simular, resistorParaLed, fmtA, fmtV, fmtR, serie, paralelo } from "./circuit-solver.js";
+import { simular } from "./circuit-solver.js";
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 const SVGNS = "http://www.w3.org/2000/svg";
-const sorteia = (a) => a[Math.floor(Math.random() * a.length)];
+const COLS = 7, ROWS = 7, CEL = 48;
+const W = COLS * CEL, H = ROWS * CEL;
 
-/* Valores comerciais de verdade (série E12), como numa gaveta real. */
-const RESISTORES = [100, 150, 220, 330, 470, 680, 1000, 1500, 2200];
-const BATERIAS = [4.5, 6, 9, 12];
-const LEDS = [
-  { cor: "#E05A5A", nome: "vermelho", vf: 1.8 },
-  { cor: "#6BB77B", nome: "verde",    vf: 2.1 },
-  { cor: "#5B8FD6", nome: "azul",     vf: 3.0 },
-  { cor: "#E5B93C", nome: "amarelo",  vf: 2.0 },
-];
+/* portas de cada célula: N, E, S, W (índices 0..3) */
+const LADOS = ["N", "E", "S", "W"];
+const OPOSTO = { N: "S", S: "N", E: "W", W: "E" };
+const DELTA = { N: [-1, 0], S: [1, 0], E: [0, 1], W: [0, -1] };
 
-/* ---------------- os 5 níveis ---------------- */
-function montarNivel(n) {
-  const V = sorteia(BATERIAS);
+/* Cada FAMÍLIA de peça define as portas ligadas na rotação 0;
+ * girar = avançar cada porta uma casa em N→E→S→W. */
+const FAMILIAS = {
+  reto:  { rots: 2, portas: ["N", "S"], icone: "│" },
+  curva: { rots: 4, portas: ["N", "E"], icone: "└" },
+  te:    { rots: 4, portas: ["N", "E", "S"], icone: "├" },
+  cruz:  { rots: 1, portas: ["N", "E", "S", "W"], icone: "┼" },
+};
+const gira = (lado, r) => LADOS[(LADOS.indexOf(lado) + r) % 4];
+const portasDe = (fam, rot) => FAMILIAS[fam].portas.map((p) => gira(p, rot));
 
-  if (n === 0) {
-    const R = sorteia([100, 220, 330, 470]);
-    return {
-      titulo: "1 · Lei de Ohm",
-      licao: `A Lei de Ohm diz: I = V / R. Feche o circuito e confira no multímetro se a corrente bate com ${V} V ÷ ${fmtR(R)}.`,
-      nos: { P:{x:50,y:70,rot:"+"}, M:{x:50,y:210,rot:"−"}, A:{x:170,y:70}, B:{x:170,y:210} },
-      fixos: [
-        { tipo:"bateria", a:"P", b:"M", volts:V, x:50, y:140 },
-        { tipo:"resistor", a:"A", b:"B", ohms:R, x:170, y:140, nome:"R1" },
-      ],
-      objetivo: (s, comps) => {
-        const r = comps.find((c) => c.nome === "R1");
-        const i = Math.abs(s.correnteEm(r));
-        return { ok: i > 1e-4, dica: `Corrente esperada: ${fmtA(V / R)}` };
-      },
-      pergunta: () => ({ texto: `Qual a corrente no circuito?`, certo: V / R, unidade: "mA", fator: 1000 }),
-    };
-  }
+/* ---- constantes elétricas (afinadas para o jogo) ---- */
+const R_LAMP = 40;        // Ω de cada lampadinha
+const I_ACESA = 0.03;     // acima disso, acende
+const I_QUEIMA = 0.2;     // acima disso, QUEIMA
+const I_CURTO = 3;        // corrente absurda na bateria = curto-circuito
 
-  if (n === 1) {
-    const R1 = sorteia([100, 220, 330]), R2 = sorteia([220, 470, 680]);
-    return {
-      titulo: "2 · Resistores em SÉRIE",
-      licao: `Em série a corrente é a MESMA nos dois, e as tensões se somam. Rtotal = ${fmtR(R1)} + ${fmtR(R2)} = ${fmtR(serie(R1,R2))}.`,
-      nos: { P:{x:45,y:60,rot:"+"}, M:{x:45,y:220,rot:"−"}, A:{x:150,y:60}, B:{x:255,y:60}, C:{x:255,y:220} },
-      fixos: [
-        { tipo:"bateria", a:"P", b:"M", volts:V, x:45, y:140 },
-        { tipo:"resistor", a:"A", b:"B", ohms:R1, x:200, y:60, nome:"R1", horiz:true },
-        { tipo:"resistor", a:"B", b:"C", ohms:R2, x:255, y:140, nome:"R2" },
-      ],
-      objetivo: (s, comps) => {
-        const r1 = comps.find((c) => c.nome === "R1");
-        return { ok: Math.abs(s.correnteEm(r1)) > 1e-4,
-                 dica: `I = ${V}V ÷ ${fmtR(serie(R1,R2))} = ${fmtA(V/serie(R1,R2))}` };
-      },
-      pergunta: () => ({ texto: `Qual a TENSÃO no R2 (${fmtR(R2)})?`,
-                         certo: V * R2 / serie(R1, R2), unidade: "V", fator: 1 }),
-    };
-  }
-
-  if (n === 2) {
-    const R1 = sorteia([100, 220]), R2 = sorteia([330, 470, 680]);
-    return {
-      titulo: "3 · Resistores em PARALELO",
-      licao: `Em paralelo a TENSÃO é a mesma nos dois, e as correntes se somam. O caminho mais fácil (menor Ω) leva mais corrente.`,
-      nos: { P:{x:45,y:60,rot:"+"}, M:{x:45,y:220,rot:"−"}, A:{x:150,y:60}, B:{x:150,y:220}, C:{x:265,y:60}, D:{x:265,y:220} },
-      fixos: [
-        { tipo:"bateria", a:"P", b:"M", volts:V, x:45, y:140 },
-        { tipo:"resistor", a:"A", b:"B", ohms:R1, x:150, y:140, nome:"R1" },
-        { tipo:"resistor", a:"C", b:"D", ohms:R2, x:265, y:140, nome:"R2" },
-      ],
-      objetivo: (s, comps) => {
-        const r1 = comps.find((c) => c.nome === "R1"), r2 = comps.find((c) => c.nome === "R2");
-        const ok = Math.abs(s.correnteEm(r1)) > 1e-4 && Math.abs(s.correnteEm(r2)) > 1e-4;
-        return { ok, dica: `Os DOIS ramos precisam conduzir. Req = ${fmtR(Math.round(paralelo(R1,R2)))}` };
-      },
-      pergunta: () => ({ texto: `Qual a corrente TOTAL saindo da bateria?`,
-                         certo: V / paralelo(R1, R2), unidade: "mA", fator: 1000 }),
-    };
-  }
-
-  if (n === 3) {
-    const led = sorteia(LEDS);
-    const ideal = resistorParaLed(V, led.vf, 0.018);
-    const certo = RESISTORES.reduce((a, b) => (Math.abs(b - ideal) < Math.abs(a - ideal) ? b : a));
-    return {
-      titulo: "4 · LED com resistor",
-      licao: `LED sem resistor QUEIMA. A conta é R = (Vfonte − Vf) ÷ I. Aqui: (${V}V − ${led.vf}V) ÷ 0,018A ≈ ${fmtR(Math.round(ideal))}. Escolha na gaveta e acenda sem queimar!`,
-      nos: { P:{x:50,y:60,rot:"+"}, M:{x:50,y:220,rot:"−"}, A:{x:165,y:60}, B:{x:165,y:140}, C:{x:165,y:220} },
-      fixos: [
-        { tipo:"bateria", a:"P", b:"M", volts:V, x:50, y:140 },
-        { tipo:"resistor", a:"A", b:"B", ohms:null, x:165, y:100, nome:"R1", escolher:true },
-        { tipo:"led", a:"B", b:"C", vf:led.vf, imax:0.025, x:165, y:180, nome:"LED", cor:led.cor },
-      ],
-      objetivo: (s, comps) => {
-        const l = comps.find((c) => c.nome === "LED");
-        const i = s.correnteEm(l);
-        const idx = comps.indexOf(l);
-        if (s.ledsQueimados[idx]) return { ok:false, falha:true, dica:`QUEIMOU! ${fmtA(i)} é demais (máx 25 mA). Use um resistor MAIOR.` };
-        if (!s.ledsAcesos[idx]) return { ok:false, dica:"O LED não acendeu. Confira as ligações e o sentido (+ no lado do ânodo)." };
-        if (i < 0.008) return { ok:false, dica:`Só ${fmtA(i)} — acende fraquinho. Use um resistor MENOR.` };
-        return { ok:true, dica:`Perfeito! ${fmtA(i)} passando pelo LED ${led.nome}.` };
-      },
-      escolhas: RESISTORES,
-      certo,
-    };
-  }
-
-  // nível 5: dois LEDs, tem que proteger os dois
-  const led = sorteia(LEDS);
-  const ideal = resistorParaLed(V, led.vf, 0.015);
-  return {
-    titulo: "5 · Desafio: dois LEDs",
-    licao: `Dois LEDs em paralelo, cada um com seu resistor. Lembre: em paralelo cada ramo recebe a tensão inteira, então cada LED precisa do SEU resistor.`,
-    nos: { P:{x:45,y:55,rot:"+"}, M:{x:45,y:225,rot:"−"}, A:{x:150,y:55}, B:{x:150,y:140}, C:{x:150,y:225},
-           D:{x:270,y:55}, E:{x:270,y:140}, F:{x:270,y:225} },
-    fixos: [
-      { tipo:"bateria", a:"P", b:"M", volts:V, x:45, y:140 },
-      { tipo:"resistor", a:"A", b:"B", ohms:null, x:150, y:98, nome:"R1", escolher:true },
-      { tipo:"led", a:"B", b:"C", vf:led.vf, imax:0.025, x:150, y:182, nome:"LED1", cor:led.cor },
-      { tipo:"resistor", a:"D", b:"E", ohms:null, x:270, y:98, nome:"R2", escolher:true },
-      { tipo:"led", a:"E", b:"F", vf:led.vf, imax:0.025, x:270, y:182, nome:"LED2", cor:led.cor },
-    ],
-    objetivo: (s, comps) => {
-      const l1 = comps.find((c) => c.nome === "LED1"), l2 = comps.find((c) => c.nome === "LED2");
-      const i1 = comps.indexOf(l1), i2 = comps.indexOf(l2);
-      if (s.ledsQueimados[i1] || s.ledsQueimados[i2])
-        return { ok:false, falha:true, dica:"Queimou um LED! Resistores maiores." };
-      if (!s.ledsAcesos[i1] || !s.ledsAcesos[i2])
-        return { ok:false, dica:"Os DOIS precisam acender." };
-      const a = s.correnteEm(l1), b = s.correnteEm(l2);
-      if (a < 0.007 || b < 0.007) return { ok:false, dica:"Fracos demais. Resistores menores." };
-      return { ok:true, dica:`Os dois acesos: ${fmtA(a)} e ${fmtA(b)} 🎉` };
-    },
-    escolhas: RESISTORES,
-    certo: RESISTORES.reduce((a, b) => (Math.abs(b - ideal) < Math.abs(a - ideal) ? b : a)),
-  };
-}
-
-/* ---------------- jogo ---------------- */
 export function initCircuit() {
   const root = document.getElementById("circuit-root");
   if (!root) return;
 
-  let nivel = 0, def, fios, sel, resolvido, comps, escolhaAberta = null;
   const status = document.getElementById("circuit-status");
   const titulo = document.getElementById("circuit-level");
   const licao = document.getElementById("circuit-licao");
-  const painel = document.getElementById("circuit-medidor");
+  const paleta = document.getElementById("circuit-palette");
 
   const svg = document.createElementNS(SVGNS, "svg");
-  svg.setAttribute("viewBox", "0 0 340 280");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.classList.add("circuit-svg");
   root.innerHTML = ""; root.appendChild(svg);
 
-  const el = (t, at) => { const e = document.createElementNS(SVGNS, t);
-    for (const [k, v] of Object.entries(at)) e.setAttribute(k, v); return e; };
-  const chave = (a, b) => [a, b].sort().join("|");
+  const el = (t, at) => {
+    const e = document.createElementNS(SVGNS, t);
+    for (const [k, v] of Object.entries(at)) e.setAttribute(k, v);
+    return e;
+  };
 
-  function carregar(n) {
-    nivel = ((n % 5) + 5) % 5;
-    def = montarNivel(nivel);
-    comps = def.fixos.map((c) => ({ ...c }));
-    fios = new Set(); sel = null; resolvido = false; escolhaAberta = null;
-    titulo.textContent = def.titulo;
-    licao.textContent = def.licao;
-    render();
+  /* estado da partida */
+  let nivel = 0;            // 0..3 = tutorial; 4+ = aleatórios
+  let desafio = null;       // { titulo, texto, fixos:[{tipo,r,c,rot,...}], pecasExtra }
+  let grade = null;         // grade[r][c] = null | {fam,rot} | {fixo:true,...}
+  let selecionada = "reto";
+  let resolvido = false;
+  let recompensando = false;
+
+  const dentro = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
+
+  /* =================== GERAÇÃO DOS DESAFIOS ===================== */
+  const rnd = (n) => Math.floor(Math.random() * n);
+  const sorteia = (a) => a[rnd(a.length)];
+
+  function celulaLivre(g, usadas) {
+    for (let t = 0; t < 200; t++) {
+      const r = 1 + rnd(ROWS - 2), c = 1 + rnd(COLS - 2);   // longe da borda
+      const k = r + "," + c;
+      // exige uma "almofada" de 1 casa: nenhum componente colado no outro
+      const perto = [...usadas].some((u) => {
+        const [ur, uc] = u.split(",").map(Number);
+        return Math.abs(ur - r) <= 1 && Math.abs(uc - c) <= 1;
+      });
+      if (!usadas.has(k) && !perto) { usadas.add(k); return { r, c }; }
+    }
+    return null;
   }
 
-  /* Junta componentes + fios do jogador e simula. */
-  function simularTudo() {
-    const listaNos = new Set(Object.keys(def.nos));
-    const lista = [];
-    for (const c of comps) {
-      if (c.tipo === "resistor" && (c.ohms === null || c.ohms === undefined)) continue;  // ainda sem valor
-      lista.push(c);
+  function montarFixos(specs) {
+    const usadas = new Set();
+    const out = [];
+    for (const s of specs) {
+      const pos = celulaLivre(null, usadas);
+      if (!pos) return null;
+      out.push({ ...s, ...pos, rot: rnd(2) });   // deitado ou em pé, sorteado
     }
-    for (const f of fios) { const [a, b] = f.split("|"); lista.push({ tipo:"fio", a, b }); }
-    // o polo negativo da bateria é a referência (terra)
-    const bat = comps.find((c) => c.tipo === "bateria");
-    const nos = [...listaNos].map((n) => (n === bat.b ? "GND" : n));
-    const troca = (x) => (x === bat.b ? "GND" : x);
-    const norm = lista.map((c) => ({ ...c, a: troca(c.a), b: troca(c.b) }));
-    const s = simular(nos, norm);
-    // devolve com os componentes originais para o objetivo saber quem é quem
+    return out;
+  }
+
+  /* tutorial: 4 tabuleiros fixos e didáticos */
+  function tutorial(n) {
+    if (n === 0) return {
+      titulo: "Tutorial 1/4",
+      texto: "Feche o caminho da BATERIA até a LÂMPADA com fios retos. " +
+             "Escolha a peça embaixo e toque nas casas vazias. " +
+             "Tocar de novo GIRA a peça!",
+      volts: 6,
+      fixos: [
+        { tipo: "bateria", r: 3, c: 1, rot: 1 },     // terminais E/W
+        { tipo: "lampada", r: 3, c: 5, rot: 1, nome: "L1" },
+      ],
+      extra: [],
+      meta: { tipo: "acender", quais: ["L1"] },
+    };
+    if (n === 1) return {
+      titulo: "Tutorial 2/4",
+      texto: "Agora a lâmpada está em OUTRA linha: você vai precisar das " +
+             "CURVAS para o caminho dobrar. Lembre: tocar de novo gira!",
+      volts: 6,
+      fixos: [
+        { tipo: "bateria", r: 5, c: 1, rot: 1 },
+        { tipo: "lampada", r: 1, c: 5, rot: 1, nome: "L1" },
+      ],
+      extra: [],
+      meta: { tipo: "acender", quais: ["L1"] },
+    };
+    if (n === 2) return {
+      titulo: "Tutorial 3/4",
+      texto: "DUAS lâmpadas! Use a peça T para o caminho se dividir " +
+             "(paralelo: as duas brilham forte) ou passe por uma e depois " +
+             "pela outra (série: brilham fraquinho). Você escolhe!",
+      volts: 6,
+      fixos: [
+        { tipo: "bateria", r: 3, c: 1, rot: 1 },
+        { tipo: "lampada", r: 1, c: 4, rot: 1, nome: "L1" },
+        { tipo: "lampada", r: 5, c: 4, rot: 1, nome: "L2" },
+      ],
+      extra: [],
+      meta: { tipo: "acender", quais: ["L1", "L2"] },
+    };
     return {
-      ...s,
-      correnteEm: (c) => s.correntes[norm.findIndex((x) => x.nome === c.nome && c.nome)] || 0,
-      tensaoEm: (c) => (s.tensoes[troca(c.a)] ?? 0) - (s.tensoes[troca(c.b)] ?? 0),
-      ledsAcesos: s.ledsAcesos, ledsQueimados: s.ledsQueimados,
-      _norm: norm,
+      titulo: "Tutorial 4/4",
+      texto: "Essa bateria de 12 V é FORTE DEMAIS: ligada direto, a lâmpada " +
+             "queima! Coloque o RESISTOR (peça nova na paleta) no meio do " +
+             "caminho para segurar a corrente.",
+      volts: 12,
+      fixos: [
+        { tipo: "bateria", r: 3, c: 1, rot: 1 },
+        { tipo: "lampada", r: 3, c: 5, rot: 1, nome: "L1" },
+      ],
+      extra: ["resistor"],
+      meta: { tipo: "acender", quais: ["L1"] },
     };
   }
 
-  /* ---------- desenho ---------- */
-  function render() {
-    const s = simularTudo();
-    svg.innerHTML = "";
+  /* desafios aleatórios: posições, orientações e objetivo sorteados */
+  function aleatorio(n) {
+    const tema = sorteia(["um", "dois", "serie", "paralelo", "resistor", "resistor"]);
+    const numero = n - 3;
 
-    // fios do jogador
-    for (const f of fios) {
-      const [a, b] = f.split("|");
-      const A = def.nos[a], B = def.nos[b];
-      const i = Math.abs(correnteDoFio(s, a, b));
-      svg.appendChild(el("line", { x1:A.x, y1:A.y, x2:B.x, y2:B.y,
-        class: "wire" + (i > 0.0005 ? " wire-viva" : "") }));
+    if (tema === "um") {
+      const fixos = montarFixos([
+        { tipo: "bateria" }, { tipo: "lampada", nome: "L1" },
+      ]);
+      return fixos && {
+        titulo: `Desafio ${numero}`, volts: sorteia([4.5, 6, 9]),
+        texto: "Monte o caminho e ACENDA a lâmpada. Cuidado para não fechar " +
+               "um caminho só de fios (curto-circuito!).",
+        fixos, extra: [], meta: { tipo: "acender", quais: ["L1"] },
+      };
     }
-
-    for (const c of comps) desenharComp(svg, c, s);
-
-    // nós
-    for (const [id, n] of Object.entries(def.nos)) {
-      const g = el("g", { class: "node" + (sel === id ? " sel" : "") });
-      g.style.cursor = "pointer";
-      const tipo = n.rot === "+" ? "plus" : n.rot === "−" ? "minus" : "term";
-      g.appendChild(el("circle", { cx:n.x, cy:n.y, r:9, class:"node-dot " + tipo }));
-      if (n.rot) { const t = el("text", { x:n.x, y:n.y+4, class:"node-label", "text-anchor":"middle" });
-        t.textContent = n.rot; g.appendChild(t); }
-      g.addEventListener("click", () => tocarNo(id));
-      svg.appendChild(g);
+    if (tema === "dois") {
+      const fixos = montarFixos([
+        { tipo: "bateria" }, { tipo: "lampada", nome: "L1" }, { tipo: "lampada", nome: "L2" },
+      ]);
+      return fixos && {
+        titulo: `Desafio ${numero}`, volts: 6,
+        texto: "Acenda as DUAS lâmpadas — em série ou em paralelo, como preferir.",
+        fixos, extra: [], meta: { tipo: "acender", quais: ["L1", "L2"] },
+      };
     }
-
-    atualizarMedidor(s);
-    conferir(s);
+    if (tema === "serie") {
+      const fixos = montarFixos([
+        { tipo: "bateria" }, { tipo: "lampada", nome: "L1" }, { tipo: "lampada", nome: "L2" },
+      ]);
+      return fixos && {
+        titulo: `Desafio ${numero}`, volts: 6,
+        texto: "Acenda as duas lâmpadas EM SÉRIE: um caminho só, passando " +
+               "pelas duas — elas dividem a tensão e brilham fraquinho igual.",
+        fixos, extra: [], meta: { tipo: "serie", quais: ["L1", "L2"] },
+      };
+    }
+    if (tema === "paralelo") {
+      const fixos = montarFixos([
+        { tipo: "bateria" }, { tipo: "lampada", nome: "L1" }, { tipo: "lampada", nome: "L2" },
+      ]);
+      return fixos && {
+        titulo: `Desafio ${numero}`, volts: 6,
+        texto: "Acenda as duas EM PARALELO: o caminho se divide (use o T!) " +
+               "e cada lâmpada recebe a força inteira da bateria.",
+        fixos, extra: [], meta: { tipo: "paralelo", quais: ["L1", "L2"] },
+      };
+    }
+    // resistor: bateria forte, lâmpada queima sem proteção
+    const fixos = montarFixos([
+      { tipo: "bateria" }, { tipo: "lampada", nome: "L1" },
+    ]);
+    return fixos && {
+      titulo: `Desafio ${numero}`, volts: 12,
+      texto: "Bateria de 12 V! Direto na lâmpada, ela QUEIMA. Encaixe o " +
+             "RESISTOR no caminho para ela acender protegida.",
+      fixos, extra: ["resistor"], meta: { tipo: "acender", quais: ["L1"] },
+    };
   }
 
-  function correnteDoFio(s, a, b) {
-    const bat = comps.find((c) => c.tipo === "bateria");
-    const t = (x) => (x === bat.b ? "GND" : x);
-    const va = s.tensoes[t(a)] ?? 0, vb = s.tensoes[t(b)] ?? 0;
-    return (va - vb) / 1e-3;
+  function carregar(n) {
+    if (typeof proximoT !== "undefined" && proximoT) { clearTimeout(proximoT); proximoT = null; }
+    nivel = Math.max(0, n);
+    desafio = nivel < 4 ? tutorial(nivel) : null;
+    for (let t = 0; !desafio && t < 30; t++) desafio = aleatorio(nivel);
+    if (!desafio) desafio = tutorial(0);
+
+    grade = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    for (const f of desafio.fixos) {
+      grade[f.r][f.c] = { fixo: true, ...f };
+    }
+    resolvido = false; recompensando = false;
+    titulo.textContent = desafio.titulo + ` · 🏆 ${getRecord("circuit")}`;
+    licao.textContent = desafio.texto;
+    montarPaleta();
+    avaliarERenderizar();
   }
 
-  function desenharComp(svg, c, s) {
-    const g = el("g", { class: "comp" });
-    g.style.cursor = "pointer";
-    g.addEventListener("click", () => { medindo = c; render(); });
-
-    if (c.tipo === "bateria") {
-      const A = def.nos[c.a], B = def.nos[c.b];
-      svg.appendChild(el("line", { x1:A.x, y1:A.y, x2:c.x, y2:c.y-14, class:"comp-lead" }));
-      svg.appendChild(el("line", { x1:B.x, y1:B.y, x2:c.x, y2:c.y+14, class:"comp-lead" }));
-      g.appendChild(el("rect", { x:c.x-20, y:c.y-16, width:40, height:32, rx:5, class:"bateria" }));
-      const t = el("text", { x:c.x, y:c.y+5, class:"comp-val", "text-anchor":"middle" });
-      t.textContent = `${c.volts}V`; g.appendChild(t);
-    } else if (c.tipo === "resistor") {
-      const A = def.nos[c.a], B = def.nos[c.b];
-      svg.appendChild(el("line", { x1:A.x, y1:A.y, x2:c.x, y2:c.y, class:"comp-lead" }));
-      svg.appendChild(el("line", { x1:B.x, y1:B.y, x2:c.x, y2:c.y, class:"comp-lead" }));
-      const horiz = !!c.horiz;
-      const w = horiz ? 46 : 26, h = horiz ? 20 : 40;
-      g.appendChild(el("rect", { x:c.x-w/2, y:c.y-h/2, width:w, height:h, rx:4,
-        class: "resistor" + (c.ohms === null ? " vazio" : "") }));
-      const t = el("text", { x:c.x, y:c.y+4, class:"comp-val", "text-anchor":"middle" });
-      t.textContent = c.ohms === null ? "?" : fmtR(c.ohms);
-      g.appendChild(t);
-      if (c.escolher) {
-        const b = el("text", { x:c.x, y:c.y-h/2-6, class:"comp-hint", "text-anchor":"middle" });
-        b.textContent = "toque p/ escolher"; g.appendChild(b);
-        g.addEventListener("click", (e) => { e.stopPropagation(); abrirGaveta(c); });
-      }
-    } else if (c.tipo === "led") {
-      const A = def.nos[c.a], B = def.nos[c.b];
-      svg.appendChild(el("line", { x1:A.x, y1:A.y, x2:c.x, y2:c.y-12, class:"comp-lead" }));
-      svg.appendChild(el("line", { x1:B.x, y1:B.y, x2:c.x, y2:c.y+12, class:"comp-lead" }));
-      const idx = comps.indexOf(c);
-      const aceso = s.ledsAcesos[s._norm.findIndex((x) => x.nome === c.nome)];
-      const queimado = s.ledsQueimados[s._norm.findIndex((x) => x.nome === c.nome)];
-      if (aceso && !queimado) {
-        g.appendChild(el("circle", { cx:c.x, cy:c.y, r:22, fill:c.cor, opacity:0.25 }));
-      }
-      g.appendChild(el("circle", { cx:c.x, cy:c.y, r:12,
-        fill: queimado ? "#3A3340" : (aceso ? c.cor : "#6B6478"),
-        stroke: queimado ? "#000" : c.cor, "stroke-width": 2 }));
-      const t = el("text", { x:c.x+22, y:c.y+4, class:"comp-hint", "text-anchor":"start" });
-      t.textContent = queimado ? "queimado" : `Vf ${c.vf}V`;
-      g.appendChild(t);
-    }
-    svg.appendChild(g);
-  }
-
-  /* ---------- multímetro ---------- */
-  let medindo = null;
-  function atualizarMedidor(s) {
-    if (!painel) return;
-    if (!medindo) {
-      painel.innerHTML = `<span class="med-vazio">🔌 Toque num componente para medir</span>`;
-      return;
-    }
-    const v = s.tensaoEm(medindo);
-    const i = s.correnteEm(medindo);
-    const linhas = [
-      `<div class="med-item"><span>Tensão</span><b>${fmtV(Math.abs(v))}</b></div>`,
-      `<div class="med-item"><span>Corrente</span><b>${fmtA(Math.abs(i))}</b></div>`,
+  /* =================== PALETA DE PEÇAS ========================== */
+  function montarPaleta() {
+    paleta.innerHTML = "";
+    const opcoes = [
+      { id: "reto", rotulo: "─ fio" },
+      { id: "curva", rotulo: "└ curva" },
+      { id: "te", rotulo: "├ T" },
+      { id: "cruz", rotulo: "┼ cruz" },
+      ...(desafio.extra.includes("resistor") ? [{ id: "resistor", rotulo: "⏛ resistor" }] : []),
+      { id: "apagar", rotulo: "🧽 apagar" },
     ];
-    if (medindo.tipo === "resistor" && medindo.ohms)
-      linhas.push(`<div class="med-item"><span>Resistência</span><b>${fmtR(medindo.ohms)}</b></div>`,
-        `<div class="med-item calc"><span>V = R × I</span><b>${fmtV(medindo.ohms * Math.abs(i))}</b></div>`);
-    if (medindo.tipo === "led")
-      linhas.push(`<div class="med-item"><span>Vf do LED</span><b>${medindo.vf} V</b></div>`);
-    painel.innerHTML = `<div class="med-titulo">📟 ${medindo.nome || "Bateria"}</div>${linhas.join("")}`;
-  }
-
-  /* ---------- gaveta de resistores ---------- */
-  function abrirGaveta(c) {
-    const gav = document.getElementById("circuit-gaveta");
-    if (!gav || !def.escolhas) return;
-    gav.hidden = false;
-    gav.innerHTML = `<div class="gav-titulo">Gaveta de resistores — ${c.nome}</div>`;
-    const linha = document.createElement("div");
-    linha.className = "gav-linha";
-    for (const r of def.escolhas) {
+    if (!opcoes.some((o) => o.id === selecionada)) selecionada = "reto";
+    for (const o of opcoes) {
       const b = document.createElement("button");
-      b.className = "gav-btn" + (c.ohms === r ? " on" : "");
-      b.textContent = fmtR(r);
-      b.onclick = () => { c.ohms = r; gav.hidden = true; render(); };
-      linha.appendChild(b);
+      b.className = "pal-btn" + (selecionada === o.id ? " on" : "");
+      b.textContent = o.rotulo;
+      b.onclick = () => { selecionada = o.id; montarPaleta(); };
+      paleta.appendChild(b);
     }
-    gav.appendChild(linha);
-    const fechar = document.createElement("button");
-    fechar.className = "ghost-btn small"; fechar.textContent = "fechar";
-    fechar.onclick = () => { gav.hidden = true; };
-    gav.appendChild(fechar);
   }
 
-  /* ---------- ligações ---------- */
-  function tocarNo(id) {
+  /* =================== TOQUE NAS CASAS ========================== */
+  function tocar(r, c) {
     if (resolvido) return;
-    if (sel === null) { sel = id; render(); return; }
-    if (sel === id) { sel = null; render(); return; }
-    const k = chave(sel, id);
-    if (fios.has(k)) fios.delete(k); else fios.add(k);
-    sel = null;
-    render();
+    const cel = grade[r][c];
+    if (cel && cel.fixo) return;                    // componente do desafio: não mexe
+
+    if (selecionada === "apagar") { grade[r][c] = null; avaliarERenderizar(); return; }
+
+    if (selecionada === "resistor") {
+      // só existe UM resistor: colocar de novo o move; tocar nele gira
+      if (cel && cel.fam === "resistor") { cel.rot = (cel.rot + 1) % 2; }
+      else {
+        for (let rr = 0; rr < ROWS; rr++) for (let cc = 0; cc < COLS; cc++) {
+          const g = grade[rr][cc];
+          if (g && g.fam === "resistor") grade[rr][cc] = null;
+        }
+        grade[r][c] = { fam: "resistor", rot: 0 };
+      }
+      avaliarERenderizar(); return;
+    }
+
+    const fam = FAMILIAS[selecionada];
+    if (cel && cel.fam === selecionada) cel.rot = (cel.rot + 1) % fam.rots;   // gira
+    else grade[r][c] = { fam: selecionada, rot: 0 };                          // coloca
+    avaliarERenderizar();
   }
 
-  async function conferir(s) {
-    if (resolvido) return;
-    const r = def.objetivo(s, comps);
-    if (r.falha) { status.className = "circuit-status ruim"; status.textContent = r.dica; return; }
-    if (!r.ok) { status.className = "circuit-status"; status.textContent = r.dica || ""; return; }
+  /* =================== GRADE → CIRCUITO ========================= */
+  function portasDaCelula(cel) {
+    if (!cel) return [];
+    if (cel.fixo) {
+      // bateria/lâmpada: terminais em lados opostos conforme a rotação
+      return cel.rot % 2 ? ["E", "W"] : ["N", "S"];
+    }
+    if (cel.fam === "resistor") return cel.rot % 2 ? ["N", "S"] : ["E", "W"];
+    return portasDe(cel.fam, cel.rot);
+  }
 
-    resolvido = true;
-    status.className = "circuit-status bom";
-    const res = await rewardGame(getActiveBaby(), "circuit", 1);
+  function montarCircuito() {
+    /* união de portas: cada porta ativa é um nó; fios unem as próprias
+     * portas; casas vizinhas unem as portas que se encaram. */
+    const pai = new Map();
+    const acha = (x) => {
+      while (pai.get(x) !== x) { pai.set(x, pai.get(pai.get(x))); x = pai.get(x); }
+      return x;
+    };
+    const une = (a, b) => { const ra = acha(a), rb = acha(b); if (ra !== rb) pai.set(ra, rb); };
+    const pid = (r, c, lado) => r + "," + c + "," + lado;
+
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      for (const p of portasDaCelula(grade[r][c])) {
+        const k = pid(r, c, p);
+        if (!pai.has(k)) pai.set(k, k);
+      }
+    }
+    // fios (reto/curva/T/cruz) ligam as próprias portas entre si
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const cel = grade[r][c];
+      if (!cel || cel.fixo || cel.fam === "resistor") continue;
+      const ps = portasDaCelula(cel);
+      for (let i = 1; i < ps.length; i++) une(pid(r, c, ps[0]), pid(r, c, ps[i]));
+    }
+    // vizinhos que se encaram
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      for (const p of portasDaCelula(grade[r][c])) {
+        const [dr, dc] = DELTA[p];
+        const nr = r + dr, nc = c + dc;
+        if (!dentro(nr, nc)) continue;
+        const op = OPOSTO[p];
+        if (portasDaCelula(grade[nr][nc]).includes(op)) une(pid(r, c, p), pid(nr, nc, op));
+      }
+    }
+
+    // componentes: elemento entre os nós dos seus dois terminais
+    const comps = [];
+    let bateria = null;
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const cel = grade[r][c];
+      if (!cel) continue;
+      const ps = portasDaCelula(cel);
+      if (cel.fixo && cel.tipo === "bateria") {
+        // o "+" fica na 1ª porta (E na horizontal, N na vertical)
+        bateria = { tipo: "bateria", a: acha(pid(r, c, ps[0])), b: acha(pid(r, c, ps[1])),
+                    volts: desafio.volts, r, c };
+        comps.push(bateria);
+      } else if (cel.fixo && cel.tipo === "lampada") {
+        comps.push({ tipo: "resistor", ohms: R_LAMP, nome: cel.nome, lampada: true,
+                     a: acha(pid(r, c, ps[0])), b: acha(pid(r, c, ps[1])), r, c });
+      } else if (cel.fam === "resistor") {
+        comps.push({ tipo: "resistor", ohms: 100, nome: "Rprot",
+                     a: acha(pid(r, c, ps[0])), b: acha(pid(r, c, ps[1])), r, c });
+      }
+    }
+
+    if (!bateria) return null;
+    // nomes de nós: raiz da união; o "−" da bateria é o GND
+    const gnd = bateria.b;
+    const troca = (x) => (x === gnd ? "GND" : x);
+    const nos = new Set(["GND"]);
+    for (const cp of comps) { cp.a = troca(cp.a); cp.b = troca(cp.b); nos.add(cp.a); nos.add(cp.b); }
+    return { nos: [...nos], comps, bateria };
+  }
+
+  /* =================== AVALIAÇÃO ================================ */
+  function avaliar() {
+    const cir = montarCircuito();
+    if (!cir) return { estado: "montando" };
+    // + e − no MESMO nó = existe um caminho só de fios entre eles
+    if (cir.bateria.a === cir.bateria.b) return { estado: "curto", info: [] };
+    const s = simular(cir.nos, cir.comps);
+    const iBat = Math.abs(s.correnteEm(cir.bateria));
+    const lamps = cir.comps.filter((c) => c.lampada);
+    const info = lamps.map((l) => ({
+      nome: l.nome,
+      i: Math.abs(s.correnteEm(l)),
+      v: Math.abs(s.tensoes[l.a] - s.tensoes[l.b]),
+      r: l.r, c: l.c,
+    }));
+
+    if (iBat > I_CURTO) return { estado: "curto", info, iBat };
+    if (info.some((l) => l.i > I_QUEIMA)) return { estado: "queimou", info, iBat };
+
+    const meta = desafio.meta;
+    const acesas = info.filter((l) => l.i > I_ACESA);
+    const todas = meta.quais.every((n) => acesas.some((l) => l.nome === n));
+
+    if (!todas) return { estado: "montando", info, iBat };
+
+    const V = desafio.volts;
+    if (meta.tipo === "serie") {
+      const ok = info.every((l) => l.v > V * 0.3 && l.v < V * 0.7) &&
+                 Math.abs(info[0].v - info[1].v) < V * 0.12;
+      return { estado: ok ? "ok" : "quase", info, iBat,
+               dica: ok ? "" : "Acenderam, mas não em SÉRIE: precisa ser um caminho ÚNICO passando pelas duas." };
+    }
+    if (meta.tipo === "paralelo") {
+      const ok = info.every((l) => l.v > V * 0.8);
+      return { estado: ok ? "ok" : "quase", info, iBat,
+               dica: ok ? "" : "Acenderam, mas não em PARALELO: cada uma precisa receber a tensão INTEIRA (caminhos separados)." };
+    }
+    return { estado: "ok", info, iBat };
+  }
+
+  let proximoT = null;
+  async function concluir() {
+    if (recompensando) return;
+    recompensando = true; resolvido = true;
+    const pts = nivel < 4 ? 2 : 4;                  // desafio aleatório paga mais
+    const r = await rewardGame(getActiveBaby(), "circuit", pts);
     registerCare();
-    status.textContent = `${r.dica} ` + (res.factor === 0
-      ? "(a criança se cansou — sem recompensa agora)"
-      : `+${res.coins} 🪙 +${res.xp} XP${res.record ? " 🏆" : ""}`);
+    status.textContent = "🎉 Circuito perfeito! " +
+      (r.factor === 0 ? "(a criança se cansou)" : `+${r.coins} 🪙 +${r.xp} XP`) +
+      " — indo para o próximo…";
+    proximoT = setTimeout(() => carregar(nivel + 1), 1800);
   }
 
-  document.getElementById("circuit-clear").onclick = () => { fios.clear(); sel = null; medindo = null; render(); };
+  /* =================== DESENHO ================================== */
+  function desenhar(res) {
+    svg.innerHTML = "";
+    // casinhas
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      svg.appendChild(el("rect", {
+        x: c * CEL + 2, y: r * CEL + 2, width: CEL - 4, height: CEL - 4,
+        rx: 8, class: "cir-cel", "data-r": r, "data-c": c,
+      }));
+    }
+
+    const meio = CEL / 2;
+    const pontaXY = (r, c, lado) => {
+      const cx = c * CEL + meio, cy = r * CEL + meio;
+      if (lado === "N") return [cx, r * CEL];
+      if (lado === "S") return [cx, (r + 1) * CEL];
+      if (lado === "E") return [(c + 1) * CEL, cy];
+      return [c * CEL, cy];
+    };
+
+    const acesaEm = new Map();
+    const queimaEm = new Map();
+    if (res.info) for (const l of res.info) {
+      acesaEm.set(l.r + "," + l.c, l.i > I_ACESA && l.i <= I_QUEIMA ? l.i : 0);
+      queimaEm.set(l.r + "," + l.c, l.i > I_QUEIMA);
+    }
+
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const cel = grade[r][c];
+      if (!cel) continue;
+      const cx = c * CEL + meio, cy = r * CEL + meio;
+
+      if (!cel.fixo && cel.fam !== "resistor") {
+        for (const p of portasDaCelula(cel)) {
+          const [x2, y2] = pontaXY(r, c, p);
+          svg.appendChild(el("line", { x1: cx, y1: cy, x2, y2, class: "cir-fio" }));
+        }
+        svg.appendChild(el("circle", { cx, cy, r: 4.5, class: "cir-fio-no" }));
+        continue;
+      }
+
+      if (cel.fam === "resistor") {
+        for (const p of portasDaCelula(cel)) {
+          const [x2, y2] = pontaXY(r, c, p);
+          svg.appendChild(el("line", { x1: cx, y1: cy, x2, y2, class: "cir-fio" }));
+        }
+        const g = el("g", { transform: `translate(${cx} ${cy}) rotate(${cel.rot % 2 ? 90 : 0})` });
+        g.appendChild(el("rect", { x: -15, y: -8, width: 30, height: 16, rx: 5, class: "cir-resistor" }));
+        const t = el("text", { x: 0, y: 4, class: "cir-rotulo" }); t.textContent = "100Ω";
+        g.appendChild(t);
+        svg.appendChild(g);
+        continue;
+      }
+
+      if (cel.tipo === "bateria") {
+        for (const p of portasDaCelula(cel)) {
+          const [x2, y2] = pontaXY(r, c, p);
+          svg.appendChild(el("line", { x1: cx, y1: cy, x2, y2, class: "cir-fio" }));
+        }
+        const g = el("g", { transform: `translate(${cx} ${cy}) rotate(${cel.rot % 2 ? 0 : 90})` });
+        g.appendChild(el("rect", { x: -18, y: -12, width: 36, height: 24, rx: 6, class: "cir-bateria" }));
+        const tp = el("text", { x: 10, y: 5, class: "cir-polo" }); tp.textContent = "+";
+        const tm = el("text", { x: -12, y: 5, class: "cir-polo" }); tm.textContent = "−";
+        g.appendChild(tp); g.appendChild(tm);
+        svg.appendChild(g);
+        const tv = el("text", { x: cx, y: cy - 16, class: "cir-rotulo destaque" });
+        tv.textContent = desafio.volts + "V";
+        svg.appendChild(tv);
+        continue;
+      }
+
+      if (cel.tipo === "lampada") {
+        for (const p of portasDaCelula(cel)) {
+          const [x2, y2] = pontaXY(r, c, p);
+          svg.appendChild(el("line", { x1: cx, y1: cy, x2, y2, class: "cir-fio" }));
+        }
+        const i = acesaEm.get(r + "," + c) || 0;
+        const queimou = queimaEm.get(r + "," + c);
+        const brilho = Math.min(1, i / 0.15);
+        const b = el("circle", {
+          cx, cy, r: 13,
+          class: "cir-lamp" + (queimou ? " queimada" : i ? " acesa" : ""),
+        });
+        if (i && !queimou) b.style.filter = `drop-shadow(0 0 ${4 + brilho * 10}px #FFE55C)`;
+        svg.appendChild(b);
+        const t = el("text", { x: cx, y: cy + 4, class: "cir-lamp-icone" });
+        t.textContent = queimou ? "💥" : "💡";
+        svg.appendChild(t);
+      }
+    }
+  }
+
+  function avaliarERenderizar() {
+    const res = avaliar();
+    desenhar(res);
+    if (res.estado === "curto") {
+      status.textContent = "⚡ CURTO-CIRCUITO! Um caminho só de fios liga o + no − da bateria. Desfaça!";
+    } else if (res.estado === "queimou") {
+      status.textContent = "💥 A lâmpada QUEIMOU: corrente demais. Tire o caminho (ou proteja com o resistor).";
+    } else if (res.estado === "quase") {
+      status.textContent = "💡 " + res.dica;
+    } else if (res.estado === "ok") {
+      status.textContent = "";
+      concluir();
+    } else {
+      status.textContent = desafio.meta.quais.length > 1
+        ? "Ligue a bateria às lâmpadas…"
+        : "Ligue a bateria à lâmpada…";
+    }
+  }
+
+  /* =================== ENTRADA ================================== */
+  svg.addEventListener("pointerdown", (e) => {
+    const rect = svg.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * W;
+    const y = ((e.clientY - rect.top) / rect.height) * H;
+    const c = Math.floor(x / CEL), r = Math.floor(y / CEL);
+    if (dentro(r, c)) tocar(r, c);
+  });
+
+  document.getElementById("circuit-clear").onclick = () => {
+    if (resolvido) return;
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (grade[r][c] && !grade[r][c].fixo) grade[r][c] = null;
+    }
+    avaliarERenderizar();
+  };
   document.getElementById("circuit-new").onclick = () => carregar(nivel + 1);
 
-  /* sair da tela = zerar o progresso: volta ao nível 1 limpo */
+  /* sair da tela = zerar o progresso: volta ao tutorial */
   onScreenShown("screen-circuit", () => carregar(0));
   onScreenLeft("screen-circuit", () => carregar(0));
   carregar(0);

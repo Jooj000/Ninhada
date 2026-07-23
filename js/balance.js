@@ -138,15 +138,21 @@ export const BALANCE = {
 
   /* ================= HILL DRIVE ================= */
   hilldrive: {
-    gravidade: 0.42,
+    // CARRO LEVE: gravidade baixa = qualquer crista em velocidade vira
+    // voo de verdade. E TOPO PESADO: a criança sentada em cima fica
+    // ACIMA do eixo das rodas, então no ar o peso dela faz o carro girar
+    // sozinho — quem não corrigir com os pedais, capota.
+    gravidade: 0.30,
     motor: 0.30,            // força de aceleração
     freio: 0.34,            // força da ré/freio
     atritoSolo: 0.988,      // quanto o carro perde de velocidade sozinho
-    velMax: 9.5,
+    velMax: 10.5,
     velMinRe: -3.2,
     // Rotação no ar: acelerar empina, frear abaixa o nariz.
-    torqueAr: 0.011,
-    atritoAngular: 0.985,
+    torqueAr: 0.016,
+    atritoAngular: 0.996,   // o giro quase não amortece sozinho
+    giroCrista: 0.5,        // ao decolar, herda o giro que a rampa impôs
+    topoPesado: 0.0055,     // desequilíbrio do peso alto (o que faz capotar)
     // Só perde quando a CABEÇA da criança encosta no chão (como no
     // Hill Climb Racing). Inclinar o carro por si só não derruba.
     // Altura da cabeça MEDIDA A PARTIR DO CHÃO (fração do tamanho do carro).
@@ -168,14 +174,27 @@ export const BALANCE = {
     plataformas: 6,
     chanceMoeda: 0.28,
     chanceQuebra: 0.28,
-    // A inclinação define a VELOCIDADE direto (não acelera aos poucos),
-    // senão dá a sensação de atraso ao virar o celular.
-    velMaxInclinacao: 6,
-    respostaInclinacao: 0.3,    // 1 = instantâneo (menor = acelera devagar)
-    grausMax: 15,               // inclinar 15° já é o máximo
-    // toque/arraste: o herói persegue o dedo com este teto de velocidade
-    velMaxToque: 6,
-    seguirFator: 0.09,
+    /* ---- CONTROLE HORIZONTAL: MASSA e INÉRCIA (como no Pou) ----
+     * O celular NÃO é um joystick analógico: a inclinação não define a
+     * velocidade, ela gera ACELERAÇÃO. O fluxo é
+     *   inclinação -> filtro -> zona morta -> aceleração -> velocidade
+     *   -> atrito -> posição
+     * Resultado: o boneco DEMORA a ganhar velocidade, CONTINUA deslizando
+     * quando o celular volta ao centro e para aos poucos. */
+    filtroInclinacao: 0.18,     // passa-baixa (0..1): menor = mais suave
+    zonaMortaGraus: 7,          // até ±7° ele nem se mexe
+    grausMax: 24,               // leitura do sensor satura aqui
+    /* Calibrados para a velocidade terminal NATURAL (aceleração ÷ atrito)
+     * já dar ~velMaxH: o teto quase nunca é acionado, então o movimento
+     * é físico e não "no limite do joystick". Com estes números:
+     *   inclinação máxima -> topo de velocidade em ~1,3 s
+     *   nivelou o aparelho -> desliza ~220 px por ~2 s antes de parar
+     *   inverter o lado    -> ~0,5 s (dá pra sentir o peso) */
+    acelPorGrau: 0.012,         // aceleração por grau ALÉM da zona morta
+    atritoH: 0.97,              // por frame: desacelera devagar ao nivelar
+    velMaxH: 6.5,               // ÚNICO teto: a velocidade (nunca a aceleração)
+    acelToque: 0.0011,          // arrastar: aceleração rumo ao dedo (por px)
+    acelSeta: 0.2,              // setas do teclado: aceleração constante
   },
 
   /* ================= MATCH 3 ================= */
@@ -186,6 +205,8 @@ export const BALANCE = {
   /* ================= STAR POPPER ================= */
   starpopper: {
     coresIniciais: 2,        // rodada 1 começa com 2 cores (+1 por rodada limpa)
+    bolhasIniciais: 22,      // massa no INÍCIO de cada rodada (antes: 8)
+    bolhasIniciaisExtra: 4,  // +N a cada rodada vencida
     cresceSegundos: 35,      // tempo entre as ONDAS de crescimento
     bolhasPorOnda: 5,        // quantas bolhas vêm de uma vez
     bolhasPorOndaExtra: 1,   // +N a cada rodada vencida

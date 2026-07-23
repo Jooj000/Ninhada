@@ -31,22 +31,27 @@ export function paintLayer(el, asset) {
   el.title = asset.label || "";
   el.textContent = isBase ? (asset.label || "") : "";
 
+  /* Tenta o caminho como está e, se falhar, as variações de CAIXA da
+   * extensão (.PNG, .GIF…): o disco diferencia, o jogo não precisa. */
+  const tentativas = variacoesDeSrc(asset.src);
+  let t = 0;
   const img = new Image();
   img.onload = () => {
     if (el.dataset.paintedSrc !== asset.src) return;
-    el.style.backgroundImage = `url("${asset.src}")`;   // .png ou .gif animado
+    el.style.backgroundImage = `url("${tentativas[t]}")`;   // .png ou .gif animado
     el.style.backgroundColor = "transparent";
     el.classList.remove("is-placeholder");
     el.textContent = "";
   };
   img.onerror = () => {
     if (el.dataset.paintedSrc !== asset.src) return;
+    if (++t < tentativas.length) { img.src = tentativas[t]; return; }   // tenta .PNG, .GIF…
     el.style.backgroundImage = "none";
     el.style.backgroundColor = isBase ? (asset.placeholder || "transparent") : "transparent";
     el.classList.add("is-placeholder");
     el.textContent = isBase ? (asset.label || "") : "";
   };
-  img.src = asset.src;
+  img.src = tentativas[0];
 }
 
 /* Monta as camadas dentro de um .baby-stage. Retorna refs por id.

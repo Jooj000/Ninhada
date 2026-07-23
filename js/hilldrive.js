@@ -113,16 +113,27 @@ export function initHillDrive() {
       const incNovo = anguloRodas(carro.x);
       const chaoY = solo(carro.x) - CLR;
       const vyLadeira = v * Math.sin(incNovo);        // componente vertical de seguir o relevo
-      const dy = chaoY - carro.y;
 
-      /* Decolagem NATURAL: se o chão cai mais rápido do que a gravidade
-       * puxaria neste passo, o carro perde contato — nada de impulso extra. */
-      if (dy > (carro.vy + GRAV * dt) * dt + 1.5 && v > 0.5) {
+      /* DECOLAGEM NATURAL (critério físico, sem impulso inventado):
+       * para continuar colado no relevo, o carro precisaria de uma
+       * aceleração para BAIXO igual à variação da sua própria velocidade
+       * vertical. Quem fornece essa aceleração é a gravidade — e só ela.
+       * Numa crista em velocidade, o chão foge mais rápido do que a
+       * gravidade consegue puxar: aí ele voa.
+       *   a_necessaria = Δvy / Δt   >   g   =>   decola          */
+      const vyAntes = v * Math.sin(inc);
+      const aNecessaria = (vyLadeira - vyAntes) / Math.max(dt, 0.0001);
+      if (aNecessaria > GRAV && v > 0.5) {
+        /* Sai pela TANGENTE da rampa que ele estava subindo — com a
+         * velocidade que já tinha, sem ganhar nem perder nada. A partir
+         * daqui só a gravidade age (no ramo do ar). */
         carro.noChao = false;
-        carro.vy = vyLadeira;                          // sai com a velocidade que tinha
-        carro.va = 0;                                  // sem giro de brinde
-        carro.vy += GRAV * dt;
+        carro.vy = vyAntes;
         carro.y += carro.vy * dt;
+        /* GIRO DA RAMPA: no chão o carro gira junto com o relevo, na
+         * taxa d(inclinação)/dt. Ao decolar ele CONSERVA esse giro — por
+         * isso uma crista aguda cospe o carro rodando para trás. */
+        carro.va = normAng(incNovo - inc) / Math.max(dt, 0.0001) * (HD.giroCrista ?? 0.9);
       } else {
         carro.y = chaoY;
         carro.vy = vyLadeira;
@@ -136,6 +147,14 @@ export function initHillDrive() {
       carro.x += carro.vx * dt;
       carro.y += carro.vy * dt;
       carro.va += -acelera * HD.torqueAr * dt;         // acelerar empina, frear abaixa
+
+      /* TOPO PESADO: a criança fica ACIMA do eixo das rodas, então o
+       * centro de massa está alto. Um corpo assim é instável: qualquer
+       * inclinação vira torque que AUMENTA a inclinação (pêndulo
+       * invertido, torque ∝ sen do ângulo). É isso que capota sozinho,
+       * sem o código "mandar" capotar — e é isso que o jogador corrige
+       * com os pedais. */
+      carro.va += Math.sin(carro.ang) * (HD.topoPesado ?? 0.0055) * dt;
       carro.va *= Math.pow(HD.atritoAngular, dt);
       carro.ang += carro.va * dt;
 
@@ -144,11 +163,19 @@ export function initHillDrive() {
         /* pouso: as rodas grudam; pousar muito torto custa velocidade */
         carro.y = chaoY;
         const inc = anguloRodas(carro.x);
-        const erro = Math.abs(normAng(carro.ang - inc));
-        carro.vx *= Math.max(0.55, 1 - erro * 0.4);
+        const erro = normAng(carro.ang - inc);
+        const abs = Math.abs(erro);
         carro.vy = 0;
-        carro.va = 0;
-        carro.noChao = true;
+        if (abs > 1.05) {
+          /* pousou MUITO torto (~60°+): as rodas não pegam o chão, ele
+           * continua tombando — daí em diante é a cabeça que decide. */
+          carro.va += Math.sign(erro) * 0.02;
+          carro.y -= 1;                                 // não gruda no solo
+        } else {
+          carro.vx *= Math.max(0.5, 1 - abs * 0.5);     // torto custa velocidade
+          carro.va = erro * -0.06;                      // as rodas endireitam
+          carro.noChao = true;
+        }
       }
     }
 

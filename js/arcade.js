@@ -15,7 +15,11 @@ const shuffle = (a) => a.map((v) => [Math.random(), v]).sort((x, y) => x[0] - y[
 const rnd = (n) => Math.floor(Math.random() * n);
 
 /* ==================== MEMÓRIA ==================== */
-const SIMBOLOS = ["🍼", "🧸", "🎈", "🐤", "⭐", "🍪", "🚗", "🌙", "🎀", "🐰"];
+const SIMBOLOS = [
+  "🍼", "🧸", "🎈", "🐤", "⭐", "🍪", "🚗", "🌙", "🎀", "🐰",
+  "🦆", "🍓", "🌈", "🐢", "🎠", "🪁", "🐳", "🍭", "🦋", "⚽",
+];
+const PARES = 18;                       // tabuleiro 6×6
 
 export function initMemory() {
   const grid = document.getElementById("mem-grid");
@@ -31,7 +35,7 @@ export function initMemory() {
   }
 
   function começar() {
-    const pares = shuffle(SIMBOLOS).slice(0, 8);
+    const pares = shuffle(SIMBOLOS).slice(0, PARES);
     cartas = shuffle([...pares, ...pares]).map((s, i) => ({ id: i, s, aberta: false, achada: false }));
     viradas = []; achados = 0; jogadas = 0; travado = false; rodando = true;
     elMsg.textContent = "";
@@ -70,8 +74,8 @@ export function initMemory() {
 
   async function fim() {
     rodando = false;
-    // 8 pares no mínimo em 8 jogadas: quanto menos jogadas, mais pontos
-    const pontos = Math.max(4, 30 - Math.max(0, jogadas - 8));
+    // 18 pares no mínimo em 18 jogadas: quanto menos jogadas, mais pontos
+    const pontos = Math.max(6, 44 - Math.max(0, jogadas - PARES));
     const r = await rewardGame(getActiveBaby(), "memory", pontos);
     registerCare();
     elMsg.textContent = r.factor === 0
@@ -183,7 +187,7 @@ export function initColorMatch() {
     elOps.innerHTML = "";
     elBar.style.width = "0%";
     palco.textContent = "Toque na COR DA TINTA";
-    palco.style.color = "var(--ink)";
+    palco.style.color = "";              // o tema (escuro) decide a cor de repouso
     hud();
   }
   onScreenShown("screen-colormatch", zerar);

@@ -64,7 +64,7 @@ export function initFishing() {
   const view = fullscreenCanvas(canvas, "screen-fishing");
   const ctx = view.ctx;
 
-  let W = 360, H = 640, TRX = 100, TRW = 160, BAR_H = F.netHeightPx;
+  let W = 360, H = 640, TRX = 100, TRW = 160, BAR_H = F.netHeightPx, sy = 1;
   let barY, barV, fishY, fishV, fishTarget, progresso, peixe, estado, total, lastT = 0;
   let esperaAte = 0, fisgarAte = 0;
   let segurando = false;
@@ -79,7 +79,11 @@ export function initFishing() {
   function medidas() {
     if (view.fit()) { W = view.w; H = view.h; }
     TRX = W * 0.28; TRW = W * 0.44;
-    BAR_H = Math.max(F.netHeightPx, H * 0.14);
+    /* TUDO escala com a altura: o jogo original foi afinado em H = 420,
+     * então a rede, a VELOCIDADE da rede e a do peixe crescem juntas —
+     * a luta fica idêntica em qualquer tela (só mais nítida). */
+    sy = H / 420;
+    BAR_H = H * (F.netHeightPx / 420);
   }
 
   function lancar() {
@@ -152,7 +156,7 @@ export function initFishing() {
     if (estado === "mordendo")  { if (agora >= fisgarAte) perdeuFisgada(); return; }
     if (estado !== "pescando") return;
 
-    barV += (segurando ? -0.55 : 0.42) * dt;
+    barV += (segurando ? -0.55 : 0.42) * sy * dt;
     barV *= 0.92;
     barY += barV * dt;
     if (barY < 0) { barY = 0; barV = 0; }
@@ -160,7 +164,7 @@ export function initFishing() {
 
     if (Math.random() < peixe.erratico * dt) fishTarget = 20 + Math.random() * (H - 40);
     const dir = Math.sign(fishTarget - fishY);
-    fishV += dir * 0.14 * peixe.vel * dt;
+    fishV += dir * 0.14 * peixe.vel * sy * dt;
     fishV *= 0.9;
     fishY += fishV * dt;
     if (fishY < 12) { fishY = 12; fishV = 0; fishTarget = H / 2; }
