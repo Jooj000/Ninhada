@@ -18,6 +18,7 @@
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 const CORES = ["#E05A5A","#5B8FD6","#6BB77B","#E5B93C","#9A5FC0","#E88AC0","#4FBFC0","#C9772E"];
 const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
@@ -280,6 +281,19 @@ export function initConnect() {
   });
   cv.addEventListener("pointerup", () => { desenhando = null; });
   btn.onclick = comecar;
+
+  /* sair = matar o relógio e voltar ao estado pré-início */
+  function zerar() {
+    if (timerId) { clearInterval(timerId); timerId = null; }
+    rodando = false; morto = false; rodadas = 0;
+    btn.hidden = false;
+    elMsg.textContent = "";
+    elBar.style.width = "0%";
+    novaRodada();
+    hud();
+  }
+  onScreenShown("screen-connect", zerar);
+  onScreenLeft("screen-connect", zerar);
 
   rodadas = 0; rodando = false;
   novaRodada();

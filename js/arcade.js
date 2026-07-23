@@ -9,6 +9,7 @@
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 const shuffle = (a) => a.map((v) => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map((p) => p[1]);
 const rnd = (n) => Math.floor(Math.random() * n);
@@ -79,6 +80,9 @@ export function initMemory() {
   }
 
   btn.onclick = começar;
+  /* sair = zerar; entrar = jogo novo embaralhado */
+  onScreenShown("screen-memory", começar);
+  onScreenLeft("screen-memory", começar);
   começar();
 }
 
@@ -170,8 +174,20 @@ export function initColorMatch() {
     elMsg.textContent = ""; hud(); rodada();
   };
 
-  pontos = 0; vidas = 3; rodando = false;
-  palco.textContent = "Toque na COR DA TINTA";
-  palco.style.color = "var(--ink)";
-  hud();
+  /* volta ao estado "antes de começar" (e mata o cronômetro) */
+  function zerar() {
+    parar();
+    pontos = 0; vidas = 3; rodando = false;
+    btn.hidden = false;
+    elMsg.textContent = "";
+    elOps.innerHTML = "";
+    elBar.style.width = "0%";
+    palco.textContent = "Toque na COR DA TINTA";
+    palco.style.color = "var(--ink)";
+    hud();
+  }
+  onScreenShown("screen-colormatch", zerar);
+  onScreenLeft("screen-colormatch", zerar);
+
+  zerar();
 }

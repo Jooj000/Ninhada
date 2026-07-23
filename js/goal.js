@@ -13,32 +13,45 @@ import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { desenharBebe } from "./baby-sprite.js";
+import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 export function initGoal() {
   const canvas = document.getElementById("gl-canvas");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const W = (canvas.width = 360), H = (canvas.height = 420);
+  const view = fullscreenCanvas(canvas, "screen-goal");
+  const ctx = view.ctx;
 
-  const GX = 52, GY = 74, GW = W - 104, GH = 128;     // trave (gol pequeno)
-  const LINHA = GY + GH;                               // linha do gol
-  const BOLA0 = { x: W / 2, y: H - 56 };
+  let W = 360, H = 640, sy = 1;
+  let GX = 52, GY = 74, GW = 256, GH = 128, LINHA = 202;
+  let BOLA0 = { x: 180, y: 584 }, V = 8.5;
 
   let alvo, bola, goleiro, gols, chances, rodando, morto, estado, lastT = 0;
   let mira = W / 2, apontando = false;
 
+  function medidas() {
+    if (view.fit()) { W = view.w; H = view.h; }
+    sy = Math.max(1, H / 420);
+    GX = W * 0.14; GW = W * 0.72;
+    GY = H * 0.15; GH = Math.min(H * 0.30, 200);
+    LINHA = GY + GH;
+    BOLA0 = { x: W / 2, y: H - 64 * Math.min(sy, 1.4) };
+    V = 8.5 * sy;                                     // chute cruza a tela no mesmo tempo
+  }
+
   function reset() {
+    medidas();
+    lastT = 0;
     gols = 0; chances = 3; rodando = false; morto = false; estado = "mira";
     mira = W / 2;
     novoAlvo();
-    bola = { ...BOLA0, vx: 0, vy: 0, r: 13, viva: false, t: 0 };
+    bola = { ...BOLA0, vx: 0, vy: 0, r: 13 * Math.min(sy, 1.5), viva: false, t: 0 };
     goleiro = { x: W / 2, alvoX: W / 2, pulo: 0, defendeu: false };
     setOverlay("Toque para começar", "Arraste para escolher o LADO e solte");
     desenhar();
   }
 
   function novoAlvo() {
-    const larg = Math.max(46, 84 - gols * 5);          // vai apertando
+    const larg = Math.max(GW * 0.18, GW * 0.33 - gols * GW * 0.02); // vai apertando
     const move = gols >= 2;
     alvo = {
       x: GX + larg / 2 + Math.random() * (GW - larg),
@@ -58,7 +71,6 @@ export function initGoal() {
     const destinoX = Math.max(GX + 6, Math.min(GX + GW - 6, mira));
     const dx = destinoX - bola.x, dy = LINHA - 30 - bola.y;
     const d = Math.hypot(dx, dy) || 1;
-    const V = 8.5;                                     // fixa: sem força de chute
     bola.vx = (dx / d) * V; bola.vy = (dy / d) * V;
     bola.viva = true; bola.destinoX = destinoX;
     estado = "voando";
@@ -84,7 +96,7 @@ export function initGoal() {
     if (!bola.viva) return;
     bola.x += bola.vx * dt; bola.y += bola.vy * dt;
     bola.t += dt;
-    bola.r = Math.max(6, 13 - bola.t * 0.08);          // afasta = diminui
+    bola.r = Math.max(6, 13 * Math.min(sy, 1.5) - bola.t * 0.08 * sy);          // afasta = diminui
 
     if (bola.y <= LINHA - 26) {
       const dentroDoGol = bola.x > GX && bola.x < GX + GW;
@@ -102,7 +114,7 @@ export function initGoal() {
     if (el) el.textContent = msg;
     setTimeout(() => {
       if (chances <= 0) return fim();
-      bola = { ...BOLA0, vx: 0, vy: 0, r: 13, viva: false, t: 0 };
+      bola = { ...BOLA0, vx: 0, vy: 0, r: 13 * Math.min(sy, 1.5), viva: false, t: 0 };
       goleiro.pulo = 0; goleiro.defendeu = false;
       novoAlvo();
       estado = "mira";
@@ -192,6 +204,10 @@ export function initGoal() {
     ov.querySelector(".mini-title").textContent = title;
     ov.querySelector(".mini-sub").textContent = sub;
   }
+
+  view.onResize = reset;
+  onScreenShown("screen-goal", reset);
+  onScreenLeft("screen-goal", reset);
 
   const px = (e) => {
     const r = canvas.getBoundingClientRect();

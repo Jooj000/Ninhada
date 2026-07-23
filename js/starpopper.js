@@ -19,6 +19,7 @@ import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { STARPOPPER as SP } from "./config.js";
+import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 const PALETA = ["#E05A5A", "#5B8FD6", "#6BB77B", "#E5B93C", "#9A5FC0"];
 const PRETO = "#2B2438";
@@ -111,11 +112,17 @@ export function sortearCor(massa, fallback = null) {
 export function initStarPopper() {
   const canvas = document.getElementById("sp-canvas");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const W = (canvas.width = 340), H = (canvas.height = 460);
-  const CX = W / 2, CY = H * 0.40;
-  const LIMITE = Math.min(CX, CY) - R - 4;
-  const BOCA = { x: CX, y: H - 30 };
+  const view = fullscreenCanvas(canvas, "screen-starpopper");
+  const ctx = view.ctx;
+  let W = 340, H = 460, CX = 170, CY = 184, LIMITE = 150, BOCA = { x: 170, y: 430 };
+
+  function medidas() {
+    if (view.fit()) { W = view.w; H = view.h; }
+    CX = W / 2; CY = H * 0.40;
+    // a arena cresce com a tela, mas com folga p/ o canhão embaixo
+    LIMITE = Math.min(CX, CY, H * 0.60 - 80) - R - 6;
+    BOCA = { x: CX, y: H - Math.max(34, H * 0.07) };
+  }
 
   const CRESCE_MS = (SP.cresceSegundos ?? 35) * 1000;
   const PENALIDADE = SP.penalidade ?? 5;
@@ -171,6 +178,8 @@ export function initStarPopper() {
   }
 
   function reset() {
+    medidas();
+    lastT = 0;
     moedasEm.clear();
     nCores = SP.coresIniciais ?? 2; rodada = 1;
     pontos = 0; moedas = 0;
@@ -303,9 +312,9 @@ export function initStarPopper() {
 
   async function fim() {
     morto = true; rodando = false;
-    const total = pontos + moedas * 5;           // bolhas + bônus das moedinhas
-    if (total > 0) {
-      const r = await rewardGame(getActiveBaby(), "starpopper", total, pontos);
+    // pontos passam pelo balanceamento; as 🪙 pagam 1:1 direto
+    if (pontos > 0 || moedas > 0) {
+      const r = await rewardGame(getActiveBaby(), "starpopper", pontos, pontos, moedas);
       registerCare();
       setOverlay(r.record ? `🏆 NOVO RECORDE: ${pontos}!` : `${pontos} bolhas · 🪙${moedas}`,
         r.factor === 0 ? "A criança se cansou — toque p/ jogar"
@@ -423,6 +432,9 @@ export function initStarPopper() {
   canvas.addEventListener("pointerup", () => { if (rodando && !morto) atirar(); });
   document.getElementById("sp-overlay").addEventListener("pointerdown", comecar);
 
+  view.onResize = reset;
+  onScreenShown("screen-starpopper", reset);
+  onScreenLeft("screen-starpopper", reset);
   reset();
   requestAnimationFrame(loop);
 }

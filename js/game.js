@@ -1,19 +1,25 @@
 /* =====================================================================
- * game.js — CORE GAME LOOP + RENDER (multi-bebê, 2 modos de visão)
+ * game.js — CORE: A CASA COMO CENA ÚNICA + NAVEGAÇÃO POR CÔMODOS
  * ---------------------------------------------------------------------
- * Modo "ver um":  seletor no topo escolhe o bebê; mostra 1 card completo.
- * Modo "cômodo":  todos os bebês distribuídos na cena; toque num deles
- *                 para selecioná-lo e voltar ao card completo.
+ * Nada de "caixinhas de site": o fundo do cômodo preenche a tela, a
+ * criança fica em foco e os status viram chips pequenos no topo (toque
+ * para ver os valores em %). As setinhas embaixo trocam de cômodo:
  *
- * Diversão: não é mais um botão de cuidado. O botão "Brincar" leva ao
- * hub de minigames COM aquele bebê ativo; terminar uma rodada anima ele.
+ *   Quarto ........ dormir (luz) e guarda-roupa
+ *   Sala de Estar . microfone (em breve), recados, álbum e a porta da loja
+ *   Sala de Jogos . brinquedo abre a bandeja de jogos
+ *   Cozinha ....... faca abre o menu de cozinhar
+ *   Banheiro ...... sabonete ensaboa; chuveirinho enxágua as bolhas
+ *
+ * Sair da tela de um minigame RESETA o minigame (evento "screen-left").
  * ===================================================================== */
 
 import {
   initSync, onStateChange, syncDecay, addBaby, renameBaby,
+  boostStatus, sootheNightmare,
 } from "./firebase-sync.js";
 import { ASSETS } from "./assets-map.js";
-import { GAME_CONFIG, ROOM_NAME } from "./config.js";
+import { GAME_CONFIG, ROOM_NAME, BALANCE } from "./config.js";
 import {
   STATUS_KEYS, applyDecay, phaseForXp, moodFor, isSick, PHASES,
 } from "./state.js";
@@ -23,7 +29,7 @@ import { buildStageLayers, paintBabyLayers } from "./render-utils.js";
 import { initRooms, updateRooms } from "./rooms.js";
 import { initWeather } from "./weather.js";
 import { initNightmares, updateNightmares } from "./nightmares.js";
-import { updateStreak } from "./streak.js";
+import { updateStreak, registerCare } from "./streak.js";
 import { initPushUI } from "./push.js";
 import { initShop } from "./shop.js";
 import { initMinigame } from "./minigame.js";
@@ -42,111 +48,356 @@ import { initSkyJump } from "./skyjump.js";
 import { initHillDrive } from "./hilldrive.js";
 import { initGoal } from "./goal.js";
 import { initConnect } from "./connect.js";
-import { initDeitar } from "./tela-cheia.js";
-
-/* Onde cada botão de cuidado leva (o status é cuidado no cômodo). */
-const ACTION_SCREEN = {
-  feed:  "screen-kitchen",
-  clean: "screen-bathroom",
-  sleep: "screen-bedroom",
-  play:  "screen-arcade",
-};
+import { announceScreenChange } from "./fs-canvas.js";
 
 let room = null;                 // último estado da casa vindo do banco
-const cards = {};                // babyId -> refs do card completo (single-view)
-const tiles = {};                // babyId -> refs do mini no room-view
+const cards = {};                // babyId -> refs (visão solo)
+const tiles = {};                // babyId -> refs (visão em grupo)
 let viewMode = "single";         // "single" | "room"
 
-const BAR_LABELS = {
-  hunger: "Saciedade", sleep: "Sono", hygiene: "Higiene",
-  fun: "Diversão", love: "Afeto",
-};
+/* ================= CÔMODOS DA CASA ================================ */
+const ROOMS = [
+  {
+    id: "quarto", name: "Quarto",
+    grad: "linear-gradient(180deg,#4A4370 0%,#7C6BA4 46%,#B9A6D6 100%)",
+    hotspots: () => [
+      { emoji: lightsOff ? "☀️" : "🌙", label: lightsOff ? "Acender" : "Dormir", act: toggleLights },
+      { emoji: "👚", label: "Guarda-roupa", act: () => openShop("guarda") },
+      ...(babyHasNightmare() ? [{ emoji: "🤍", label: "Acalmar", cls: "hot-pulse", act: soothe }] : []),
+    ],
+  },
+  {
+    id: "sala", name: "Sala de Estar",
+    grad: "linear-gradient(180deg,#8C5A50 0%,#C98F6E 42%,#EFD9B8 100%)",
+    hotspots: () => [
+      { emoji: "🎤", label: "Em breve", disabled: true, act: () => flashMsg("O microfone chega em breve! 🎤") },
+      { emoji: "📝", label: "Recados", act: () => showScreen("screen-board") },
+      { emoji: "📔", label: "Álbum", act: () => showScreen("screen-album") },
+      { emoji: "🚪", label: "Lojinha", act: () => openShop("loja") },
+    ],
+  },
+  {
+    id: "jogos", name: "Sala de Jogos",
+    grad: "linear-gradient(180deg,#2E6E77 0%,#54A6A0 45%,#BCE3D2 100%)",
+    hotspots: () => [
+      { emoji: "🧸", label: "Brincar", act: openTray },
+    ],
+  },
+  {
+    id: "cozinha", name: "Cozinha",
+    grad: "linear-gradient(180deg,#9A6A2E 0%,#D8A452 45%,#F5E2B8 100%)",
+    hotspots: () => [
+      { emoji: "🔪", label: "Cozinhar", act: () => showScreen("screen-kitchen") },
+    ],
+  },
+  {
+    id: "banheiro", name: "Banheiro",
+    grad: "linear-gradient(180deg,#2F6E8E 0%,#5BA6C4 45%,#CBEAF2 100%)",
+    hotspots: () => [
+      { emoji: "🧼", label: "Ensaboar", cls: tool === "soap" ? "hot-on" : "", act: () => setTool("soap") },
+      { emoji: "🚿", label: "Enxaguar", cls: tool === "shower" ? "hot-on" : "", act: () => setTool("shower") },
+      ...(babyHasCold() ? [{ emoji: "💊", label: `Remédio ${GAME_CONFIG.remedioCusto}🪙`, cls: "hot-pulse", act: giveMed }] : []),
+    ],
+  },
+];
+let roomIdx = Math.max(0, ROOMS.findIndex((r) => r.id === (localStorage.getItem("ninhada-room") || "quarto")));
 
-/* ================= CARD COMPLETO (modo "ver um") ================== */
+const currentRoom = () => ROOMS[roomIdx];
+
+function setRoom(idxOrId) {
+  const idx = typeof idxOrId === "number"
+    ? (idxOrId + ROOMS.length) % ROOMS.length
+    : Math.max(0, ROOMS.findIndex((r) => r.id === idxOrId));
+  // sair do cômodo: acende a luz, larga a ferramenta e limpa as bolhas
+  if (ROOMS[roomIdx].id !== ROOMS[idx].id) { setLights(false); setTool(null); clearBubbles(); }
+  roomIdx = idx;
+  localStorage.setItem("ninhada-room", ROOMS[idx].id);
+
+  const scene = document.getElementById("screen-home");
+  scene.dataset.room = ROOMS[idx].id;
+  document.getElementById("room-name").textContent = ROOMS[idx].name;
+
+  const bg = document.getElementById("scene-bg");
+  bg.style.backgroundImage = ROOMS[idx].grad;
+  // se existir arte do cômodo, ela cobre o gradiente
+  const img = new Image();
+  const src = `assets/backgrounds/${ROOMS[idx].id}.png`;
+  img.onload = () => {
+    if (currentRoom().id === ROOMS[idx].id) {
+      bg.style.backgroundImage = `url("${src}"), ${ROOMS[idx].grad}`;
+    }
+  };
+  img.src = src;
+
+  renderHotspots();
+}
+export function goToRoom(id) { showScreen("screen-home"); setRoom(id); }
+
+function renderHotspots() {
+  const box = document.getElementById("hotspots");
+  box.innerHTML = "";
+  for (const h of currentRoom().hotspots()) {
+    const b = document.createElement("button");
+    b.className = "hotspot " + (h.cls || "");
+    b.disabled = !!h.disabled && false;   // desabilitado ainda responde com a mensagem
+    b.innerHTML = `<span class="hot-emoji">${h.emoji}</span><span class="hot-label">${h.label}</span>`;
+    b.addEventListener("click", h.act);
+    box.appendChild(b);
+  }
+}
+
+function flashMsg(text, ms = 2600) {
+  const el = document.getElementById("scene-msg");
+  el.textContent = text;
+  clearTimeout(flashMsg._t);
+  flashMsg._t = setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, ms);
+}
+
+/* ---------------- QUARTO: luz / sono / pesadelo ---------------- */
+let lightsOff = false;
+let sleepTimer = null;
+
+function setLights(off) {
+  lightsOff = off;
+  document.getElementById("lights-overlay").hidden = !off;
+  document.getElementById("screen-home").classList.toggle("lights-off", off);
+  clearInterval(sleepTimer);
+  if (off) {
+    sleepTimer = setInterval(() => {
+      const home = document.getElementById("screen-home");
+      if (home.classList.contains("active") && currentRoom().id === "quarto" && lightsOff) {
+        boostStatus(getActiveBaby(), "sleep", BALANCE.care.sleepPerTick);
+        registerCare();
+      }
+    }, 1500);
+  }
+  renderHotspots();
+}
+function toggleLights() {
+  setLights(!lightsOff);
+  flashMsg(lightsOff ? "Shhh… hora de dormir 😴" : "Bom dia! ☀️");
+}
+function babyHasNightmare() {
+  const b = room && room.babies && room.babies[getActiveBaby()];
+  return !!(b && b.nightmare);
+}
+async function soothe() {
+  setLights(false);
+  const r = await sootheNightmare(getActiveBaby());
+  flashMsg(r && r.ok === false ? "Alguém já acudiu 💛" : "Pesadelo espantado! 🤍");
+  registerCare();
+}
+
+/* ---------------- BANHEIRO: sabonete + chuveirinho -------------- */
+let tool = null;                // null | "soap" | "shower"
+let bubbles = [];               // {x, y, el} em coordenadas do palco
+let hygieneAcc = 0;
+
+function setTool(t) {
+  tool = tool === t ? null : t;
+  const layer = document.getElementById("bubbles-layer");
+  layer.style.pointerEvents = tool ? "auto" : "none";
+  layer.style.cursor = tool ? "crosshair" : "";
+  document.getElementById("shower-head").hidden = tool !== "shower";
+  renderHotspots();
+  if (tool === "soap") flashMsg("Esfregue a criança com o sabonete 🫧");
+  if (tool === "shower") flashMsg("Passe o chuveirinho por cima das bolhas 🚿");
+}
+
+function clearBubbles() {
+  bubbles.forEach((b) => b.el.remove());
+  bubbles = [];
+}
+
+function stagePoint(e) {
+  const r = document.getElementById("bubbles-layer").getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height };
+}
+
+let lastSoap = { x: -99, y: -99 };
+function soapAt(p) {
+  if (bubbles.length >= 42) return;
+  if (Math.hypot(p.x - lastSoap.x, p.y - lastSoap.y) < 22) return;   // espaça as bolhas
+  lastSoap = { x: p.x, y: p.y };
+  const el = document.createElement("span");
+  el.className = "foam";
+  el.textContent = "🫧";
+  el.style.left = p.x + "px";
+  el.style.top = p.y + "px";
+  document.getElementById("bubbles-layer").appendChild(el);
+  bubbles.push({ x: p.x, y: p.y, el });
+}
+
+function showerAt(p) {
+  const head = document.getElementById("shower-head");
+  head.style.left = p.x + "px";
+  head.style.top = Math.min(p.y, p.h * 0.45) + "px";
+
+  let rinsed = 0;
+  bubbles = bubbles.filter((b) => {
+    // o chuveirinho só limpa o que está EMBAIXO dele
+    if (Math.abs(b.x - p.x) < 40 && b.y > p.y - 8) {
+      dropWater(p.x, Math.min(p.y, p.h * 0.45), b.x, b.y);
+      b.el.classList.add("foam-pop");
+      setTimeout(() => b.el.remove(), 260);
+      rinsed++;
+      return false;
+    }
+    return true;
+  });
+  if (rinsed) {
+    hygieneAcc += rinsed * 2;
+    // agrupa os envios para não metralhar o banco
+    clearTimeout(showerAt._t);
+    showerAt._t = setTimeout(() => {
+      const ganho = Math.round(hygieneAcc); hygieneAcc = 0;
+      if (ganho > 0) { boostStatus(getActiveBaby(), "hygiene", ganho); registerCare(); }
+    }, 500);
+    if (!bubbles.length) flashMsg("Limpinho! ✨");
+  }
+}
+
+function dropWater(fromX, fromY, toX, toY) {
+  const layer = document.getElementById("bubbles-layer");
+  const d = document.createElement("span");
+  d.className = "water-drop";
+  d.textContent = "💧";
+  d.style.left = fromX + "px";
+  d.style.top = fromY + "px";
+  d.style.setProperty("--dx", (toX - fromX) + "px");
+  d.style.setProperty("--dy", (toY - fromY) + "px");
+  layer.appendChild(d);
+  setTimeout(() => d.remove(), 420);
+}
+
+function wireBathroom() {
+  const layer = document.getElementById("bubbles-layer");
+  let down = false;
+  const use = (e) => {
+    if (currentRoom().id !== "banheiro" || !tool) return;
+    const p = stagePoint(e);
+    if (tool === "soap") soapAt(p);
+    else showerAt(p);
+  };
+  layer.addEventListener("pointerdown", (e) => { down = true; use(e); });
+  layer.addEventListener("pointermove", (e) => {
+    if (currentRoom().id === "banheiro" && tool === "shower") use(e);   // o chuveirinho segue o dedo/mouse
+    else if (down) use(e);
+  });
+  window.addEventListener("pointerup", () => { down = false; });
+}
+
+/* ---------------- BANHEIRO: remédio ----------------------------- */
+function babyHasCold() {
+  const b = room && room.babies && room.babies[getActiveBaby()];
+  return !!(b && b.cold);
+}
+async function giveMed() {
+  const { giveMedicine } = await import("./firebase-sync.js");
+  const r = await giveMedicine(getActiveBaby());
+  flashMsg(r.ok ? "Tomou o remédio e melhorou! 💊" : "Moedas insuficientes 😢");
+  registerCare();
+  renderHotspots();
+}
+
+/* ================= CHIPS DE STATUS (topo) ======================= */
+const CHIP_DEFS = [
+  { key: "hunger",  emoji: "🍗", label: "Saciedade" },
+  { key: "sleep",   emoji: "😴", label: "Sono" },
+  { key: "hygiene", emoji: "🧼", label: "Higiene" },
+  { key: "fun",     emoji: "🎈", label: "Diversão" },
+  { key: "love",    emoji: "💛", label: "Afeto" },
+  { key: "xp",      emoji: "⭐", label: "XP" },
+];
+let showPct = false;
+const chipRefs = {};
+
+function buildChips() {
+  const box = document.getElementById("status-chips");
+  box.innerHTML = "";
+  for (const c of CHIP_DEFS) {
+    const el = document.createElement("button");
+    el.className = "chip";
+    el.title = c.label;
+    el.innerHTML = `<span class="chip-emoji">${c.emoji}</span><span class="chip-val"></span>`;
+    el.addEventListener("click", () => {
+      showPct = !showPct;
+      box.classList.toggle("show-pct", showPct);
+    });
+    box.appendChild(el);
+    chipRefs[c.key] = { el, val: el.querySelector(".chip-val") };
+  }
+}
+
+function updateChips(baby) {
+  if (!baby) return;
+  const phase = phaseForXp(baby.xp || 0);
+  const next = PHASES[PHASES.indexOf(phase) + 1];
+  for (const c of CHIP_DEFS) {
+    const r = chipRefs[c.key];
+    if (!r) continue;
+    let pct;
+    if (c.key === "xp") {
+      pct = next
+        ? Math.round(((baby.xp - phase.xpNeeded) / (next.xpNeeded - phase.xpNeeded)) * 100)
+        : 100;
+      r.el.title = next ? `${phase.name} · XP ${baby.xp}/${next.xpNeeded}` : `${phase.name} (máx.)`;
+    } else {
+      pct = Math.round(baby[c.key] ?? 0);
+    }
+    pct = Math.max(0, Math.min(100, pct));
+    r.val.textContent = pct + "%";
+    r.el.dataset.low = c.key !== "xp" && pct < 25 ? "true" : "false";
+    r.el.style.setProperty("--fill", pct + "%");
+  }
+}
+
+/* ================= CRIANÇA NA CENA (visão solo) ================== */
 function createCard(babyId) {
-  const tpl = document.getElementById("baby-card-tpl");
-  const node = tpl.content.firstElementChild.cloneNode(true);
+  const node = document.createElement("div");
+  node.className = "scene-baby";
+  node.innerHTML = `
+    <div class="baby-stage scene-baby-stage" data-mood="happy"></div>
+    <div class="scene-baby-name">
+      <span class="baby-name" contenteditable="true" spellcheck="false"></span>
+      <small class="baby-phase"></small>
+    </div>`;
   const stage = node.querySelector(".baby-stage");
-
   const refs = {
     el: node, stage,
-    layers: buildStageLayers(stage, true),
-    bars: {}, moodText: node.querySelector(".mood-text"),
+    layers: buildStageLayers(stage, false),      // sem cenário: o cômodo é o fundo
     nameEl: node.querySelector(".baby-name"),
     phaseEl: node.querySelector(".baby-phase"),
   };
-  node.querySelectorAll(".bar").forEach((bar) => {
-    refs.bars[bar.dataset.key] = {
-      fill: bar.querySelector(".bar-fill"), wrap: bar, label: bar.querySelector(".bar-label"),
-    };
-  });
-
-  node.querySelectorAll("[data-action]").forEach((btn) => {
-    const key = btn.dataset.action;
-    const ui = ASSETS.ui[key];
-    const iconEl = btn.querySelector(".btn-icon");
-    if (iconEl && ui) {
-      const img = new Image();
-      img.onload = () => { iconEl.style.backgroundImage = `url("${ui.src}")`; iconEl.style.backgroundColor = "transparent"; iconEl.textContent = ""; };
-      img.onerror = () => { iconEl.textContent = ui.emoji || "?"; };
-      img.src = ui.src;
-      iconEl.style.backgroundColor = ui.placeholder;
-    }
-    btn.addEventListener("click", () => {
-      btn.classList.add("pop");
-      setTimeout(() => btn.classList.remove("pop"), 200);
-      // Cada cuidado acontece no seu cômodo, com este bebê ativo.
-      setActiveBaby(babyId);
-      showScreen(ACTION_SCREEN[key] || "screen-home");
-    });
-  });
-
   refs.nameEl.addEventListener("blur", () => renameBaby(babyId, refs.nameEl.textContent));
   refs.nameEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); refs.nameEl.blur(); }
   });
-
-  // Afeto pelo toque: cabeça/corpo/cócegas no palco deste bebê.
-  attachTouch(stage, babyId);
-
+  attachTouch(stage, babyId);                    // carinho: cabeça/corpo/cócegas
   document.getElementById("single-view").appendChild(node);
   return refs;
 }
 
 function updateCard(refs, baby) {
-  const phase = phaseForXp(baby.xp || 0);
   paintBabyLayers(refs.layers, baby);
   refs.stage.dataset.mood = moodFor(baby);
-
-  for (const key of STATUS_KEYS) {
-    const b = refs.bars[key]; if (!b) continue;
-    const val = Math.round(baby[key] ?? 0);
-    b.fill.style.width = `${val}%`;
-    b.wrap.dataset.low = val < 25 ? "true" : "false";
-    b.label.textContent = `${BAR_LABELS[key]} ${val}%`;
-  }
   if (document.activeElement !== refs.nameEl) refs.nameEl.textContent = baby.name || "Bebê";
-  const next = PHASES[PHASES.indexOf(phase) + 1];
-  refs.phaseEl.textContent = next
-    ? `${phase.name} · XP ${baby.xp}/${next.xpNeeded}`
-    : `${phase.name} · XP ${baby.xp} (máx.)`;
-  refs.moodText.textContent = baby.cold
-    ? "Resfriado 🤧 — vista uma roupa e cuide bem dele"
+  refs.phaseEl.textContent = phaseForXp(baby.xp || 0).name;
+  const aviso = baby.cold ? "Resfriado 🤧 — vista uma roupa e cuide bem"
     : isSick(baby) ? "Está doente… cuidem dele! 🤒" : "";
+  if (aviso) flashMsg(aviso, 4000);
 }
 
-/* ================= MINI (modo "cômodo") ========================== */
+/* ================= GRUPO (todos no cômodo) ====================== */
 function createTile(babyId) {
   const el = document.createElement("div");
   el.className = "room-baby";
   el.innerHTML = `<div class="mini-stage" data-mood="happy"></div><span class="mini-name"></span>`;
   el.addEventListener("click", () => { setActiveBaby(babyId); setView("single"); });
-
   const stage = el.querySelector(".mini-stage");
   const refs = {
-    el,
-    stage,
-    layers: buildStageLayers(stage, false),   // sem cenário (o cômodo já tem)
+    el, stage,
+    layers: buildStageLayers(stage, false),
     nameEl: el.querySelector(".mini-name"),
   };
   document.getElementById("room-view").appendChild(el);
@@ -159,7 +410,6 @@ function updateTile(refs, baby) {
   if (document.activeElement !== refs.nameEl) refs.nameEl.textContent = baby.name || "Bebê";
 }
 
-/* Distribui os minis pelo cômodo (posição depende da quantidade). */
 function layoutTiles() {
   const ids = Object.keys(tiles);
   const n = ids.length;
@@ -168,7 +418,7 @@ function layoutTiles() {
     const el = tiles[id].el;
     el.style.width = `${w}%`;
     el.style.left = `${((i + 0.5) / n) * 100}%`;
-    el.style.bottom = `${8 + (i % 2) * 10}%`;   // leve escada
+    el.style.bottom = `${4 + (i % 2) * 10}%`;
   });
 }
 
@@ -182,8 +432,6 @@ function reconcile(babies) {
     if (!tiles[id]) tiles[id] = createTile(id);
   }
   layoutTiles();
-
-  // garante um bebê ativo válido
   if (!getActiveBaby() || !babies[getActiveBaby()]) setActiveBaby(ids[0] || null);
   syncSelect(babies);
   applyActiveVisibility();
@@ -205,11 +453,10 @@ function syncSelect(babies) {
   if (getActiveBaby()) select.value = getActiveBaby();
 }
 
-/* No modo "ver um", só o card do bebê ativo aparece. */
 function applyActiveVisibility() {
   const active = getActiveBaby();
   for (const [id, c] of Object.entries(cards)) {
-    c.el.style.display = id === active ? "block" : "none";
+    c.el.style.display = id === active ? "flex" : "none";
   }
 }
 
@@ -220,56 +467,73 @@ function setView(mode) {
   const roomv = document.getElementById("room-view");
   const select = document.getElementById("home-baby-select");
   const toggle = document.getElementById("view-toggle");
+  const adopt = document.getElementById("adopt-btn");
 
   if (mode === "room") {
     single.hidden = true; roomv.hidden = false; select.style.display = "none";
     toggle.textContent = "👤"; toggle.title = "Ver um por vez";
-    paintRoomBg();
+    adopt.hidden = false;                       // adotar só aparece em grupo
   } else {
     single.hidden = false; roomv.hidden = true; select.style.display = "";
     toggle.textContent = "👥"; toggle.title = "Ver todos no cômodo";
+    adopt.hidden = true;
     applyActiveVisibility();
   }
-}
-
-function paintRoomBg() {
-  const roomv = document.getElementById("room-view");
-  const bg = ASSETS.backgrounds.nursery;
-  roomv.style.backgroundColor = bg.placeholder || "#FDEFF4";
-  const img = new Image();
-  img.onload = () => { roomv.style.backgroundImage = `url("${bg.src}")`; };
-  img.src = bg.src;
 }
 
 /* ================= LOOP VISUAL ================================== */
 function tick() {
   if (room && room.babies) {
     const now = Date.now();
+    const activeId = getActiveBaby();
     for (const [id, baby] of Object.entries(room.babies)) {
       const decayed = applyDecay(baby, now);
-      if (viewMode === "single" && cards[id] && id === getActiveBaby()) updateCard(cards[id], decayed);
+      if (id === activeId) updateChips(decayed);
+      if (viewMode === "single" && cards[id] && id === activeId) updateCard(cards[id], decayed);
       if (viewMode === "room" && tiles[id]) updateTile(tiles[id], decayed);
     }
-    updateRooms(room);        // atualiza o cômodo aberto (cozinha/banheiro/quarto)
+    updateRooms(room);        // menu de cozinhar (quando aberto)
     updateNightmares(room);   // banner de pesadelo
   }
   requestAnimationFrame(tick);
 }
 
 /* ================= NAVEGAÇÃO / UI ============================== */
+let currentScreen = "screen-home";
+let cameFromTray = false;
+
 export function showScreen(id) {
+  const prev = currentScreen;
+  if (prev === id) return;
+  currentScreen = id;
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   const el = document.getElementById(id);
   if (el) el.classList.add("active");
-  if (id === "screen-arcade") { updateArcadeLabel(); updateArcadeLocks(); }
+  if (prev === "screen-home") setLights(false);      // saiu do quarto: luz acesa
+
+  // sair da tela de um jogo = RESETAR o jogo (fs-canvas.js distribui)
+  announceScreenChange(prev, id);
+
+  // voltar de um jogo para casa reabre a bandeja (você estava na sala de jogos)
+  if (id === "screen-home" && cameFromTray) { openTray(); }
+  if (id !== "screen-home") closeTray(false);
 }
 
-/* Gate de idade: tranca minigames abaixo da fase mínima do bebê ativo. */
-function updateArcadeLocks() {
+/* -------- bandeja de jogos (sala de jogos) -------- */
+function openTray() {
+  document.getElementById("games-tray").hidden = false;
+  updateTrayLocks();
+}
+function closeTray(clearFlag = true) {
+  document.getElementById("games-tray").hidden = true;
+  if (clearFlag) cameFromTray = false;
+}
+
+function updateTrayLocks() {
   if (!room) return;
   const baby = (room.babies || {})[getActiveBaby()];
   const phaseIdx = baby ? PHASES.indexOf(phaseForXp(baby.xp || 0)) : 0;
-  document.querySelectorAll(".hub-card[data-min-phase]").forEach((card) => {
+  document.querySelectorAll(".tray-item[data-min-phase]").forEach((card) => {
     const need = PHASES.findIndex((p) => p.id === card.dataset.minPhase);
     const locked = phaseIdx < need;
     card.classList.toggle("locked", locked);
@@ -277,22 +541,30 @@ function updateArcadeLocks() {
     let hint = card.querySelector(".lock-hint");
     if (locked) {
       if (!hint) { hint = document.createElement("span"); hint.className = "lock-hint"; card.appendChild(hint); }
-      hint.textContent = `🔒 a partir de "${PHASES[need].name}"`;
+      hint.textContent = `🔒 "${PHASES[need].name}"`;
     } else if (hint) { hint.remove(); }
   });
 }
 
-function updateArcadeLabel() {
-  const lbl = document.getElementById("arcade-active");
-  if (!lbl || !room) return;
-  const b = (room.babies || {})[getActiveBaby()];
-  lbl.textContent = b ? `com ${b.name || "Bebê"}` : "";
+/* -------- loja com modo pré-selecionado -------- */
+function openShop(mode) {
+  showScreen("screen-shop");
+  const btn = document.getElementById(mode === "guarda" ? "mode-guarda" : "mode-loja");
+  if (btn) btn.click();
 }
 
 function wireNav() {
   document.querySelectorAll("[data-goto]").forEach((btn) => {
-    btn.addEventListener("click", () => showScreen(btn.dataset.goto));
+    btn.addEventListener("click", () => {
+      if (btn.classList.contains("tray-item")) { cameFromTray = true; closeTray(false); }
+      showScreen(btn.dataset.goto);
+    });
   });
+
+  document.getElementById("tray-close").addEventListener("click", () => closeTray(true));
+
+  document.getElementById("room-prev").addEventListener("click", () => setRoom(roomIdx - 1));
+  document.getElementById("room-next").addEventListener("click", () => setRoom(roomIdx + 1));
 
   document.getElementById("home-baby-select")
     .addEventListener("change", (e) => setActiveBaby(e.target.value));
@@ -301,31 +573,23 @@ function wireNav() {
     .addEventListener("click", () => setView(viewMode === "single" ? "room" : "single"));
 
   const adopt = document.getElementById("adopt-btn");
-  adopt.textContent = `➕ Adotar bebê (${GAME_CONFIG.adoptCost} 🪙)`;
+  adopt.title = `Adotar bebê (${GAME_CONFIG.adoptCost} 🪙)`;
   adopt.addEventListener("click", () => {
-    const name = prompt("Nome do novo bebê?", "Bebê");
+    const name = prompt(`Nome do novo bebê? (${GAME_CONFIG.adoptCost} 🪙)`, "Bebê");
     if (name === null) return;
     addBaby(name.trim() || "Bebê");
   });
 
-  // Quando o bebê ativo muda em qualquer lugar, reflete aqui.
   onActiveBaby(() => {
     const sel = document.getElementById("home-baby-select");
     if (getActiveBaby()) sel.value = getActiveBaby();
     applyActiveVisibility();
-    updateArcadeLabel();
-    updateArcadeLocks();
+    updateTrayLocks();
+    renderHotspots();
   });
 }
 
-/* ================= BOOTSTRAP ================================== */
-/* ---------------------------------------------------------------------
- * BANNER LATERAL (só em tela larga, tipo PC): mostra a criança ativa
- * inteirinha, com tudo o que está vestindo.
- * Fica no escopo do módulo (não dentro de main) para não haver risco de
- * ser chamado antes de existir, e é blindado: se der problema aqui, o
- * resto da atualização de estado continua funcionando.
- * ------------------------------------------------------------------- */
+/* ================= BANNER LATERAL (PC) ========================== */
 let bannerRefs = null;
 function atualizarBanner(state) {
   try {
@@ -347,9 +611,8 @@ function atualizarBanner(state) {
   }
 }
 
+/* ================= BOOTSTRAP ================================== */
 async function main() {
-  document.getElementById("room-title").textContent = ROOM_NAME;
-
   try {
     await initSync();
   } catch (err) {
@@ -364,29 +627,32 @@ async function main() {
     window.__STATE__ = state;
     const coins = state.coins ?? 0;
     document.getElementById("coins").textContent = coins;
-    const ck = document.getElementById("coins-kitchen");
-    if (ck) ck.textContent = coins;
+    for (const id of ["coins-kitchen", "coins-shop"]) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = coins;
+    }
     reconcile(state.babies);
     updateStreak(state);
     atualizarBanner(state);
     checkMilestones(state);
-    updateArcadeLocks();
+    updateTrayLocks();
+    renderHotspots();
     const adopt = document.getElementById("adopt-btn");
     if (adopt) adopt.disabled = coins < (GAME_CONFIG.adoptCost || 0);
   });
 
+  buildChips();
   wireNav();
+  wireBathroom();
   setView("single");
+  setRoom(roomIdx);
   initRooms();
   initWeather(() => (room ? room.babies : null));
   initNightmares({
     getBabies: () => (room ? room.babies : null),
-    goToBedroom: (babyId) => { setActiveBaby(babyId); showScreen("screen-bedroom"); },
+    goToBedroom: (babyId) => { setActiveBaby(babyId); goToRoom("quarto"); },
   });
-  /* Cada módulo é iniciado dentro de um try/catch: se UM minigame tiver
-   * problema, ele é o único que deixa de funcionar — a casa, as crianças
-   * e os outros jogos continuam de pé. (Sem isso, um erro em qualquer
-   * arquivo derrubava o app inteiro: tela vazia e botões sem resposta.) */
+
   const seguro = (nome, fn) => {
     try { fn(); }
     catch (e) {
@@ -415,9 +681,6 @@ async function main() {
   seguro("hill drive", initHillDrive);
   seguro("goal", initGoal);
   seguro("connect", initConnect);
-  // jogos largos ganham o botão de deitar a tela
-  seguro("deitar dino", () => initDeitar("screen-dino"));
-  seguro("deitar hill drive", () => initDeitar("screen-hilldrive"));
 
   if (falhas.length) {
     const aviso = document.createElement("div");
@@ -428,7 +691,6 @@ async function main() {
   }
 
   tick();
-
   setInterval(() => { if (room) syncDecay(); }, 60_000);
 }
 

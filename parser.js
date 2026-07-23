@@ -67,6 +67,13 @@ const folderMapping = {
 let addedAssetsCount = 0;
 let addedShopCount = 0;
 
+/* Comparações de id SEM diferenciar maiúsculas/minúsculas:
+ * "Cabelo_Liso", "cabelo_liso" e "CABELO_LISO" são o MESMO item. */
+const jaTemAsset = (group, id) =>
+  Object.keys(ASSETS[group] || {}).some((k) => k.toLowerCase() === id.toLowerCase());
+const jaTemNaLoja = (id) =>
+  SHOP_ITEMS.some((item) => String(item.id).toLowerCase() === id.toLowerCase());
+
 // Lista o que existe no disco para casar a pasta sem depender de
 // maiúsculas/minúsculas ("Rosto", "rosto" e "ROSTO" funcionam igual).
 const pastasNoDisco = fs.existsSync(spritesRoot) ? fs.readdirSync(spritesRoot) : [];
@@ -89,13 +96,16 @@ Object.keys(folderMapping).forEach(folderKey => {
 
   const files = fs.readdirSync(folderPath);
   files.forEach(file => {
+    // extensão SEM diferenciar caixa: "foto.PNG" e "foto.png" valem igual
     const ext = path.extname(file).toLowerCase();
     if (ext === '.png' || ext === '.gif') {
       // Nome do arquivo pode ter ESPAÇOS: "cabelo cacheado.png"
       //   id    -> cabelo_cacheado   (chave segura p/ JS e Firebase)
       //   label -> Cabelo Cacheado   (texto bonito na tela)
       //   src   -> caminho com %20   (URL válida)
-      const rawName = path.basename(file, ext);
+      // path.basename(file, ".png") NÃO removeria ".PNG" (é sensível à
+      // caixa) — então cortamos a extensão pelo TAMANHO, que é igual.
+      const rawName = file.slice(0, -path.extname(file).length);
       const id = rawName
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // tira acentos
         .trim().replace(/\s+/g, '_')                        // espaços -> _
@@ -103,10 +113,12 @@ Object.keys(folderMapping).forEach(folderKey => {
         .toLowerCase();
       const srcPath = `assets/sprites/${folderName}/${encodeURIComponent(file)}`;
 
-      // Adiciona ao ASSETS se não existir
-      if (!ASSETS[group][id]) {
+      // Adiciona ao ASSETS se não existir (ignorando caixa no id)
+      if (!jaTemAsset(group, id)) {
+        // Inicial MAIÚSCULA e o resto minúsculo, palavra a palavra:
+        // "CABELO cacheado" e "cabelo CACHEADO" viram "Cabelo Cacheado".
         const label = rawName.trim().split(/[\s_]+/)
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         const placeholder = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
         
         ASSETS[group][id] = {
@@ -120,8 +132,7 @@ Object.keys(folderMapping).forEach(folderKey => {
 
       // Adiciona à Loja se pertencer a uma categoria comercializável e não estiver lá
       if (shopCat) {
-        const existsInShop = SHOP_ITEMS.some(item => item.id === id);
-        if (!existsInShop) {
+        if (!jaTemNaLoja(id)) {
           let price = avgPrices[shopCat];
           if (price === undefined) price = defaultPrices[shopCat] ?? 200;
           

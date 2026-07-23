@@ -181,157 +181,31 @@ function renderRecipeBook() {
   }
 }
 
-/* ------------------------------- BANHEIRO ------------------------------ */
-function initBathroom() {
-  stages["screen-bathroom"] = { ...buildStage("bathroom-baby"), statusKey: "hygiene", statusName: "Higiene" };
-  attachScrub(stages["screen-bathroom"].stage);
-}
-
-/* Esfregar deslizando: sobe higiene + borbulhas. */
-function attachScrub(stage) {
-  let active = false, lastX = 0, lastY = 0, pending = 0, lastFlush = 0, lastBubble = 0;
-  const RATE = BALANCE.care.hygienePerPixel, FLUSH = 700, MAXF = 8;
-
-  const flush = (force) => {
-    const now = Date.now();
-    if (!force && now - lastFlush < FLUSH) return;
-    const add = Math.min(MAXF, Math.floor(pending));
-    if (add > 0) { boostStatus(getActiveBaby(), "hygiene", add); pending -= add; registerCare(); }
-    lastFlush = now;
-  };
-  const bubble = (x, y) => {
-    const b = document.createElement("span");
-    b.className = "soap-bubble"; b.textContent = "🫧";
-    b.style.left = `${x}px`; b.style.top = `${y}px`;
-    stage.appendChild(b); setTimeout(() => b.remove(), 900);
-  };
-
-  stage.style.touchAction = "none";
-  stage.addEventListener("pointerdown", (e) => {
-    active = true; const r = stage.getBoundingClientRect();
-    lastX = e.clientX - r.left; lastY = e.clientY - r.top;
-  });
-  stage.addEventListener("pointermove", (e) => {
-    if (!active) return;
-    const r = stage.getBoundingClientRect();
-    const x = e.clientX - r.left, y = e.clientY - r.top;
-    const d = Math.hypot(x - lastX, y - lastY);
-    lastX = x; lastY = y; pending += d * RATE;
-    const now = Date.now();
-    if (now - lastBubble > 260 && d > 2) { lastBubble = now; bubble(x, y); }
-    flush(false); e.preventDefault();
-  });
-  const end = () => { if (active) { active = false; flush(true); } };
-  stage.addEventListener("pointerup", end);
-  stage.addEventListener("pointercancel", end);
-  stage.addEventListener("pointerleave", end);
-}
-
-/* ------------------------------- QUARTO ------------------------------- */
-let bedroomLightOff = false, bedroomTimer = null;
-function initBedroom() {
-  stages["screen-bedroom"] = { ...buildStage("bedroom-baby"), statusKey: "sleep", statusName: "Sono" };
-  const btn = document.getElementById("light-btn");
-  btn.onclick = () => setLight(!bedroomLightOff);
-  setLight(false);
-
-  // Acalmar pesadelo: acende a luz + carinho; quem faz primeiro ganha.
-  document.getElementById("soothe-btn").onclick = async () => {
-    setLight(false);                       // acende a luz
-    const claimed = await sootheNightmare(getActiveBaby());
-    document.getElementById("sleep-hint").textContent = claimed
-      ? "Você acalmou primeiro! 💛🪙 recompensa recebida"
-      : "O pesadelo já tinha sido acalmado 💛";
-  };
-}
-
-function setLight(off) {
-  bedroomLightOff = off;
-  const screen = document.getElementById("screen-bedroom");
-  screen.classList.toggle("lights-off", off);
-  document.getElementById("light-btn").textContent = off ? "☀️ Acender a luz" : "🌙 Apagar a luz";
-  document.getElementById("sleep-hint").textContent = off
-    ? "Shhh… o bebê está dormindo 😴"
-    : "Apague a luz para o bebê dormir.";
-
-  clearInterval(bedroomTimer);
-  if (off) {
-    // enquanto a luz está apagada e a tela aberta, o sono sobe aos poucos
-    bedroomTimer = setInterval(() => {
-      if (document.getElementById("screen-bedroom").classList.contains("active")) {
-        boostStatus(getActiveBaby(), "sleep", BALANCE.care.sleepPerTick); registerCare();
-      }
-    }, 1500);
-  }
-}
-
-/* ------------------------------- LOOP -------------------------------- */
+/* ------------------------------- LOOP --------------------------------
+ * O banheiro e o quarto agora vivem DENTRO da cena (game.js). Aqui só
+ * resta o menu de cozinhar, aberto pela faca na Cozinha. */
 export function updateRooms(room) {
   if (!room || !room.babies) return;
-  const activeId = getActiveBaby();
-  const baby = room.babies[activeId];
+  const baby = room.babies[getActiveBaby()];
   if (!baby) return;
+
+  const screen = document.getElementById("screen-kitchen");
+  if (!screen || !screen.classList.contains("active")) return;
+
+  const s = stages["screen-kitchen"];
+  if (!s) return;
   const decayed = applyDecay(baby, Date.now());
-
-  for (const [screenId, s] of Object.entries(stages)) {
-    const screen = document.getElementById(screenId);
-    if (!screen.classList.contains("active")) continue;   // só o cômodo aberto
-    paintBabyLayers(s.layers, decayed);
-    s.stage.dataset.mood = moodFor(decayed);
-    const val = Math.round(decayed[s.statusKey] ?? 0);
-    s.bar.style.width = `${val}%`;
-    s.bar.parentElement.dataset.low = val < 25 ? "true" : "false";
-    s.label.textContent = `${s.statusName} ${val}%`;
-
-    // Quarto: mostra o botão de acalmar quando há pesadelo ativo.
-    if (screenId === "screen-bedroom") {
-      const soothe = document.getElementById("soothe-btn");
-      const hasNightmare = !!decayed.nightmare;
-      soothe.hidden = !hasNightmare;
-      if (hasNightmare) {
-        document.getElementById("sleep-hint").textContent = "😱 Pesadelo! Acenda a luz e faça carinho.";
-      }
-    }
-  }
+  paintBabyLayers(s.layers, decayed);
+  s.stage.dataset.mood = moodFor(decayed);
+  const val = Math.round(decayed[s.statusKey] ?? 0);
+  s.bar.style.width = `${val}%`;
+  s.bar.parentElement.dataset.low = val < 25 ? "true" : "false";
+  s.label.textContent = `${s.statusName} ${val}%`;
 
   // caderno reflete receitas descobertas (inclusive por outro celular)
-  if (document.getElementById("screen-kitchen").classList.contains("active")) renderRecipeBook();
-}
-
-/* 💊 Remédio: cura o resfriado. Fica no Banheiro (a farmacinha da casa). */
-function initRemedio() {
-  const btn = document.getElementById("med-btn");
-  const msg = document.getElementById("med-msg");
-  if (!btn) return;
-
-  btn.addEventListener("click", async () => {
-    const id = getActiveBaby();
-    const baby = (window.__STATE__ && window.__STATE__.babies || {})[id];
-    if (!baby) return;
-    if (!baby.cold) { msg.textContent = "Esta criança não está resfriada 🙂"; return; }
-    btn.disabled = true;
-    const r = await giveMedicine(id);
-    btn.disabled = false;
-    msg.textContent = r.ok
-      ? `${baby.name || "O bebê"} tomou o remédio e melhorou! 💊`
-      : "Moedas insuficientes para o remédio.";
-    registerCare();
-  });
-
-  // o botão só aparece quando alguém está resfriado
-  setInterval(() => {
-    const id = getActiveBaby();
-    const baby = (window.__STATE__ && window.__STATE__.babies || {})[id];
-    const doente = !!(baby && baby.cold);
-    btn.hidden = !doente;
-    if (!doente && msg.textContent.includes("resfriada")) msg.textContent = "";
-    btn.textContent = `💊 Dar remédio · ${GAME_CONFIG.remedioCusto} 🪙`;
-  }, 600);
+  renderRecipeBook();
 }
 
 export function initRooms() {
-  initRemedio();
   initKitchen();
-  initBathroom();
-  initBedroom();
 }

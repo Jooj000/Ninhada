@@ -21,6 +21,7 @@ import { simular, resistorParaLed, fmtA, fmtV, fmtR, serie, paralelo } from "./c
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const sorteia = (a) => a[Math.floor(Math.random() * a.length)];
@@ -373,5 +374,8 @@ export function initCircuit() {
   document.getElementById("circuit-clear").onclick = () => { fios.clear(); sel = null; medindo = null; render(); };
   document.getElementById("circuit-new").onclick = () => carregar(nivel + 1);
 
+  /* sair da tela = zerar o progresso: volta ao nível 1 limpo */
+  onScreenShown("screen-circuit", () => carregar(0));
+  onScreenLeft("screen-circuit", () => carregar(0));
   carregar(0);
 }

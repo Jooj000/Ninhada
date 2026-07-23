@@ -1,39 +1,34 @@
 /* =====================================================================
- * minigame.js  —  MINIGAME "FLAPPY BEBÊ" (canvas puro)
+ * minigame.js  —  "FLAPPY BEBÊ" (tela cheia, resolução real)
  * ---------------------------------------------------------------------
- * Toque/clique/espaço = pular. Passar por um cano = +1 ponto.
- * Ao perder, as moedas ganhas (= pontos) são somadas no banco e
- * aparecem nos dois celulares.
- *
- * TROCAR ARTE: onde está desenhado o círculo do "bird" e os retângulos
- * dos canos (funções drawBird / drawPipe), você pode desenhar um .png
- * via ctx.drawImage(imagem, ...). Deixei comentado onde plugar.
+ * Toque/clique/espaço = pular. Passar por um cano = 1 ponto.
+ * Enquanto roda, ele É o jogo: canvas cobrindo a tela toda.
+ * Sair da tela reseta a partida.
  * ===================================================================== */
 
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { desenharBebe } from "./baby-sprite.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
-import { GAME_CONFIG } from "./config.js";
+import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 export function initMinigame() {
   const canvas = document.getElementById("mini-canvas");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
+  const view = fullscreenCanvas(canvas, "screen-flappy");
+  const ctx = view.ctx;
 
-  // Dimensões lógicas fixas; o CSS escala visualmente (responsivo).
-  const W = canvas.width = 360;
-  const H = canvas.height = 520;
-
-  // ---- (opcional) carregar sprites .png ----
-  // const birdImg = new Image(); birdImg.src = "assets/sprites/toys/rattle.png";
-
-  const GRAVITY = 0.45, FLAP = -7.5, GAP = 150, PIPE_W = 60, SPEED = 2.4;
+  let W = 360, H = 640, GAP = 170, PIPE_W = 64, SPEED = 2.4;
+  const GRAVITY = 0.45, FLAP = -7.5;
 
   let bird, pipes, score, running, dead;
 
   function reset() {
-    bird = { x: 80, y: H / 2, vy: 0, r: 16 };
+    if (view.fit()) { W = view.w; H = view.h; }
+    GAP = Math.max(150, Math.min(220, H * 0.27));
+    PIPE_W = Math.max(56, W * 0.16);
+    SPEED = W / 150;
+    bird = { x: W * 0.24, y: H / 2, vy: 0, r: Math.max(16, H * 0.028) };
     pipes = [];
     score = 0;
     running = false;
@@ -44,13 +39,13 @@ export function initMinigame() {
   }
 
   function spawnPipe() {
-    const top = 60 + Math.random() * (H - GAP - 160);
+    const top = 60 + Math.random() * (H - GAP - 200);
     pipes.push({ x: W + 20, top, passed: false });
   }
 
   function flap() {
     if (dead) { reset(); return; }
-    if (!running) setOverlay("", "");     // <- some com o "toque para começar"
+    if (!running) setOverlay("", "");
     running = true;
     bird.vy = FLAP;
   }
@@ -61,19 +56,16 @@ export function initMinigame() {
     bird.vy += GRAVITY;
     bird.y += bird.vy;
 
-    // move canos
     for (const p of pipes) p.x -= SPEED;
-    if (pipes.length && pipes[pipes.length - 1].x < W - 200) spawnPipe();
+    if (pipes.length && pipes[pipes.length - 1].x < W - Math.max(200, W * 0.55)) spawnPipe();
     pipes = pipes.filter((p) => p.x + PIPE_W > -20);
 
-    // pontuação + colisão
     for (const p of pipes) {
       if (!p.passed && p.x + PIPE_W < bird.x) { p.passed = true; score++; }
       const inX = bird.x + bird.r > p.x && bird.x - bird.r < p.x + PIPE_W;
       const hit = bird.y - bird.r < p.top || bird.y + bird.r > p.top + GAP;
       if (inX && hit) return gameOver();
     }
-    // chão / teto
     if (bird.y + bird.r > H || bird.y - bird.r < 0) return gameOver();
   }
 
@@ -82,7 +74,7 @@ export function initMinigame() {
     running = false;
     setOverlay(`Você fez ${score}`, "Toque para jogar de novo");
     if (score > 0) {
-      const r = await rewardGame(getActiveBaby(), "flappy", score);  // por tubo + recorde
+      const r = await rewardGame(getActiveBaby(), "flappy", score);
       registerCare();
       setOverlay(
         r.record ? `🏆 NOVO RECORDE: ${score}!` : `Você fez ${score}`,
@@ -94,17 +86,11 @@ export function initMinigame() {
 
   /* ---------------- desenho ---------------- */
   function drawBird() {
-    // O aviãozinho inclina conforme sobe/desce, e a criança aparece
-    // da cabecinha para cima na cabine — o boneco COMPLETO equipado.
     const inclina = Math.max(-0.5, Math.min(0.7, bird.vy * 0.05));
     ctx.save();
     ctx.translate(bird.x, bird.y);
     ctx.rotate(inclina);
-
-    // criança primeiro (fica ATRÁS do avião)
     desenharBebe(ctx, -2, -bird.r * 0.35, bird.r * 2.1, { soCabeca: true });
-
-    // o foguete aponta para cima-direita; giro 45° para ele voar deitado
     ctx.save();
     ctx.rotate(Math.PI / 4);
     ctx.font = `${bird.r * 2.6}px system-ui, sans-serif`;
@@ -116,27 +102,29 @@ export function initMinigame() {
     ctx.textBaseline = "alphabetic";
   }
 
-
   function drawPipe(p) {
-    // TROCAR ARTE AQUI por um .png de cano/nuvem, se a artista fizer.
     ctx.fillStyle = "#7EC8A0";
     ctx.fillRect(p.x, 0, PIPE_W, p.top);
     ctx.fillRect(p.x, p.top + GAP, PIPE_W, H - p.top - GAP);
+    ctx.fillStyle = "#6BB58F";
+    ctx.fillRect(p.x - 4, p.top - 16, PIPE_W + 8, 16);
+    ctx.fillRect(p.x - 4, p.top + GAP, PIPE_W + 8, 16);
   }
 
   function draw() {
-    ctx.fillStyle = "#DCF1FF";
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#BFE3FA"); g.addColorStop(1, "#E7F5FF");
+    ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
     pipes.forEach(drawPipe);
     drawBird();
     ctx.fillStyle = "#2b2b2b";
-    ctx.font = "bold 28px system-ui, sans-serif";
+    ctx.font = "bold 34px system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(score, W / 2, 48);
-    // recorde da casa (compartilhado entre os dois)
+    ctx.fillText(score, W / 2, 64);
     ctx.font = "bold 14px system-ui, sans-serif";
     ctx.fillStyle = "#5a6b7a";
-    ctx.fillText(`🏆 recorde ${getRecord("flappy")}`, W / 2, 72);
+    ctx.fillText(`🏆 recorde ${getRecord("flappy")}`, W / 2, 88);
   }
 
   function loop() { update(); draw(); requestAnimationFrame(loop); }
@@ -149,16 +137,17 @@ export function initMinigame() {
     ov.querySelector(".mini-sub").textContent = sub;
   }
 
-  // controles
   canvas.addEventListener("pointerdown", flap);
   document.getElementById("mini-overlay").addEventListener("pointerdown", flap);
   window.addEventListener("keydown", (e) => {
-    // só pula com espaço quando a tela do minigame está ativa
     if (e.code === "Space" && document.getElementById("screen-flappy").classList.contains("active")) {
       e.preventDefault(); flap();
     }
   });
 
+  view.onResize = reset;
+  onScreenShown("screen-flappy", reset);   // entrar: ajusta e recomeça
+  onScreenLeft("screen-flappy", reset);    // sair: RESETA a partida
   reset();
   loop();
 }

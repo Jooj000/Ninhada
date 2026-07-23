@@ -1,21 +1,27 @@
 /* =====================================================================
- * fishing.js — PESCARIA (estilo Stardew Valley)
+ * fishing.js — PESCARIA em TELA CHEIA (estilo Stardew Valley)
  * ---------------------------------------------------------------------
- * Segure a tela para SUBIR a barra verde; solte para descer. Mantenha o
- * peixe dentro da barra para encher o progresso. Se o progresso zerar,
- * o peixe escapa. Cada peixe fisgado vale pontos (peixe raro vale mais).
+ * Segure para SUBIR a rede; solte para descer. Mantenha o peixe dentro
+ * para encher a barra; se ela zerar, o peixe foge e a pescaria acaba.
+ *
+ * NOVIDADES:
+ *   - BAÚ 📦: durante a luta pode surgir num ponto aleatório do trilho.
+ *     Passe a rede por cima dele (sem largar o peixe!) por um instante
+ *     para abrir — paga moedas na hora, 1:1.
+ *   - CADERNO 📖: cada peixe fisgado é registrado na casa (Firebase);
+ *     o botão do caderno mostra quantos de cada espécie já pescaram.
  * ===================================================================== */
 
-import { rewardGame, getRecord } from "./firebase-sync.js";
+import { rewardGame, getRecord, logFish } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
 import { getWeather } from "./weather.js";
 import { BALANCE } from "./config.js";
+import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 const F = BALANCE.fishing;
 
-/* Cada peixe tem `clima`: em qual tempo ele aparece (vazio = sempre).
- * Velocidade e nervosismo saem do VALOR: quanto mais raro, mais ligeiro. */
+/* `clima`: em qual tempo o peixe aparece (vazio = sempre). */
 const PEIXES = [
   { nome: "Lambari",   emoji: "🐟", pontos: 1,  clima: [] },
   { nome: "Tilápia",   emoji: "🐠", pontos: 2,  clima: [] },
@@ -27,18 +33,15 @@ const PEIXES = [
   { nome: "Pirarucu",  emoji: "🐋", pontos: 14, clima: ["storm"] },
 ];
 
-/* Ligeireza derivada do valor: peixe de 1 ponto é lento; de 14, muito rápido. */
 function perfil(p) {
   return {
     ...p,
-    vel:      F.velBase      + p.pontos * F.velPerPoint,       // até o comum é ligeiro
+    vel:      F.velBase      + p.pontos * F.velPerPoint,
     erratico: F.erraticBase  + p.pontos * F.erraticPerPoint,
-    fuga:     F.fugaBase     + p.pontos * F.fugaPerPoint,      // raro escapa mais rápido
+    fuga:     F.fugaBase     + p.pontos * F.fugaPerPoint,
   };
 }
 
-/* Sorteia respeitando o clima atual: peixe do clima certo tem peso alto;
- * peixes "de qualquer tempo" sempre podem vir. */
 function sortearPeixe(total) {
   const w = getWeather();
   const clima = w ? w.main : "clear";
@@ -46,7 +49,6 @@ function sortearPeixe(total) {
   for (const p of PEIXES) {
     const combina = p.clima.length === 0 || p.clima.includes(clima);
     if (!combina) continue;
-    // sorte melhora conforme a pescaria rende, mas peixe raro segue raro
     const peso = Math.max(0.4, (10 - p.pontos) + total / 8);
     cand.push({ p, peso });
   }
@@ -59,19 +61,27 @@ function sortearPeixe(total) {
 export function initFishing() {
   const canvas = document.getElementById("fish-canvas");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const W = (canvas.width = 220);
-  const H = (canvas.height = 420);
+  const view = fullscreenCanvas(canvas, "screen-fishing");
+  const ctx = view.ctx;
 
-  const BAR_H = F.netHeightPx;   // altura da rede (ver balance.js)
+  let W = 360, H = 640, TRX = 100, TRW = 160, BAR_H = F.netHeightPx;
   let barY, barV, fishY, fishV, fishTarget, progresso, peixe, estado, total, lastT = 0;
   let esperaAte = 0, fisgarAte = 0;
   let segurando = false;
+  let caught = {};      // { nomeDoPeixe: quantos } nesta pescaria
+  let baus = 0;         // baús abertos nesta pescaria
+  let bau = null;       // { y, someEm, seguradoMs } ou null
+  let bauSorteado = false;
 
   const msg = document.getElementById("fish-msg");
   const info = document.getElementById("fish-info");
 
-  /* 1) joga a linha e ESPERA o peixe morder (tempo aleatório) */
+  function medidas() {
+    if (view.fit()) { W = view.w; H = view.h; }
+    TRX = W * 0.28; TRW = W * 0.44;
+    BAR_H = Math.max(F.netHeightPx, H * 0.14);
+  }
+
   function lancar() {
     estado = "esperando";
     peixe = sortearPeixe(total);
@@ -81,7 +91,6 @@ export function initFishing() {
     msg.textContent = "Aguarde a fisgada…";
   }
 
-  /* 2) o peixe mordeu: janela curta pra fisgar */
   function morder(agora) {
     estado = "mordendo";
     fisgarAte = agora + F.janelaFisgadaMs;
@@ -89,12 +98,12 @@ export function initFishing() {
     if (navigator.vibrate) navigator.vibrate(60);
   }
 
-  /* 3) fisgou: começa a luta na rede */
   function começarLuta() {
     barY = H - BAR_H - 10; barV = 0;
     fishY = H / 2; fishV = 0; fishTarget = H / 2;
     progresso = 0.35;
     estado = "pescando";
+    bau = null; bauSorteado = false;
     info.textContent = `${peixe.emoji} ${peixe.nome} — vale ${peixe.pontos} ponto(s)`;
     msg.textContent = "Segure para subir a rede!";
   }
@@ -103,20 +112,52 @@ export function initFishing() {
     encerrar("Soltou a isca… (demorou a fisgar) A pescaria acabou.");
   }
 
+  /* O baú surge UMA vez por peixe, num momento e ponto aleatórios. */
+  function talvezBau(dt) {
+    const agora = performance.now();
+    if (bau) {
+      if (agora >= bau.someEm) { bau = null; return; }
+      // rede em cima do baú? acumula tempo de coleta
+      const dentro = bau.y > barY && bau.y < barY + BAR_H;
+      if (dentro) {
+        bau.seguradoMs += dt * (1000 / 60);
+        if (bau.seguradoMs >= (F.bauSegurarMs ?? 500)) {
+          baus++;
+          bau = null;
+          msg.textContent = `📦 Baú aberto! +${F.bauCoins ?? 5} 🪙`;
+          if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+        }
+      } else if (bau.seguradoMs > 0) {
+        bau.seguradoMs = Math.max(0, bau.seguradoMs - dt * (500 / 60));
+      }
+      return;
+    }
+    if (bauSorteado) return;
+    // sorteia cedo na luta (entre 15% e 70% de progresso vivido)
+    if (Math.random() < 0.01 * dt) {
+      bauSorteado = true;
+      if (Math.random() < (F.bauChance ?? 0.55)) {
+        bau = {
+          y: 40 + Math.random() * (H - 80),
+          someEm: performance.now() + (F.bauDuracaoMs ?? 4500),
+          seguradoMs: 0,
+        };
+      }
+    }
+  }
+
   function update(dt) {
     const agora = performance.now();
     if (estado === "esperando") { if (agora >= esperaAte) morder(agora); return; }
     if (estado === "mordendo")  { if (agora >= fisgarAte) perdeuFisgada(); return; }
     if (estado !== "pescando") return;
 
-    // rede: sobe segurando, cai soltando
     barV += (segurando ? -0.55 : 0.42) * dt;
     barV *= 0.92;
     barY += barV * dt;
     if (barY < 0) { barY = 0; barV = 0; }
     if (barY > H - BAR_H) { barY = H - BAR_H; barV = 0; }
 
-    // peixe: nada até um alvo e às vezes muda de ideia (mais nervoso = raro)
     if (Math.random() < peixe.erratico * dt) fishTarget = 20 + Math.random() * (H - 40);
     const dir = Math.sign(fishTarget - fishY);
     fishV += dir * 0.14 * peixe.vel * dt;
@@ -125,10 +166,11 @@ export function initFishing() {
     if (fishY < 12) { fishY = 12; fishV = 0; fishTarget = H / 2; }
     if (fishY > H - 12) { fishY = H - 12; fishV = 0; fishTarget = H / 2; }
 
-    // dentro da rede?
     const dentro = fishY > barY && fishY < barY + BAR_H;
     progresso += (dentro ? F.ganhoNaRede : -(peixe.fuga || 0.0042)) * dt;
     progresso = Math.max(0, Math.min(1, progresso));
+
+    talvezBau(dt);
 
     if (progresso >= 1) fisgou();
     else if (progresso <= 0) escapou();
@@ -137,70 +179,101 @@ export function initFishing() {
   function fisgou() {
     estado = "pegou";
     total += peixe.pontos;
+    caught[peixe.nome] = (caught[peixe.nome] || 0) + 1;
+    bau = null;
     msg.textContent = `Pegou! ${peixe.emoji} ${peixe.nome} (+${peixe.pontos})`;
     document.getElementById("fish-next").hidden = false;
     document.getElementById("fish-stop").hidden = false;
   }
 
-  /* Perdeu o peixe = FIM da pescaria (leva o que já tinha pescado). */
   function escapou() {
     encerrar(`${peixe.emoji} escapou… a pescaria acabou.`);
   }
 
   function draw() {
-    // água
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#BFE3F5"); grad.addColorStop(1, "#5C9BC4");
+    grad.addColorStop(0, "#BFE3F5"); grad.addColorStop(1, "#3F7EA6");
     ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
 
-    if (estado === "pescando") {
-      // trilho
-      ctx.fillStyle = "rgba(255,255,255,.35)";
-      ctx.fillRect(W * 0.28, 6, W * 0.44, H - 12);
-      // rede
-      ctx.fillStyle = "rgba(126,200,160,.85)";
-      ctx.fillRect(W * 0.28, barY, W * 0.44, BAR_H);
+    // bolhinhas de fundo
+    ctx.fillStyle = "rgba(255,255,255,.12)";
+    for (let i = 0; i < 10; i++) {
+      const y = (H - ((performance.now() * 0.02 + i * 97) % (H + 40))) - 20;
+      ctx.beginPath(); ctx.arc((i * 79 + 33) % W, y, 3 + (i % 3) * 2, 0, Math.PI * 2); ctx.fill();
     }
 
-    // peixe (só aparece durante a luta; antes disso fica escondido na água)
+    if (estado === "pescando") {
+      ctx.fillStyle = "rgba(255,255,255,.32)";
+      ctx.fillRect(TRX, 6, TRW, H - 12);
+      ctx.fillStyle = "rgba(126,200,160,.85)";
+      ctx.fillRect(TRX, barY, TRW, BAR_H);
+
+      // baú 📦 com anel de coleta
+      if (bau) {
+        const resta = Math.max(0, bau.someEm - performance.now()) / (F.bauDuracaoMs ?? 4500);
+        ctx.globalAlpha = resta < 0.25 ? 0.4 + 0.6 * Math.abs(Math.sin(performance.now() / 90)) : 1;
+        ctx.font = "30px system-ui, sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("📦", TRX + TRW / 2, bau.y);
+        const frac = bau.seguradoMs / (F.bauSegurarMs ?? 500);
+        if (frac > 0) {
+          ctx.strokeStyle = "#FFE55C"; ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(TRX + TRW / 2, bau.y, 24, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.textBaseline = "alphabetic";
+      }
+    }
+
     ctx.textAlign = "center";
     if (estado === "pescando") {
-      ctx.font = "26px system-ui, sans-serif";
-      ctx.fillText(peixe ? peixe.emoji : "🐟", W / 2, fishY + 9);
-    } else if (estado === "esperando") {
       ctx.font = "30px system-ui, sans-serif";
+      ctx.fillText(peixe ? peixe.emoji : "🐟", TRX + TRW / 2, fishY + 10);
+    } else if (estado === "esperando") {
+      ctx.font = "34px system-ui, sans-serif";
       ctx.fillText("🎣", W / 2, H / 2);
-      ctx.font = "13px system-ui, sans-serif";
+      ctx.font = "14px system-ui, sans-serif";
       ctx.fillStyle = "rgba(255,255,255,.9)";
       const p = ".".repeat(1 + Math.floor(performance.now() / 400) % 3);
-      ctx.fillText(`aguardando${p}`, W / 2, H / 2 + 34);
+      ctx.fillText(`aguardando${p}`, W / 2, H / 2 + 36);
     } else if (estado === "mordendo") {
-      ctx.font = "bold 54px system-ui, sans-serif";
+      ctx.font = "bold 60px system-ui, sans-serif";
       ctx.fillStyle = "#FFE55C";
-      ctx.fillText("❗", W / 2, H / 2 + 12);
+      ctx.fillText("❗", W / 2, H / 2 + 14);
     }
 
     if (estado === "pescando") {
       ctx.fillStyle = "rgba(255,255,255,.5)";
-      ctx.fillRect(W - 20, 6, 12, H - 12);
+      ctx.fillRect(W - 22, 6, 12, H - 12);
       const h = (H - 12) * progresso;
       ctx.fillStyle = progresso > 0.6 ? "#7EC8A0" : progresso > 0.3 ? "#FFD36B" : "#E38C7A";
-      ctx.fillRect(W - 20, H - 6 - h, 12, h);
+      ctx.fillRect(W - 22, H - 6 - h, 12, h);
     }
+
+    // placar da pescaria
+    ctx.textAlign = "left";
+    ctx.font = "bold 16px system-ui, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.fillText(`${total} pts · 📦 ${baus}`, 14, 30);
+    ctx.textAlign = "right"; ctx.font = "bold 13px system-ui, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,.75)";
+    ctx.fillText(`🏆 ${getRecord("fishing")}`, W - 14, 30);
   }
 
   function loop(t) {
-    const dt = lastT ? Math.min(3, ((t - lastT) / 1000) * 60) : 1;   // independente de Hz
+    const dt = lastT ? Math.min(3, ((t - lastT) / 1000) * 60) : 1;
     lastT = t;
     update(dt);
     draw();
     requestAnimationFrame(loop);
   }
 
-  /* controles: segurar */
+  /* controles */
   const seg = (e) => {
     e.preventDefault();
-    if (estado === "mordendo") { começarLuta(); return; }   // fisgada!
+    if (estado === "mordendo") { começarLuta(); return; }
     segurando = true;
   };
   const solta = () => { segurando = false; };
@@ -227,17 +300,21 @@ export function initFishing() {
     document.getElementById("fish-next").hidden = true;
     document.getElementById("fish-stop").hidden = true;
 
-    if (total > 0) {
-      const r = await rewardGame(getActiveBaby(), "fishing", total);
+    // registra o caderno da casa mesmo que a última tenha escapado
+    if (Object.keys(caught).length) logFish(caught).catch(() => {});
+
+    const bonusBau = baus * (F.bauCoins ?? 5);
+    if (total > 0 || bonusBau > 0) {
+      const r = await rewardGame(getActiveBaby(), "fishing", total, null, bonusBau);
       registerCare();
-      msg.textContent = `${motivo} ` + (r.factor === 0
+      msg.textContent = `${motivo} ` + (r.factor === 0 && bonusBau === 0
         ? `(${total} pts — a criança se cansou.)`
-        : `${r.record ? "🏆 NOVO RECORDE! " : ""}${total} pts · +${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`);
+        : `${r.record ? "🏆 NOVO RECORDE! " : ""}${total} pts · 📦${baus} · +${r.coins} 🪙  +${r.xp} XP${r.factor < 1 ? " (cansado)" : ""}`);
     } else {
       msg.textContent = `${motivo} Nenhum peixe desta vez.`;
     }
     info.textContent = "Toque em “Jogar a linha” para recomeçar.";
-    total = 0;
+    total = 0; caught = {}; baus = 0; bau = null;
     document.getElementById("fish-cast").hidden = false;
   }
 
@@ -245,14 +322,58 @@ export function initFishing() {
 
   document.getElementById("fish-cast").onclick = () => {
     document.getElementById("fish-cast").hidden = true;
-    total = 0;
+    total = 0; caught = {}; baus = 0;
     lancar();
   };
 
-  total = 0;
-  peixe = PEIXES[0];
-  barY = H - BAR_H - 10; fishY = H / 2; progresso = 0.35; estado = "fim";
-  info.textContent = "Segure para subir a rede e mantenha o peixe dentro.";
-  msg.textContent = "";
+  /* ---- caderno de peixes (fishlog da casa, sincronizado) ---- */
+  const log = document.getElementById("fish-log");
+  const logBtn = document.getElementById("fish-log-btn");
+  if (logBtn && log) {
+    logBtn.onclick = () => {
+      const dados = (window.__STATE__ && window.__STATE__.fishlog) || {};
+      const list = document.getElementById("fish-log-list");
+      list.innerHTML = "";
+      let algum = false;
+      for (const p of PEIXES) {
+        const n = dados[p.nome] || 0;
+        const row = document.createElement("div");
+        row.className = "fish-log-row" + (n ? "" : " nunca");
+        row.innerHTML = `<span class="flr-emoji">${n ? p.emoji : "❓"}</span>
+          <span class="flr-nome">${n ? p.nome : "???"}</span>
+          <span class="flr-qtd">${n ? "×" + n : "—"}</span>`;
+        list.appendChild(row);
+        if (n) algum = true;
+      }
+      if (!algum) {
+        const p = document.createElement("p");
+        p.className = "hint";
+        p.textContent = "Nenhum peixe registrado ainda. Boa pesca!";
+        list.appendChild(p);
+      }
+      log.hidden = false;
+    };
+    document.getElementById("fish-log-close").onclick = () => { log.hidden = true; };
+  }
+
+  /* ---- ciclo de vida: sair = zerar tudo ---- */
+  function resetTela() {
+    medidas();
+    estado = "fim"; total = 0; caught = {}; baus = 0; bau = null; bauSorteado = false;
+    segurando = false; lastT = 0;
+    peixe = PEIXES[0];
+    barY = H - BAR_H - 10; fishY = H / 2; progresso = 0.35;
+    document.getElementById("fish-next").hidden = true;
+    document.getElementById("fish-stop").hidden = true;
+    document.getElementById("fish-cast").hidden = false;
+    if (log) log.hidden = true;
+    info.textContent = "Segure para subir a rede e mantenha o peixe dentro.";
+    msg.textContent = "";
+  }
+
+  view.onResize = () => { medidas(); };
+  onScreenShown("screen-fishing", resetTela);
+  onScreenLeft("screen-fishing", resetTela);
+  resetTela();
   requestAnimationFrame(loop);
 }

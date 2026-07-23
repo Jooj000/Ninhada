@@ -118,10 +118,10 @@ export function addFun(babyId, amount, xp = GAME_CONFIG.xpPerAction) {
 /* Recompensa de minigame: paga pela PONTUAÇÃO (não por jogar), com
  * multiplicador de faixa etária e desconto de fadiga. Devolve o que
  * foi realmente pago, para a tela mostrar. */
-export function rewardGame(babyId, gameId, points, score = null) {
+export function rewardGame(babyId, gameId, points, score = null, extraCoins = 0) {
   const cfg = MINIGAMES[gameId] || {};
   const out = { coins: 0, xp: 0, factor: 1, record: false };
-  if (!babyId || !(points > 0)) return Promise.resolve(out);
+  if (!babyId || (!(points > 0) && !(extraCoins > 0))) return Promise.resolve(out);
 
   return runTransaction(roomRef, (room) => {
     if (!room) return room;
@@ -132,7 +132,10 @@ export function rewardGame(babyId, gameId, points, score = null) {
 
     const { factor, fatigue } = nextFatigue(s, `game_${gameId}`, now, cfg.hard ? (GAME_CONFIG.hardFloor ?? 0.2) : 0);
     const mult = tierMultiplier(cfg.minPhase);
-    let coins = Math.round(points * (cfg.coinsPerPoint || 0) * mult * factor);
+    // moedas COLETADAS dentro do jogo pagam 1:1, sem fadiga nem faixa:
+    // você pegou, é seu. Só os PONTOS passam pelos multiplicadores.
+    let coins = Math.round(points * (cfg.coinsPerPoint || 0) * mult * factor)
+              + Math.max(0, Math.round(extraCoins || 0));
     let xp    = Math.round(points * (cfg.xpPerPoint    || 0) * mult * factor);
 
     // RECORDE: guarda o melhor e paga o bônus (não sofre fadiga).
@@ -161,6 +164,19 @@ export function rewardGame(babyId, gameId, points, score = null) {
 export function saveRecord(gameId, score) {
   return runTransaction(ref(db, `rooms/${ROOM_ID}/records/${gameId}`), (best) => {
     return Math.max(best || 0, Math.round(score || 0));
+  });
+}
+
+/* Registro da PESCARIA: quantos de cada peixe a casa já pescou.
+ * rooms/{room}/fishlog/{nomeDoPeixe} = quantidade acumulada. */
+export function logFish(counts) {
+  if (!counts || !Object.keys(counts).length) return Promise.resolve();
+  return runTransaction(ref(db, `rooms/${ROOM_ID}/fishlog`), (log) => {
+    log = log || {};
+    for (const [nome, n] of Object.entries(counts)) {
+      log[nome] = (log[nome] || 0) + n;
+    }
+    return log;
   });
 }
 

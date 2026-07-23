@@ -12,7 +12,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-  <!-- Fonte fofa (com fallback do sistema caso esteja offline) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
@@ -26,67 +25,79 @@
     <button id="nightmare-go" class="nightmare-go">Acudir</button>
   </div>
 
+  <!-- ============ TELA: A CASA (cena única com cômodos) ============ -->
+  <section id="screen-home" class="screen scene active" data-room="quarto">
+    <div id="scene-bg" class="scene-bg"></div>
+    <div id="lights-overlay" class="lights-overlay" hidden></div>
 
-  <!-- ============ TELA: SALA (cômodo principal) ============ -->
-  <section id="screen-home" class="screen active">
-    <header class="topbar">
-      <h1 id="room-title" class="screen-title">Sala</h1>
-      <div class="topbar-right">
+    <!-- topo: notificação + foguinho / moedas + status + temperatura -->
+    <div class="scene-top">
+      <div class="top-row1">
         <button id="push-btn" class="push-btn" title="Ligar notificações">🔕</button>
         <span id="streak-pill" class="streak-pill" hidden></span>
-        <span id="weather-pill" class="weather-pill" hidden></span>
-        <div class="coins-pill"><span class="coin-ico">🪙</span><span id="coins">0</span></div>
       </div>
-    </header>
-
-    <div class="room-controls">
-      <select id="home-baby-select"></select>
-      <button id="view-toggle" class="view-toggle" title="Ver todos no cômodo">👥</button>
-      <button id="photo-btn" class="view-toggle" title="Tirar foto">📸</button>
+      <div class="top-row2">
+        <div class="coins-pill"><span class="coin-ico">🪙</span><span id="coins">0</span></div>
+        <div id="status-chips" class="status-chips" title="Toque para ver os valores"></div>
+        <span id="weather-pill" class="weather-pill" hidden></span>
+      </div>
     </div>
 
-    <!-- Modo "ver um": um card completo do bebê selecionado -->
-    <div id="single-view"></div>
+    <!-- controles: criança, grupo/solo, foto, adotar -->
+    <div class="scene-controls">
+      <select id="home-baby-select"></select>
+      <button id="view-toggle" class="round-btn" title="Ver todos no cômodo">👥</button>
+      <button id="photo-btn" class="round-btn" title="Tirar foto">📸</button>
+      <button id="adopt-btn" class="round-btn adopt-mini" hidden title="Adotar">➕</button>
+    </div>
 
-    <!-- Modo "ver todos": bebês distribuídos pelo cômodo -->
-    <div id="room-view" class="room-view" hidden></div>
+    <!-- palco: a(s) criança(s) dentro do cômodo -->
+    <div class="scene-stage">
+      <div id="single-view" class="single-view"></div>
+      <div id="room-view" class="room-view" hidden></div>
+      <div id="bubbles-layer" class="bubbles-layer"></div>
+      <div id="shower-head" class="shower-head" hidden>🚿</div>
+    </div>
 
-    <button id="adopt-btn" class="adopt-btn">➕ Adotar bebê</button>
+    <p id="scene-msg" class="scene-msg"></p>
+
+    <!-- interações do cômodo atual (hotspots) -->
+    <div id="hotspots" class="hotspots"></div>
+
+    <!-- navegação de cômodos -->
+    <div class="scene-nav">
+      <button id="room-prev" class="room-arrow">‹</button>
+      <span id="room-name" class="room-name">Quarto</span>
+      <button id="room-next" class="room-arrow">›</button>
+    </div>
   </section>
 
-  <!-- MOLDE de um card de bebê (clonado pelo game.js para cada criança) -->
-  <template id="baby-card-tpl">
-    <div class="baby-card">
-      <div class="baby-head">
-        <span class="baby-name" contenteditable="true" spellcheck="false"></span>
-        <span class="baby-phase"></span>
-      </div>
-
-      <div class="baby-stage" data-mood="happy"></div>
-
-      <p class="mood-text"></p>
-      <p class="touch-hint">Cabeça, corpo e cócegas: toque e deslize pra dar carinho 💛</p>
-
-      <div class="bars">
-        <div class="bar" data-key="hunger"  data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
-        <div class="bar" data-key="sleep"   data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
-        <div class="bar" data-key="hygiene" data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
-        <div class="bar" data-key="fun"     data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
-        <div class="bar" data-key="love"    data-low="false"><div class="bar-fill"></div><span class="bar-label"></span></div>
-      </div>
-
-      <div class="actions">
-        <button class="action-btn" data-action="feed"><span class="btn-icon"></span><span>Alimentar</span></button>
-        <button class="action-btn" data-action="sleep"><span class="btn-icon"></span><span>Ninar</span></button>
-        <button class="action-btn" data-action="clean"><span class="btn-icon"></span><span>Banho</span></button>
-        <button class="action-btn" data-action="play"><span class="btn-icon"></span><span>Brincar</span></button>
-      </div>
+  <!-- Bandeja de jogos (aberta pelo brinquedo na Sala de Jogos) -->
+  <div id="games-tray" class="games-tray" hidden>
+    <button id="tray-close" class="tray-close" title="Fechar">✕</button>
+    <div class="tray-grid">
+      <button class="tray-item" data-goto="screen-flappy" data-min-phase="newborn"><span class="hub-emoji">🐤</span><span class="hub-name">Flappy Bebê</span></button>
+      <button class="tray-item" data-goto="screen-fooddrop" data-min-phase="newborn"><span class="hub-emoji">🧺</span><span class="hub-name">Food Drop</span></button>
+      <button class="tray-item" data-goto="screen-starpopper" data-min-phase="newborn"><span class="hub-emoji">⭐</span><span class="hub-name">Star Popper</span></button>
+      <button class="tray-item" data-goto="screen-goal" data-min-phase="newborn"><span class="hub-emoji">⚽</span><span class="hub-name">Goal</span></button>
+      <button class="tray-item" data-goto="screen-dino" data-min-phase="crawling"><span class="hub-emoji">🦖</span><span class="hub-name">Dino Corrida</span></button>
+      <button class="tray-item" data-goto="screen-fishing" data-min-phase="crawling"><span class="hub-emoji">🎣</span><span class="hub-name">Pescaria</span></button>
+      <button class="tray-item" data-goto="screen-memory" data-min-phase="crawling"><span class="hub-emoji">🃏</span><span class="hub-name">Memória</span></button>
+      <button class="tray-item" data-goto="screen-colormatch" data-min-phase="crawling"><span class="hub-emoji">🎨</span><span class="hub-name">Color Match</span></button>
+      <button class="tray-item" data-goto="screen-match3" data-min-phase="crawling"><span class="hub-emoji">🍬</span><span class="hub-name">Match 3</span></button>
+      <button class="tray-item" data-goto="screen-skyjump" data-min-phase="crawling"><span class="hub-emoji">☁️</span><span class="hub-name">Sky Jump</span></button>
+      <button class="tray-item" data-goto="screen-hilldrive" data-min-phase="crawling"><span class="hub-emoji">🚙</span><span class="hub-name">Hill Drive</span></button>
+      <button class="tray-item" data-goto="screen-circuit" data-min-phase="toddler"><span class="hub-emoji">💡</span><span class="hub-name">Feira de Ciências</span></button>
+      <button class="tray-item" data-goto="screen-homework" data-min-phase="toddler"><span class="hub-emoji">📓</span><span class="hub-name">Dever de Casa</span></button>
+      <button class="tray-item" data-goto="screen-2048" data-min-phase="toddler"><span class="hub-emoji">🔢</span><span class="hub-name">2048</span></button>
+      <button class="tray-item" data-goto="screen-connect" data-min-phase="toddler"><span class="hub-emoji">🔗</span><span class="hub-name">Connect</span></button>
     </div>
-  </template>
+  </div>
 
   <!-- ============ TELA: LOJA ============ -->
-  <section id="screen-shop" class="screen">
+  <section id="screen-shop" class="screen page-screen">
     <header class="topbar">
+      <button class="back-btn" data-goto="screen-home">←</button>
       <h1 class="screen-title">Lojinha</h1>
       <div class="coins-pill"><span class="coin-ico">🪙</span><span id="coins-shop">0</span></div>
     </header>
@@ -102,117 +113,46 @@
     <div id="shop-grid" class="shop-grid"></div>
   </section>
 
-  <!-- ============ TELA: HUB DE MINIGAMES ============ -->
-  <section id="screen-arcade" class="screen">
-    <header class="topbar">
-      <h1 class="screen-title">Jogar</h1>
-      <span id="arcade-active" class="arcade-active"></span>
-    </header>
-    <p class="hint">A diversão sobe jogando! Cada rodada anima o bebê selecionado.</p>
-    <div class="mini-hub">
-      <button class="hub-card" data-goto="screen-flappy" data-min-phase="newborn">
-        <span class="hub-emoji">🐤</span><span class="hub-name">Flappy Bebê</span>
-      </button>
-      <button class="hub-card" data-goto="screen-circuit" data-min-phase="toddler">
-        <span class="hub-emoji">💡</span><span class="hub-name">Feira de Ciências</span>
-      </button>
-      <button class="hub-card" data-goto="screen-dino" data-min-phase="crawling">
-        <span class="hub-emoji">🦖</span><span class="hub-name">Dino Corrida</span>
-      </button>
-      <button class="hub-card" data-goto="screen-homework" data-min-phase="toddler">
-        <span class="hub-emoji">📓</span><span class="hub-name">Dever de Casa</span>
-      </button>
-      <button class="hub-card" data-goto="screen-fishing" data-min-phase="crawling">
-        <span class="hub-emoji">🎣</span><span class="hub-name">Pescaria</span>
-      </button>
-      <button class="hub-card" data-goto="screen-fooddrop" data-min-phase="newborn">
-        <span class="hub-emoji">🧺</span><span class="hub-name">Food Drop</span>
-      </button>
-      <button class="hub-card" data-goto="screen-memory" data-min-phase="crawling">
-        <span class="hub-emoji">🃏</span><span class="hub-name">Memória</span>
-      </button>
-      <button class="hub-card" data-goto="screen-colormatch" data-min-phase="crawling">
-        <span class="hub-emoji">🎨</span><span class="hub-name">Color Match</span>
-      </button>
-      <button class="hub-card" data-goto="screen-2048" data-min-phase="toddler">
-        <span class="hub-emoji">🔢</span><span class="hub-name">2048</span>
-      </button>
-      <button class="hub-card" data-goto="screen-match3" data-min-phase="crawling">
-        <span class="hub-emoji">🍬</span><span class="hub-name">Match 3</span>
-      </button>
-      <button class="hub-card" data-goto="screen-starpopper" data-min-phase="newborn">
-        <span class="hub-emoji">⭐</span><span class="hub-name">Star Popper</span>
-      </button>
-      <button class="hub-card" data-goto="screen-skyjump" data-min-phase="crawling">
-        <span class="hub-emoji">☁️</span><span class="hub-name">Sky Jump</span>
-      </button>
-      <button class="hub-card" data-goto="screen-hilldrive" data-min-phase="crawling">
-        <span class="hub-emoji">🚙</span><span class="hub-name">Hill Drive</span>
-      </button>
-      <button class="hub-card" data-goto="screen-goal" data-min-phase="newborn">
-        <span class="hub-emoji">⚽</span><span class="hub-name">Goal</span>
-      </button>
-      <button class="hub-card" data-goto="screen-connect" data-min-phase="toddler">
-        <span class="hub-emoji">🔗</span><span class="hub-name">Connect</span>
-      </button>
-      <!-- Novos minigames entram como cards aqui, com data-min-phase. -->
-    </div>
-  </section>
-
-  <!-- ---- sub-tela: Flappy ---- -->
-  <section id="screen-flappy" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Flappy Bebê</h1>
-    </header>
-    <div class="mini-wrap">
+  <!-- ---- jogo: Flappy ---- -->
+  <section id="screen-flappy" class="screen game-screen">
+    <div class="game-stage">
       <canvas id="mini-canvas"></canvas>
-      <div id="mini-overlay" class="mini-overlay">
-        <div class="mini-title"></div>
-        <div class="mini-sub"></div>
-      </div>
+      <div id="mini-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
     </div>
-    <p class="hint">Ganhe 1 🪙 por cano. As moedas vão para a loja dos dois!</p>
+    <button class="game-back" data-goto="screen-home">←</button>
   </section>
 
-  <!-- ---- sub-tela: Dino ---- -->
-  <section id="screen-dino" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Dino Corrida</h1>
-    </header>
-    <div class="mini-wrap dino-wrap">
+  <!-- ---- jogo: Dino ---- -->
+  <section id="screen-dino" class="screen game-screen">
+    <div class="game-stage">
       <canvas id="dino-canvas"></canvas>
-      <div id="dino-overlay" class="mini-overlay">
-        <div class="mini-title"></div>
-        <div class="mini-sub"></div>
-      </div>
+      <div id="dino-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
     </div>
+    <button class="game-back" data-goto="screen-home">←</button>
     <button id="dino-duck" class="duck-btn">⬇️ Abaixar (segure)</button>
-    <p class="hint">Toque na tela para pular. Ganhe moedas pela distância!</p>
   </section>
 
-  <!-- ---- sub-tela: Circuito ---- -->
-  <section id="screen-circuit" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Feira de Ciências</h1>
-      <span id="circuit-level" class="arcade-active"></span>
-    </header>
-    <p id="circuit-licao" class="circuit-licao"></p>
-    <div id="circuit-root" class="circuit-wrap"></div>
-    <div id="circuit-medidor" class="medidor"></div>
-    <div id="circuit-gaveta" class="gaveta" hidden></div>
-    <p id="circuit-status" class="circuit-status"></p>
-    <div class="circuit-controls">
-      <button id="circuit-clear" class="ghost-btn">Limpar fios</button>
-      <button id="circuit-new" class="ghost-btn">Próximo nível</button>
+  <!-- ---- jogo: Circuito ---- -->
+  <section id="screen-circuit" class="screen game-screen dom-game">
+    <button class="game-back" data-goto="screen-home">←</button>
+    <div class="dom-game-body">
+      <div class="dom-game-head"><h1 class="screen-title">Feira de Ciências</h1><span id="circuit-level" class="arcade-active"></span></div>
+      <p id="circuit-licao" class="circuit-licao"></p>
+      <div id="circuit-root" class="circuit-wrap"></div>
+      <div id="circuit-medidor" class="medidor"></div>
+      <div id="circuit-gaveta" class="gaveta" hidden></div>
+      <p id="circuit-status" class="circuit-status"></p>
+      <div class="circuit-controls">
+        <button id="circuit-clear" class="ghost-btn">Limpar fios</button>
+        <button id="circuit-new" class="ghost-btn">Próximo nível</button>
+      </div>
     </div>
   </section>
 
   <!-- ============ TELA: QUADRO DE AVISOS ============ -->
-  <section id="screen-board" class="screen">
+  <section id="screen-board" class="screen page-screen">
     <header class="topbar">
+      <button class="back-btn" data-goto="screen-home">←</button>
       <h1 class="screen-title">Recados</h1>
     </header>
     <div id="board-list" class="board-list"></div>
@@ -223,11 +163,11 @@
     </form>
   </section>
 
-  <!-- ============ CÔMODO: COZINHA (fome) ============ -->
-  <section id="screen-kitchen" class="screen">
+  <!-- ============ COZINHAR (aberto pela faca na Cozinha) ============ -->
+  <section id="screen-kitchen" class="screen page-screen">
     <header class="topbar">
       <button class="back-btn" data-goto="screen-home">←</button>
-      <h1 class="screen-title">Cozinha</h1>
+      <h1 class="screen-title">Cozinhar</h1>
       <div class="coins-pill"><span class="coin-ico">🪙</span><span id="coins-kitchen">0</span></div>
     </header>
     <div id="kitchen-baby" class="room-baby-view"></div>
@@ -262,202 +202,164 @@
     </div>
   </section>
 
-  <!-- ============ CÔMODO: BANHEIRO (higiene) ============ -->
-  <section id="screen-bathroom" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-home">←</button>
-      <h1 class="screen-title">Banheiro</h1>
-    </header>
-    <div id="bathroom-baby" class="room-baby-view"></div>
-    <p class="touch-hint">Esfregue o bebê deslizando o dedo para dar banho 🫧</p>
-    <div class="farmacia">
-      <button id="med-btn" class="cook-btn">💊 Dar remédio</button>
-      <p id="med-msg" class="cook-msg"></p>
-    </div>
-  </section>
-
-  <!-- ============ CÔMODO: QUARTO (sono) ============ -->
-  <section id="screen-bedroom" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-home">←</button>
-      <h1 class="screen-title">Quarto</h1>
-    </header>
-    <div id="bedroom-baby" class="room-baby-view"></div>
-    <button id="soothe-btn" class="soothe-btn" hidden>🤍 Acender a luz e acalmar</button>
-    <button id="light-btn" class="light-btn">🌙 Apagar a luz</button>
-    <p id="sleep-hint" class="touch-hint">Apague a luz para o bebê dormir.</p>
-  </section>
-
-  <!-- ---- sub-tela: Food Drop ---- -->
-  <section id="screen-fooddrop" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Food Drop</h1>
-    </header>
-    <div class="mini-wrap">
+  <!-- ---- jogo: Food Drop ---- -->
+  <section id="screen-fooddrop" class="screen game-screen">
+    <div class="game-stage">
       <canvas id="fd-canvas"></canvas>
       <div id="fd-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
     </div>
-    <p id="fd-msg" class="hint">Arraste a cesta. Cuidado com 🌶️ 🦴 🧦!</p>
+    <button class="game-back" data-goto="screen-home">←</button>
   </section>
 
-  <!-- ---- sub-tela: Memória ---- -->
-  <section id="screen-memory" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Memória</h1>
-    </header>
-    <p id="mem-info" class="hint"></p>
-    <div id="mem-grid" class="mem-grid"></div>
-    <p id="mem-msg" class="cook-msg"></p>
-    <button id="mem-new" class="cook-btn">Novo jogo</button>
+  <!-- ---- jogo: Memória ---- -->
+  <section id="screen-memory" class="screen game-screen dom-game">
+    <button class="game-back" data-goto="screen-home">←</button>
+    <div class="dom-game-body">
+      <div class="dom-game-head"><h1 class="screen-title">Memória</h1></div>
+      <p id="mem-info" class="hint"></p>
+      <div id="mem-grid" class="mem-grid"></div>
+      <p id="mem-msg" class="cook-msg"></p>
+      <button id="mem-new" class="cook-btn">Novo jogo</button>
+    </div>
   </section>
 
-  <!-- ---- sub-tela: Color Match ---- -->
-  <section id="screen-colormatch" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Color Match</h1>
-    </header>
-    <p id="cm-hud" class="hint"></p>
-    <div class="cm-timer-bar"><div id="cm-timer" class="cm-timer-fill"></div></div>
-    <p id="cm-word" class="cm-word">Toque na COR DA TINTA</p>
-    <div id="cm-options" class="cm-options"></div>
-    <p id="cm-msg" class="cook-msg"></p>
-    <button id="cm-new" class="cook-btn">Começar</button>
+  <!-- ---- jogo: Color Match ---- -->
+  <section id="screen-colormatch" class="screen game-screen dom-game">
+    <button class="game-back" data-goto="screen-home">←</button>
+    <div class="dom-game-body">
+      <div class="dom-game-head"><h1 class="screen-title">Color Match</h1></div>
+      <p id="cm-hud" class="hint"></p>
+      <div class="cm-timer-bar"><div id="cm-timer" class="cm-timer-fill"></div></div>
+      <p id="cm-word" class="cm-word">Toque na COR DA TINTA</p>
+      <div id="cm-options" class="cm-options"></div>
+      <p id="cm-msg" class="cook-msg"></p>
+      <button id="cm-new" class="cook-btn">Começar</button>
+    </div>
   </section>
 
-  <!-- ---- sub-tela: 2048 ---- -->
-  <section id="screen-2048" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">2048</h1>
-    </header>
-    <p id="g2048-score" class="hint"></p>
-    <div id="g2048-grid" class="g2048-grid"></div>
-    <p id="g2048-msg" class="cook-msg"></p>
-    <button id="g2048-new" class="cook-btn">Novo jogo</button>
-    <p class="hint">Deslize (ou use as setas) para juntar as peças.</p>
+  <!-- ---- jogo: 2048 ---- -->
+  <section id="screen-2048" class="screen game-screen dom-game">
+    <button class="game-back" data-goto="screen-home">←</button>
+    <div class="dom-game-body">
+      <div class="dom-game-head"><h1 class="screen-title">2048</h1></div>
+      <p id="g2048-score" class="hint"></p>
+      <div id="g2048-grid" class="g2048-grid"></div>
+      <p id="g2048-msg" class="cook-msg"></p>
+      <button id="g2048-new" class="cook-btn">Novo jogo</button>
+      <p class="hint">Deslize (ou use as setas) para juntar as peças.</p>
+    </div>
   </section>
 
-  <!-- ---- sub-tela: Hill Drive ---- -->
-  <section id="screen-hilldrive" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Hill Drive</h1>
-    </header>
-    <div class="mini-wrap">
+  <!-- ---- jogo: Match 3 ---- -->
+  <section id="screen-match3" class="screen game-screen dom-game">
+    <button class="game-back" data-goto="screen-home">←</button>
+    <div class="dom-game-body">
+      <div class="dom-game-head"><h1 class="screen-title">Match 3</h1></div>
+      <p id="m3-hud" class="hint"></p>
+      <div id="m3-grid" class="m3-grid"></div>
+      <p id="m3-msg" class="cook-msg"></p>
+      <button id="m3-new" class="cook-btn" hidden>Novo jogo</button>
+      <p class="hint">Troque vizinhos para alinhar 3+. Peça com 🪙 paga na hora!</p>
+    </div>
+  </section>
+
+  <!-- ---- jogo: Hill Drive ---- -->
+  <section id="screen-hilldrive" class="screen game-screen">
+    <div class="game-stage">
       <canvas id="hd-canvas"></canvas>
       <div id="hd-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
     </div>
-    <p class="hint">Lado direito acelera, esquerdo freia. Cuidado para não capotar!</p>
+    <button class="game-back" data-goto="screen-home">←</button>
   </section>
 
-  <!-- ---- sub-tela: Goal ---- -->
-  <section id="screen-goal" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Goal</h1>
-    </header>
-    <div class="mini-wrap">
+  <!-- ---- jogo: Goal ---- -->
+  <section id="screen-goal" class="screen game-screen">
+    <div class="game-stage">
       <canvas id="gl-canvas"></canvas>
       <div id="gl-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
     </div>
-    <p id="gl-msg" class="cook-msg"></p>
-    <p class="hint">Arraste para escolher o LADO e solte — só a direção conta. É gol dentro do alvo verde; fora dele a criança defende!</p>
+    <button class="game-back" data-goto="screen-home">←</button>
+    <p id="gl-msg" class="game-msg"></p>
   </section>
 
-  <!-- ---- sub-tela: Connect ---- -->
-  <section id="screen-connect" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Connect</h1>
-    </header>
-    <p id="cn-hud" class="hint"></p>
-    <div class="cm-timer-bar"><div id="cn-timer" class="cm-timer-fill"></div></div>
-    <div class="cn-wrap"><canvas id="cn-canvas"></canvas></div>
-    <p id="cn-msg" class="cook-msg"></p>
-    <button id="cn-new" class="cook-btn">Começar</button>
-    <p class="hint">Ligue os pares iguais. Só vale se NENHUMA casa ficar vazia!</p>
+  <!-- ---- jogo: Connect ---- -->
+  <section id="screen-connect" class="screen game-screen dom-game">
+    <button class="game-back" data-goto="screen-home">←</button>
+    <div class="dom-game-body">
+      <div class="dom-game-head"><h1 class="screen-title">Connect</h1></div>
+      <p id="cn-hud" class="hint"></p>
+      <div class="cm-timer-bar"><div id="cn-timer" class="cm-timer-fill"></div></div>
+      <div class="cn-wrap"><canvas id="cn-canvas"></canvas></div>
+      <p id="cn-msg" class="cook-msg"></p>
+      <button id="cn-new" class="cook-btn">Começar</button>
+      <p class="hint">Ligue os pares iguais. Só vale se NENHUMA casa ficar vazia!</p>
+    </div>
   </section>
 
-  <!-- ---- sub-tela: Star Popper ---- -->
-  <section id="screen-starpopper" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Star Popper</h1>
-    </header>
-    <div class="mini-wrap">
+  <!-- ---- jogo: Star Popper ---- -->
+  <section id="screen-starpopper" class="screen game-screen">
+    <div class="game-stage">
       <canvas id="sp-canvas"></canvas>
       <div id="sp-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
     </div>
-    <p class="hint">Mire e solte para lançar. Junte 3+ da mesma cor antes que a massa encoste na borda!</p>
+    <button class="game-back" data-goto="screen-home">←</button>
   </section>
 
-  <!-- ---- sub-tela: Sky Jump ---- -->
-  <section id="screen-skyjump" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Sky Jump</h1>
-    </header>
-    <div class="mini-wrap">
+  <!-- ---- jogo: Sky Jump ---- -->
+  <section id="screen-skyjump" class="screen game-screen">
+    <div class="game-stage">
       <canvas id="sj-canvas"></canvas>
       <div id="sj-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
     </div>
-    <p class="hint">No celular, incline para os lados (ou arraste). Dá para atravessar a borda! Plataformas rosas quebram — pegue as 🪙</p>
+    <button class="game-back" data-goto="screen-home">←</button>
   </section>
 
-  <!-- ---- sub-tela: Match 3 ---- -->
-  <section id="screen-match3" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Match 3</h1>
-    </header>
-    <p id="m3-hud" class="hint"></p>
-    <div id="m3-grid" class="m3-grid"></div>
-    <p id="m3-msg" class="cook-msg"></p>
-    <button id="m3-new" class="cook-btn" hidden>Jogar de novo</button>
-    <p class="hint">Toque em duas peças vizinhas para trocar. Faça 3 ou mais!</p>
-  </section>
-
-  <!-- ---- sub-tela: Dever de Casa ---- -->
-  <section id="screen-homework" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Dever de Casa</h1>
-    </header>
-    <div id="hw-root" class="hw-panel">
-      <div class="hw-hud"><span id="hw-lives">❤️❤️❤️</span><span id="hw-score"></span></div>
-      <div class="hw-timer-bar"><div id="hw-timer" class="hw-timer-fill"></div><span class="hw-timer-num"></span></div>
-      <p id="hw-subject" class="hw-subject"></p>
-      <p id="hw-question" class="hw-question"></p>
-      <div id="hw-options" class="hw-options"></div>
-      <p id="hw-msg" class="hw-msg"></p>
-      <button id="hw-start" class="cook-btn">Começar o dever</button>
+  <!-- ---- jogo: Dever de Casa ---- -->
+  <section id="screen-homework" class="screen game-screen dom-game">
+    <button class="game-back" data-goto="screen-home">←</button>
+    <div class="dom-game-body">
+      <div class="dom-game-head"><h1 class="screen-title">Dever de Casa</h1></div>
+      <div id="hw-root" class="hw-panel">
+        <div class="hw-hud"><span id="hw-lives">❤️❤️❤️</span><span id="hw-score"></span></div>
+        <div class="hw-timer-bar"><div id="hw-timer" class="hw-timer-fill"></div><span class="hw-timer-num"></span></div>
+        <p id="hw-subject" class="hw-subject"></p>
+        <p id="hw-question" class="hw-question"></p>
+        <div id="hw-options" class="hw-options"></div>
+        <p id="hw-msg" class="hw-msg"></p>
+        <button id="hw-start" class="cook-btn">Começar o dever</button>
+      </div>
     </div>
   </section>
 
-  <!-- ---- sub-tela: Pescaria ---- -->
-  <section id="screen-fishing" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Pescaria</h1>
-    </header>
-    <div class="fish-wrap">
+  <!-- ---- jogo: Pescaria ---- -->
+  <section id="screen-fishing" class="screen game-screen">
+    <div class="game-stage">
       <canvas id="fish-canvas"></canvas>
     </div>
-    <p id="fish-info" class="hint"></p>
-    <p id="fish-msg" class="cook-msg"></p>
-    <div class="fish-btns">
-      <button id="fish-cast" class="cook-btn">🎣 Jogar a linha</button>
-      <button id="fish-next" class="cook-btn" hidden>Próximo peixe</button>
-      <button id="fish-stop" class="ghost-btn" hidden>Guardar a pescaria</button>
+    <button class="game-back" data-goto="screen-home">←</button>
+    <button id="fish-log-btn" class="fish-log-btn" title="Peixes coletados">📖</button>
+    <div class="fish-hud">
+      <p id="fish-info" class="fish-info"></p>
+      <p id="fish-msg" class="fish-msg2"></p>
+      <div class="fish-btns">
+        <button id="fish-cast" class="cook-btn">🎣 Jogar a linha</button>
+        <button id="fish-next" class="cook-btn" hidden>Próximo peixe</button>
+        <button id="fish-stop" class="ghost-btn" hidden>Guardar a pescaria</button>
+      </div>
+    </div>
+    <div id="fish-log" class="fish-log" hidden>
+      <button id="fish-log-close" class="tray-close" title="Fechar">✕</button>
+      <h2>Peixes coletados</h2>
+      <div id="fish-log-list" class="fish-log-list"></div>
     </div>
   </section>
 
   <!-- ============ TELA: ÁLBUM DE FOTOS ============ -->
-  <section id="screen-album" class="screen">
-    <header class="topbar"><h1 class="screen-title">Álbum</h1></header>
+  <section id="screen-album" class="screen page-screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-home">←</button>
+      <h1 class="screen-title">Álbum</h1>
+    </header>
     <div id="photo-grid" class="photo-grid"></div>
   </section>
 
@@ -467,15 +369,6 @@
     <span id="banner-nome" class="banner-nome"></span>
     <span id="banner-fase" class="banner-fase"></span>
   </aside>
-
-  <!-- ============ NAVEGAÇÃO INFERIOR ============ -->
-  <nav class="bottom-nav">
-    <button data-goto="screen-home">🍼<span>Cuidar</span></button>
-    <button data-goto="screen-arcade">🎮<span>Jogar</span></button>
-    <button data-goto="screen-board">📝<span>Recados</span></button>
-    <button data-goto="screen-album">📷<span>Álbum</span></button>
-    <button data-goto="screen-shop">🛍️<span>Loja</span></button>
-  </nav>
 
   <!-- Registro do Service Worker (PWA + auto-update) -->
   <script src="js/register-sw.js"></script>

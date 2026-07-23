@@ -11,6 +11,7 @@
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 const N = 4;
 const ANIM = 130;   // ms do deslize (bate com o CSS)
@@ -204,5 +205,7 @@ export function init2048() {
   palco.style.touchAction = "none";
 
   btn.onclick = reiniciar;
+  onScreenShown("screen-2048", reiniciar);
+  onScreenLeft("screen-2048", reiniciar);
   reiniciar();
 }

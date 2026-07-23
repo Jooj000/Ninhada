@@ -10,6 +10,7 @@
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { onScreenShown, onScreenLeft } from "./fs-canvas.js";
 import { GAME_CONFIG, BALANCE } from "./config.js";
 
 const rnd = (n) => Math.floor(Math.random() * n);
@@ -270,8 +271,19 @@ export function initHomework() {
   }
 
   btnStart.onclick = começar;
-  vidas = 3; pontos = 0; rodando = false;
-  elMsg.textContent = "";
-  elPerg.textContent = "Vamos estudar? Cada acerto vale pontos.";
-  hud();
+
+  /* volta ao estado pré-início (o cronômetro NÃO dispara sozinho) */
+  function zerar() {
+    if (timerId) { clearInterval(timerId); timerId = null; }
+    vidas = BALANCE.homework.lives || 3; pontos = 0; nivel = 0; rodando = false;
+    btnStart.hidden = false;
+    elMsg.textContent = "";
+    elOps.innerHTML = "";
+    elPerg.textContent = "Vamos estudar? Cada acerto vale pontos.";
+    hud();
+  }
+  onScreenShown("screen-homework", zerar);
+  onScreenLeft("screen-homework", zerar);
+
+  zerar();
 }

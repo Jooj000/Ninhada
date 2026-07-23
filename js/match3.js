@@ -1,19 +1,28 @@
 /* =====================================================================
  * match3.js — MATCH 3 (estilo Candy Crush)
  * ---------------------------------------------------------------------
- * Troque duas peças vizinhas para formar linhas de 3 ou mais. As peças
- * somem, as de cima caem e novas entram — se formar outra combinação
- * sozinha, vira CASCATA e vale mais. Jogadas limitadas.
+ * Troque duas peças vizinhas para formar linhas de 3 ou mais.
+ * NOVO: algumas peças nascem com uma 🪙 grudada — estourar a peça
+ * coleta a moeda, que paga 1:1 no fim (fora do balanceamento).
  * ===================================================================== */
 
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { BALANCE } from "./config.js";
+import { onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 const N = 7;
 const PECAS = ["🍓", "🫐", "🍋", "🍏", "🍇", "🍬"];
 const JOGADAS = 20;
+const CHANCE_MOEDA = (BALANCE.match3 && BALANCE.match3.chanceMoeda) || 0.07;
 const rnd = (n) => Math.floor(Math.random() * n);
+
+/* Peça = { e: emoji, coin: bool }. As funções puras comparam pelo emoji. */
+const novaPeca = (comMoeda = true) => ({
+  e: PECAS[rnd(PECAS.length)],
+  coin: comMoeda && Math.random() < CHANCE_MOEDA,
+});
 
 /* ---- núcleo puro (testável) ---- */
 export function acharCombos(g) {
@@ -21,7 +30,7 @@ export function acharCombos(g) {
   for (let r = 0; r < N; r++) {
     let ini = 0;
     for (let c = 1; c <= N; c++) {
-      if (c < N && g[r][c] && g[r][c] === g[r][ini]) continue;
+      if (c < N && g[r][c] && g[r][ini] && g[r][c].e === g[r][ini].e) continue;
       if (c - ini >= 3 && g[r][ini]) for (let k = ini; k < c; k++) marcar.add(r + "," + k);
       ini = c;
     }
@@ -29,7 +38,7 @@ export function acharCombos(g) {
   for (let c = 0; c < N; c++) {
     let ini = 0;
     for (let r = 1; r <= N; r++) {
-      if (r < N && g[r][c] && g[r][c] === g[ini][c]) continue;
+      if (r < N && g[r][c] && g[ini][c] && g[r][c].e === g[ini][c].e) continue;
       if (r - ini >= 3 && g[ini][c]) for (let k = ini; k < r; k++) marcar.add(k + "," + c);
       ini = r;
     }
@@ -37,22 +46,31 @@ export function acharCombos(g) {
   return marcar;
 }
 
-export function resolver(g, marcar) {
-  for (const p of marcar) { const [r, c] = p.split(",").map(Number); g[r][c] = null; }
+/* Remove os marcados, derruba as colunas e cria peças novas (que podem
+ * vir com 🪙). Devolve quantas moedas foram coletadas nessa leva. */
+export function resolver(g, marcar, comMoeda = true) {
+  let coletadas = 0;
+  for (const p of marcar) {
+    const [r, c] = p.split(",").map(Number);
+    if (g[r][c] && g[r][c].coin) coletadas++;
+    g[r][c] = null;
+  }
   for (let c = 0; c < N; c++) {
     const col = [];
     for (let r = N - 1; r >= 0; r--) if (g[r][c]) col.push(g[r][c]);
-    for (let r = N - 1; r >= 0; r--) g[r][c] = col[N - 1 - r] ?? PECAS[rnd(PECAS.length)];
+    for (let r = N - 1; r >= 0; r--) g[r][c] = col[N - 1 - r] ?? novaPeca(comMoeda);
   }
-  return g;
+  return coletadas;
 }
 
 export function novoTabuleiro() {
   let g;
   do {
-    g = Array.from({ length: N }, () => Array.from({ length: N }, () => PECAS[rnd(PECAS.length)]));
+    // nasce SEM moedas (senão o embaralhamento inicial já pagaria);
+    // as moedas entram nas peças NOVAS que caem durante a partida
+    g = Array.from({ length: N }, () => Array.from({ length: N }, () => novaPeca(false)));
     let guard = 0;
-    while (acharCombos(g).size && guard++ < 60) g = resolver(g, acharCombos(g));
+    while (acharCombos(g).size && guard++ < 60) resolver(g, acharCombos(g), false);
   } while (acharCombos(g).size);
   return g;
 }
@@ -68,19 +86,19 @@ export function initMatch3() {
   const grid = document.getElementById("m3-grid");
   if (!grid) return;
 
-  let g, pontos, jogadas, sel, travado, rodando;
+  let g, pontos, moedas, jogadas, sel, travado, rodando;
   const elHud = document.getElementById("m3-hud");
   const elMsg = document.getElementById("m3-msg");
   const btn = document.getElementById("m3-new");
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
   function hud() {
-    elHud.textContent = pontos + " pts · " + jogadas + " jogadas · 🏆 " + getRecord("match3");
+    elHud.textContent = pontos + " pts · 🪙 " + moedas + " · " + jogadas + " jogadas · 🏆 " + getRecord("match3");
   }
 
   function comecar() {
     g = novoTabuleiro();
-    pontos = 0; jogadas = JOGADAS; sel = null; travado = false; rodando = true;
+    pontos = 0; moedas = 0; jogadas = JOGADAS; sel = null; travado = false; rodando = true;
     elMsg.textContent = ""; btn.hidden = true;
     desenhar(); hud();
   }
@@ -94,7 +112,13 @@ export function initMatch3() {
       b.className = "m3-cel"
         + (sel && sel.r === r && sel.c === c ? " sel" : "")
         + (sumindo.has(r + "," + c) ? " pop" : "");
-      b.textContent = g[r][c];
+      b.textContent = g[r][c].e;
+      if (g[r][c].coin) {
+        const badge = document.createElement("span");
+        badge.className = "m3-coin";
+        badge.textContent = "🪙";
+        b.appendChild(badge);
+      }
       b.onclick = () => tocar(r, c);
       grid.appendChild(b);
     }
@@ -125,7 +149,7 @@ export function initMatch3() {
     desenhar(); hud();
     await cascatas();
     travado = false;
-    if (jogadas <= 0) fim();
+    if (rodando && jogadas <= 0) fim();
   }
 
   async function cascatas() {
@@ -139,8 +163,8 @@ export function initMatch3() {
       if (nivel > 1) elMsg.textContent = "Cascata x" + nivel + "! 🎉";
       hud();
       await espera(260);
-      g = resolver(g, combos);
-      desenhar();
+      moedas += resolver(g, combos);
+      desenhar(); hud();
       await espera(160);
     }
     if (nivel <= 1) elMsg.textContent = "";
@@ -149,16 +173,19 @@ export function initMatch3() {
   async function fim() {
     rodando = false; btn.hidden = false;
     const pts = Math.floor(pontos / 100);
-    const rec = getRecord("match3");
-    if (pts > 0) {
-      const r = await rewardGame(getActiveBaby(), "match3", pts, pontos);
+    if (pts > 0 || moedas > 0) {
+      const r = await rewardGame(getActiveBaby(), "match3", pts, pontos, moedas);
       registerCare();
-      elMsg.textContent = r.factor === 0
+      elMsg.textContent = r.factor === 0 && moedas === 0
         ? pontos + " pts — a criança se cansou."
-        : (r.record ? "🏆 NOVO RECORDE! " : "") + pontos + " pts · +" + r.coins + " 🪙  +" + r.xp + " XP" + (r.factor < 1 ? " (cansado)" : "");
+        : (r.record ? "🏆 NOVO RECORDE! " : "") + pontos + " pts · 🪙" + moedas + " · +" + r.coins + " 🪙  +" + r.xp + " XP" + (r.factor < 1 ? " (cansado)" : "");
     } else elMsg.textContent = "Fim! " + pontos + " pts";
   }
 
   btn.onclick = comecar;
+
+  /* sair da tela = zerar; entrar = partida nova */
+  onScreenShown("screen-match3", comecar);
+  onScreenLeft("screen-match3", () => { rodando = false; travado = true; });
   comecar();
 }

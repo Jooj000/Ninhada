@@ -83,29 +83,27 @@ export const BALANCE = {
   // Recompensa é sempre POR PONTO (nunca por só abrir o jogo).
   // `minPhase` define em que idade libera E o multiplicador de valor.
   minigames: {
-    // Alvo de equilíbrio (como no Pou): partida MÉDIA ≈ 15 moedas,
-    // partida BOA ≈ 30, partida muito sortuda ≈ 60. Nunca mais que isso.
-    flappy:     { minPhase: "newborn",  coinsPerPoint: 1,     xpPerPoint: 2,    hard: false },
-    dino:       { minPhase: "crawling", coinsPerPoint: 0.010, xpPerPoint: 0.025, hard: false },
-    fishing:    { minPhase: "crawling", coinsPerPoint: 2,     xpPerPoint: 2.6,  hard: false },
-    circuit:    { minPhase: "toddler",  coinsPerPoint: 2.5,   xpPerPoint: 3.5,  hard: false },
-    homework:   { minPhase: "toddler",  coinsPerPoint: 1.25,  xpPerPoint: 3,    hard: true  },
+    // PONTOS pagam POUCO de propósito: quem paga bem são as MOEDAS
+    // COLETÁVEIS dentro dos jogos (🪙 pegas valem 1:1, sem desconto).
+    // Partida média ≈ 3-6 moedas de pontos + o que você coletar.
+    flappy:     { minPhase: "newborn",  coinsPerPoint: 0.15,  xpPerPoint: 2,    hard: false },
+    dino:       { minPhase: "crawling", coinsPerPoint: 0.004, xpPerPoint: 0.025, hard: false },
+    fishing:    { minPhase: "crawling", coinsPerPoint: 0.4,   xpPerPoint: 2.6,  hard: false },
+    circuit:    { minPhase: "toddler",  coinsPerPoint: 1,     xpPerPoint: 3.5,  hard: false },
+    homework:   { minPhase: "toddler",  coinsPerPoint: 0.5,   xpPerPoint: 3,    hard: true  },
     // ----- pack arcade -----
-    fooddrop:   { minPhase: "newborn",  coinsPerPoint: 0.8,   xpPerPoint: 1.6,  hard: false },
-    memory:     { minPhase: "crawling", coinsPerPoint: 0.55,  xpPerPoint: 1.1,  hard: false },
-    colormatch: { minPhase: "crawling", coinsPerPoint: 1,     xpPerPoint: 1.8,  hard: false },
-    g2048:      { minPhase: "toddler",  coinsPerPoint: 0.25,  xpPerPoint: 0.55, hard: true  },
-    match3:     { minPhase: "crawling", coinsPerPoint: 1.2,   xpPerPoint: 2,    hard: false },
-    starpopper: { minPhase: "crawling", coinsPerPoint: 0.22,  xpPerPoint: 0.5,  hard: false },
+    fooddrop:   { minPhase: "newborn",  coinsPerPoint: 0.2,   xpPerPoint: 1.6,  hard: false },
+    memory:     { minPhase: "crawling", coinsPerPoint: 0.2,   xpPerPoint: 1.1,  hard: false },
+    colormatch: { minPhase: "crawling", coinsPerPoint: 0.3,   xpPerPoint: 1.8,  hard: false },
+    g2048:      { minPhase: "toddler",  coinsPerPoint: 0.08,  xpPerPoint: 0.55, hard: true  },
+    match3:     { minPhase: "crawling", coinsPerPoint: 0.3,   xpPerPoint: 2,    hard: false },
+    starpopper: { minPhase: "crawling", coinsPerPoint: 0.06,  xpPerPoint: 0.5,  hard: false },
     // ----- arcades do Pou -----
-    hilldrive:  { minPhase: "crawling", coinsPerPoint: 0.08,  xpPerPoint: 0.16, hard: false },
-    goal:       { minPhase: "newborn",  coinsPerPoint: 2,     xpPerPoint: 4,    hard: false },
-    // sky jump: 1 ponto = 1 moeda pega OU 100 m subidos
-    skyjump:    { minPhase: "crawling", coinsPerPoint: 1,     xpPerPoint: 3,    hard: false },
-    // ----- arcades novos -----
-    hilldrive:  { minPhase: "crawling", coinsPerPoint: 0.005, xpPerPoint: 0.012, hard: false },
-    goal:       { minPhase: "toddler",  coinsPerPoint: 0.75,  xpPerPoint: 1.6,  hard: false },
-    connect:    { minPhase: "toddler",  coinsPerPoint: 3.5,   xpPerPoint: 7,    hard: true  },
+    // sky jump: pontos = metros/100; as 🪙 pegas entram por fora, 1:1
+    skyjump:    { minPhase: "crawling", coinsPerPoint: 0.3,   xpPerPoint: 3,    hard: false },
+    hilldrive:  { minPhase: "crawling", coinsPerPoint: 0.002, xpPerPoint: 0.012, hard: false },
+    goal:       { minPhase: "toddler",  coinsPerPoint: 0.25,  xpPerPoint: 1.6,  hard: false },
+    connect:    { minPhase: "toddler",  coinsPerPoint: 1.5,   xpPerPoint: 7,    hard: true  },
   },
   // Multiplicador por faixa etária (índice da fase mínima do jogo).
   tierMultiplier: [1, 1.5, 2, 2.6],
@@ -130,6 +128,12 @@ export const BALANCE = {
     ganhoNaRede: 0.005,    // quanto a barra enche com o peixe dentro
     esperaMinMs: 1400, esperaMaxMs: 5600,   // demora até morder
     janelaFisgadaMs: 800,  // tempo para reagir ao "❗"
+    // BAÚ: aparece num ponto aleatório durante a luta; encoste a rede
+    // nele (sem deixar a barra zerar!) para ganhar moedas na hora.
+    bauChance: 0.55,        // chance de UM baú aparecer por peixe
+    bauDuracaoMs: 4500,     // quanto tempo ele fica na água
+    bauCoins: 5,            // moedas pagas direto (1:1, sem fadiga)
+    bauSegurarMs: 500,      // tempo com a rede em cima para abrir
   },
 
   /* ================= HILL DRIVE ================= */
@@ -166,9 +170,17 @@ export const BALANCE = {
     chanceQuebra: 0.28,
     // A inclinação define a VELOCIDADE direto (não acelera aos poucos),
     // senão dá a sensação de atraso ao virar o celular.
-    velMaxInclinacao: 11,
-    respostaInclinacao: 0.7,    // 1 = instantâneo
+    velMaxInclinacao: 6,
+    respostaInclinacao: 0.3,    // 1 = instantâneo (menor = acelera devagar)
     grausMax: 15,               // inclinar 15° já é o máximo
+    // toque/arraste: o herói persegue o dedo com este teto de velocidade
+    velMaxToque: 6,
+    seguirFator: 0.09,
+  },
+
+  /* ================= MATCH 3 ================= */
+  match3: {
+    chanceMoeda: 0.07,      // chance de uma peça nova nascer com 🪙
   },
 
   /* ================= STAR POPPER ================= */
