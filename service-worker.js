@@ -10,7 +10,7 @@
  *     apagados. Bumpe o número abaixo se quiser forçar limpeza total.
  * ===================================================================== */
 
-const CACHE_VERSION = "bebe-v28";           // troque (v3, v4…) p/ limpar tudo
+const CACHE_VERSION = "bebe-v32";           // troque (v3, v4…) p/ limpar tudo
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -27,6 +27,7 @@ const APP_SHELL = [
   "./js/minigame.js",
   "./js/board.js",
   "./js/circuit.js",
+  "./js/circuit-solver.js",
   "./js/session.js",
   "./js/touch.js",
   "./js/render-utils.js",
@@ -46,6 +47,13 @@ const APP_SHELL = [
   "./js/match3.js",
   "./js/starpopper.js",
   "./js/skyjump.js",
+  "./js/cliffjump.js",
+  "./js/hilldrive.js",
+  "./js/goal.js",
+  "./js/connect.js",
+  "./js/cliffjump.js",
+  "./js/hilldrive.js",
+  "./js/goal.js",
   "./js/identity.js",
 ];
 

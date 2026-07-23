@@ -18,6 +18,7 @@
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { STARPOPPER as SP } from "./config.js";
 
 const PALETA = ["#E05A5A", "#5B8FD6", "#6BB77B", "#E5B93C", "#9A5FC0"];
 const PRETO = "#2B2438";
@@ -87,11 +88,19 @@ export function candidatosPeriferia(massa) {
   return lista.filter(([, d]) => d <= menor + S * 1.2).map(([k]) => k);
 }
 
-/* Sorteio ponderado pelas cores presentes (mais frequente = mais provável). */
-export function sortearCor(massa) {
+/* Cores que AINDA existem na massa (o Pou preto não conta).
+ * É a peça central para a rodada poder terminar: uma cor que você
+ * eliminou NÃO volta — nem no canhão, nem no crescimento. */
+export function coresVivas(massa) {
   const cont = new Map();
   for (const c of massa.values()) if (c !== PRETO) cont.set(c, (cont.get(c) || 0) + 1);
-  if (!cont.size) return PALETA[0];
+  return cont;
+}
+
+/* Sorteio ponderado pelas cores presentes (mais frequente = mais provável). */
+export function sortearCor(massa, fallback = null) {
+  const cont = coresVivas(massa);
+  if (!cont.size) return fallback || PALETA[0];
   const total = [...cont.values()].reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
   for (const [cor, n] of cont) { r -= n; if (r <= 0) return cor; }
@@ -108,8 +117,8 @@ export function initStarPopper() {
   const LIMITE = Math.min(CX, CY) - R - 4;
   const BOCA = { x: CX, y: H - 30 };
 
-  const CRESCE_MS = 7000;        // temporizador de crescimento
-  const PENALIDADE = 5;          // pontos perdidos ao errar o tiro
+  const CRESCE_MS = (SP.cresceSegundos ?? 35) * 1000;
+  const PENALIDADE = SP.penalidade ?? 5;
 
   let massa, ang, vAng, bala, atual, proxima, mira;
   let pontos, moedas, rodada, nCores, rodando, morto, lastT = 0, cresceEm;
@@ -126,30 +135,49 @@ export function initStarPopper() {
       massa.set(K(dq, dr), cor);
       if (Math.random() < 0.15) marcarMoeda(K(dq, dr));
     }
-    for (let i = 0; i < 6; i++) crescer();
+    for (let i = 0; i < 8; i++) crescer(true);   // massa inicial com as cores da rodada
     cresceEm = CRESCE_MS;
   }
 
   const moedasEm = new Set();
   function marcarMoeda(k) { moedasEm.add(k); }
 
-  function crescer() {
+  /* Uma bolha nova na periferia. `usarRodada` só no começo da partida,
+   * quando ainda faz sentido introduzir todas as cores da rodada. */
+  function crescer(usarRodada = false) {
     const cand = candidatosPeriferia(massa);
     if (!cand.length) return;
     const k = cand[Math.floor(Math.random() * cand.length)];
-    const cores = coresDaRodada();
-    massa.set(k, cores[Math.floor(Math.random() * cores.length)]);
-    if (Math.random() < 0.12) marcarMoeda(k);
+
+    let cor;
+    if (usarRodada) {
+      const cores = coresDaRodada();
+      cor = cores[Math.floor(Math.random() * cores.length)];
+    } else {
+      // IMPORTANTE: só cores que ainda estão na massa. Sem isso, uma cor
+      // recém-eliminada voltava e a rodada nunca terminava.
+      const vivas = [...coresVivas(massa).keys()];
+      if (!vivas.length) return;                  // limpou tudo: nada a fazer
+      cor = vivas[Math.floor(Math.random() * vivas.length)];
+    }
+    massa.set(k, cor);
+    if (Math.random() < (SP.chanceMoeda ?? 0.1)) marcarMoeda(k);
+  }
+
+  /* ONDA de crescimento: várias bolhas de uma vez, de tempos em tempos. */
+  function ondaDeCrescimento() {
+    const n = (SP.bolhasPorOnda ?? 5) + (rodada - 1) * (SP.bolhasPorOndaExtra ?? 1);
+    for (let i = 0; i < n; i++) crescer(false);
   }
 
   function reset() {
     moedasEm.clear();
-    nCores = 2; rodada = 1;
+    nCores = SP.coresIniciais ?? 2; rodada = 1;
     pontos = 0; moedas = 0;
     ang = 0; vAng = 0; bala = null;
     rodando = false; morto = false; mira = -Math.PI / 2;
     novaMassa();
-    atual = sortearCor(massa); proxima = sortearCor(massa);
+    atual = sortearCor(massa); proxima = sortearCor(massa, atual);
     setOverlay("Toque para começar", "Junte 3+ da mesma cor");
     desenhar();
   }
@@ -173,7 +201,7 @@ export function initStarPopper() {
   function atirar() {
     if (!rodando || morto || bala) return;
     bala = { x: BOCA.x, y: BOCA.y, vx: Math.cos(mira) * 7.6, vy: Math.sin(mira) * 7.6, cor: atual };
-    atual = proxima; proxima = sortearCor(massa);
+    atual = proxima; proxima = sortearCor(massa, atual);
   }
 
   function encaixar() {
@@ -192,12 +220,15 @@ export function initStarPopper() {
       h = melhor;
     }
 
-    // TORQUE: o impacto gira a massa conforme a "alavanca" do ponto de toque
-    const braco = loc.x;                       // componente perpendicular ao raio
-    const vLocal = paraLocal(bala.x + bala.vx, bala.y + bala.vy);
-    const impulso = (vLocal.x - loc.x);
-    vAng += (braco * impulso) * 0.000035;
-    vAng = Math.max(-0.06, Math.min(0.06, vAng));
+    // TORQUE = r × v (produto vetorial em 2D). O SINAL sai naturalmente:
+    // bater à esquerda do centro gira para um lado, à direita para o outro.
+    const c = Math.cos(-ang), sn = Math.sin(-ang);
+    const vx = bala.vx * c - bala.vy * sn;      // velocidade no referencial da massa
+    const vy = bala.vx * sn + bala.vy * c;
+    const torque = loc.x * vy - loc.y * vx;    // componente z do produto vetorial
+    vAng += torque * (SP.torque ?? 0.00055) * 0.001;
+    const teto = SP.giroMax ?? 0.05;
+    vAng = Math.max(-teto, Math.min(teto, vAng));
 
     massa.set(K(h.q, h.r), bala.cor);
     if (Math.random() < 0.06) marcarMoeda(K(h.q, h.r));
@@ -226,7 +257,7 @@ export function initStarPopper() {
     nCores = Math.min(PALETA.length, nCores + 1);   // +1 cor por rodada limpa
     moedasEm.clear();
     novaMassa();
-    atual = sortearCor(massa); proxima = sortearCor(massa);
+    atual = sortearCor(massa); proxima = sortearCor(massa, atual);
     vAng = 0;
   }
 
@@ -244,12 +275,12 @@ export function initStarPopper() {
     if (!rodando || morto) return;
 
     ang += vAng * dt;
-    vAng *= Math.pow(0.982, dt);                 // atrito: para sozinho
-    if (Math.abs(vAng) < 0.0002) vAng = 0;
+    vAng *= Math.pow(SP.atrito ?? 0.996, dt);     // atrito: desacelera devagar
+    if (Math.abs(vAng) < 0.00008) vAng = 0;
 
     cresceEm -= dt * (1000 / 60);
     if (cresceEm <= 0) {
-      crescer(); cresceEm = CRESCE_MS;
+      ondaDeCrescimento(); cresceEm = CRESCE_MS;
       if (encostouBorda()) return fim();
     }
 
@@ -284,6 +315,17 @@ export function initStarPopper() {
 
   /* ---- desenho ---- */
   function bolha(x, y, cor, moeda) {
+    if (cor === PRETO) {                      // Pou preto: âncora, não é cor jogável
+      ctx.fillStyle = PRETO;
+      ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.45)"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, y, R - 1, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = "#fff";                 // olhinhos
+      ctx.beginPath(); ctx.arc(x - R * 0.3, y - R * 0.1, R * 0.16, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + R * 0.3, y - R * 0.1, R * 0.16, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 1;
+      return;
+    }
     ctx.fillStyle = cor;
     ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,.26)";
@@ -340,14 +382,16 @@ export function initStarPopper() {
 
     // canhão: bolha atual + próxima
     bolha(BOCA.x, BOCA.y, atual);
-    ctx.globalAlpha = 0.55; bolha(BOCA.x + 42, BOCA.y + 6, proxima); ctx.globalAlpha = 1;
-    ctx.font = "10px system-ui, sans-serif"; ctx.fillStyle = "#C9BFD4";
-    ctx.textAlign = "center"; ctx.fillText("próxima", BOCA.x + 42, BOCA.y + 26);
+    if (SP.mostrarProxima !== false) {
+      ctx.globalAlpha = 0.5; bolha(BOCA.x + 44, BOCA.y + 8, proxima); ctx.globalAlpha = 1;
+      ctx.font = "9px system-ui, sans-serif"; ctx.fillStyle = "#C9BFD4";
+      ctx.textAlign = "center"; ctx.fillText("próxima", BOCA.x + 44, BOCA.y + 26);
+    }
 
     ctx.textAlign = "left"; ctx.font = "bold 15px system-ui, sans-serif"; ctx.fillStyle = "#fff";
     ctx.fillText(`${pontos}  🪙${moedas}`, 12, 24);
     ctx.font = "bold 11px system-ui, sans-serif"; ctx.fillStyle = "#C9BFD4";
-    ctx.fillText(`rodada ${rodada} · ${nCores} cores`, 12, 42);
+    ctx.fillText(`rodada ${rodada} · ${coresVivas(massa).size} cores · onda em ${Math.ceil(cresceEm / 1000)}s`, 12, 42);
     ctx.textAlign = "right";
     ctx.fillText(`🏆 ${getRecord("starpopper")}`, W - 12, 24);
   }

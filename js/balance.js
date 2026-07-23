@@ -27,6 +27,10 @@ export const BALANCE = {
 
   /* ================= CUIDADOS ================= */
   care: {
+    // Remédio: cura resfriado na hora (e dá uma ajudinha no ânimo).
+    remedioCusto: 25,
+    remedioLove: 10,
+    remedioXp: 15,
     // Quanto cada ação de botão recupera.
     actionGain: { feed: 35, sleep: 40, clean: 50 },
     // Diversão ganha ao terminar uma rodada de minigame.
@@ -93,8 +97,17 @@ export const BALANCE = {
     g2048:      { minPhase: "toddler",  coinsPerPoint: 0.25,  xpPerPoint: 0.55, hard: true  },
     match3:     { minPhase: "crawling", coinsPerPoint: 1.2,   xpPerPoint: 2,    hard: false },
     starpopper: { minPhase: "crawling", coinsPerPoint: 0.22,  xpPerPoint: 0.5,  hard: false },
+    // ----- arcades do Pou -----
+    cliffjump:  { minPhase: "crawling", coinsPerPoint: 0.5,   xpPerPoint: 1,    hard: false },
+    hilldrive:  { minPhase: "crawling", coinsPerPoint: 0.08,  xpPerPoint: 0.16, hard: false },
+    goal:       { minPhase: "newborn",  coinsPerPoint: 2,     xpPerPoint: 4,    hard: false },
     // sky jump: 1 ponto = 1 moeda pega OU 100 m subidos
     skyjump:    { minPhase: "crawling", coinsPerPoint: 1,     xpPerPoint: 3,    hard: false },
+    // ----- arcades novos -----
+    cliffjump:  { minPhase: "crawling", coinsPerPoint: 0.55,  xpPerPoint: 1.1,  hard: false },
+    hilldrive:  { minPhase: "crawling", coinsPerPoint: 0.06,  xpPerPoint: 0.14, hard: false },
+    goal:       { minPhase: "toddler",  coinsPerPoint: 2,     xpPerPoint: 4,    hard: false },
+    connect:    { minPhase: "toddler",  coinsPerPoint: 3.5,   xpPerPoint: 7,    hard: true  },
   },
   // Multiplicador por faixa etária (índice da fase mínima do jogo).
   tierMultiplier: [1, 1.5, 2, 2.6],
@@ -119,6 +132,34 @@ export const BALANCE = {
     ganhoNaRede: 0.005,    // quanto a barra enche com o peixe dentro
     esperaMinMs: 1400, esperaMaxMs: 5600,   // demora até morder
     janelaFisgadaMs: 800,  // tempo para reagir ao "❗"
+  },
+
+  /* ================= SKY JUMP ================= */
+  skyjump: {
+    gravidade: 0.42,
+    forcaPulo: 11.4,
+    // Altura máxima que o pulo alcança = forcaPulo² / (2 × gravidade) ≈ 155 px.
+    // O vão MÁXIMO fica um tiquinho abaixo disso, senão vira impossível.
+    vaoMin: 70,
+    vaoMax: 139,
+    plataformas: 6,
+    chanceMoeda: 0.28,
+    chanceQuebra: 0.28,
+    sensibilidadeInclinacao: 1.1,   // quanto o giro do celular move o bebê
+  },
+
+  /* ================= STAR POPPER ================= */
+  starpopper: {
+    coresIniciais: 2,        // rodada 1 começa com 2 cores (+1 por rodada limpa)
+    cresceSegundos: 35,      // tempo entre as ONDAS de crescimento
+    bolhasPorOnda: 5,        // quantas bolhas vêm de uma vez
+    bolhasPorOndaExtra: 1,   // +N a cada rodada vencida
+    torque: 0.00055,         // força do giro por impacto (os dois sentidos)
+    atrito: 0.996,           // mais perto de 1 = gira por mais tempo
+    giroMax: 0.05,           // teto da velocidade angular
+    penalidade: 5,           // pontos perdidos ao errar o tiro
+    mostrarProxima: true,    // mostrar a próxima bolha no canhão
+    chanceMoeda: 0.10,       // chance de uma bolha nova vir com moedinha
   },
 
   /* ================= COZINHA ================= */

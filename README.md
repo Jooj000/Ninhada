@@ -242,20 +242,42 @@ todos no mesmo retângulo. (O minigame já usa Canvas, então você tem os dois 
 | Itens da loja e preços | `assets-map.js` → `SHOP_ITEMS` | |
 | Adicionar roupa/chapéu novo | `assets-map.js` (`ASSETS` + `SHOP_ITEMS`) + png na pasta | |
 
-### Minigames prontos
+### Minigames prontos (16)
 | Jogo | Libera em | Paga por |
 |------|-----------|----------|
 | Flappy Bebê | Recém-nascido | tubo passado |
+| Food Drop | Recém-nascido | comida pega |
 | Dino Corrida | Engatinhando | distância |
 | Pescaria | Engatinhando | peixe (raro vale mais) |
+| Memória | Engatinhando | rapidez (menos jogadas) |
+| Color Match | Engatinhando | acerto de cor |
+| Match 3 | Engatinhando | pontos ÷100 |
+| Star Popper | Engatinhando | bolha estourada + moedinhas |
+| Sky Jump | Engatinhando | moeda pega + 100 m subidos |
+| Cliff Jump | Engatinhando | plataforma passada |
+| Hill Drive | Engatinhando | metros + moedas |
 | Feira de Ciências | Criança | circuito completo (5 níveis) |
-| Dever de Casa | Criança | acerto |
+| Dever de Casa | Criança | acerto (até Ensino Médio) |
+| 2048 | Criança | placar ÷50 |
+| Goal | Criança | gol no alvo |
+| Connect | Criança | rodada completa |
 
-### Minigames pendentes (fila combinada)
-- **Refinar a Feira de Ciências**: gerar layouts ALEATÓRIOS (hoje o padrão é
-  decorável, por isso a recompensa está reduzida). Fazer isso ao mexer nos
-  últimos minigames, ANTES dos complexos (piano/microfone).
-- Pack arcade do Pou: 2048, Memory, Color Match, Star Popper, Food Drop, Sky Jump…
+### Feira de Ciências — laboratório de eletrônica
+Não é mais "ligar os pontinhos": agora tem um simulador DC de verdade
+(`js/circuit-solver.js`, análise nodal) que calcula tensão e corrente reais.
+
+- **Nível 1** Lei de Ohm — I = V / R
+- **Nível 2** Série — mesma corrente, tensões se somam (divisor de tensão)
+- **Nível 3** Paralelo — mesma tensão, correntes se somam
+- **Nível 4** LED com resistor — R = (Vfonte − Vf) / I
+- **Nível 5** Dois LEDs, cada um com seu resistor
+
+Os valores (bateria, resistores, cor/Vf do LED) são **sorteados a cada
+partida**, então não dá para decorar — tem que calcular. Tocar num
+componente abre o **multímetro** com tensão, corrente e resistência.
+LED sem resistor (ou com resistor pequeno demais) **queima**.
+
+### Ainda na fila
 - Microfone estilo Talking Tom (grava e repete com voz fina).
 - Piano/ritmo + parser de arquivos `.osu` (último da fila).
 

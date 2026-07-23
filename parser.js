@@ -40,7 +40,7 @@ Object.keys(categoryPrices).forEach(cat => {
 
 const defaultPrices = {
   corpo: 0,
-  olhos: 0,
+  face: 0,
   cabelo: 180,
   camisa: 220,
   calca: 220,
@@ -55,7 +55,7 @@ const folderMapping = {
   'baby': { group: 'baby', shopCat: null },
   'corpo': { group: 'corpo', shopCat: 'corpo' },
   'cabelo': { group: 'cabelo', shopCat: 'cabelo' },
-  'olhos': { group: 'olhos', shopCat: 'olhos' },
+  'Rosto': { group: 'face', shopCat: 'face' },
   'camisa': { group: 'camisa', shopCat: 'camisa' },
   'clothes': { group: 'camisa', shopCat: 'camisa' },
   'calca': { group: 'calca', shopCat: 'calca' },
@@ -67,11 +67,19 @@ const folderMapping = {
 let addedAssetsCount = 0;
 let addedShopCount = 0;
 
-Object.keys(folderMapping).forEach(folderName => {
-  const folderPath = path.join(spritesRoot, folderName);
-  if (!fs.existsSync(folderPath)) return;
+// Lista o que existe no disco para casar a pasta sem depender de
+// maiúsculas/minúsculas ("Rosto", "rosto" e "ROSTO" funcionam igual).
+const pastasNoDisco = fs.existsSync(spritesRoot) ? fs.readdirSync(spritesRoot) : [];
 
-  const mapInfo = folderMapping[folderName];
+Object.keys(folderMapping).forEach(folderKey => {
+  const folderName = pastasNoDisco.find(
+    (d) => d.toLowerCase() === folderKey.toLowerCase()
+  );
+  if (!folderName) return;
+  const folderPath = path.join(spritesRoot, folderName);
+  if (!fs.statSync(folderPath).isDirectory()) return;
+
+  const mapInfo = folderMapping[folderKey];
   const group = mapInfo.group;
   const shopCat = mapInfo.shopCat;
 
@@ -151,7 +159,7 @@ function generateAssetsCode(assets) {
   code += `  baby: ${formatAssetGroup(assets.baby, 2)},\n\n`;
 
   code += `  /* ---- Camadas equipáveis (chave = id da categoria) ---- */\n`;
-  const categoriesToPrint = ['corpo', 'olhos', 'cabelo', 'camisa', 'calca', 'sapatos', 'acessorios', 'brinquedos'];
+  const categoriesToPrint = ['corpo', 'face', 'cabelo', 'camisa', 'calca', 'sapatos', 'acessorios', 'brinquedos'];
   categoriesToPrint.forEach(cat => {
     if (assets[cat]) {
       code += `  ${cat}: ${formatAssetGroup(assets[cat], 2)},\n`;

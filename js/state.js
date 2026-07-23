@@ -79,7 +79,11 @@ export function isSick(state) {
  *   - Recupera: agasalhado (roupa) + bem cuidado.
  * (sem poções — só agasalho e carinho) */
 export function nextColdState(baby, weather) {
-  const dressed = !!(baby.equipped && baby.equipped.clothes);
+  // "vestido" = tem camisa OU calça. (Antes olhava `equipped.clothes`, slot
+  // que deixou de existir no refactor do boneco de papel — por isso a
+  // criança ficava presa no resfriado para sempre.)
+  const eq = baby.equipped || {};
+  const dressed = !!(eq.camisa || eq.calca);
   const avg = averageStatus(baby);
   if (baby.cold) return !(dressed && avg >= 55);            // ainda resfriado?
   return !!weather && (weather.cold || weather.rain) && !dressed && avg < 45;

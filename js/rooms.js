@@ -16,6 +16,7 @@ import {
 import { getActiveBaby } from "./session.js";
 import { GAME_CONFIG, BALANCE } from "./config.js";
 import { registerCare } from "./streak.js";
+import { giveMedicine } from "./firebase-sync.js";
 import { applyDecay, moodFor } from "./state.js";
 import { paintBabyLayers, buildStageLayers } from "./render-utils.js";
 import {
@@ -297,7 +298,39 @@ export function updateRooms(room) {
   if (document.getElementById("screen-kitchen").classList.contains("active")) renderRecipeBook();
 }
 
+/* 💊 Remédio: cura o resfriado. Fica no Banheiro (a farmacinha da casa). */
+function initRemedio() {
+  const btn = document.getElementById("med-btn");
+  const msg = document.getElementById("med-msg");
+  if (!btn) return;
+
+  btn.addEventListener("click", async () => {
+    const id = getActiveBaby();
+    const baby = (window.__STATE__ && window.__STATE__.babies || {})[id];
+    if (!baby) return;
+    if (!baby.cold) { msg.textContent = "Esta criança não está resfriada 🙂"; return; }
+    btn.disabled = true;
+    const r = await giveMedicine(id);
+    btn.disabled = false;
+    msg.textContent = r.ok
+      ? `${baby.name || "O bebê"} tomou o remédio e melhorou! 💊`
+      : "Moedas insuficientes para o remédio.";
+    registerCare();
+  });
+
+  // o botão só aparece quando alguém está resfriado
+  setInterval(() => {
+    const id = getActiveBaby();
+    const baby = (window.__STATE__ && window.__STATE__.babies || {})[id];
+    const doente = !!(baby && baby.cold);
+    btn.hidden = !doente;
+    if (!doente && msg.textContent.includes("resfriada")) msg.textContent = "";
+    btn.textContent = `💊 Dar remédio · ${GAME_CONFIG.remedioCusto} 🪙`;
+  }, 600);
+}
+
 export function initRooms() {
+  initRemedio();
   initKitchen();
   initBathroom();
   initBedroom();

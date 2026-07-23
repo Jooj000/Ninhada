@@ -39,6 +39,10 @@ import { initFoodDrop } from "./fooddrop.js";
 import { initMatch3 } from "./match3.js";
 import { initStarPopper } from "./starpopper.js";
 import { initSkyJump } from "./skyjump.js";
+import { initCliffJump } from "./cliffjump.js";
+import { initHillDrive } from "./hilldrive.js";
+import { initGoal } from "./goal.js";
+import { initConnect } from "./connect.js";
 
 /* Onde cada botão de cuidado leva (o status é cuidado no cômodo). */
 const ACTION_SCREEN = {
@@ -350,22 +354,48 @@ async function main() {
     getBabies: () => (room ? room.babies : null),
     goToBedroom: (babyId) => { setActiveBaby(babyId); showScreen("screen-bedroom"); },
   });
-  initPushUI();
-  initShop();
-  initMinigame();
-  initBoard();
-  initCircuit();
-  initDino();
-  initPhotos();
-  initHomework();
-  initFishing();
-  init2048();
-  initMemory();
-  initColorMatch();
-  initFoodDrop();
-  initMatch3();
-  initStarPopper();
-  initSkyJump();
+  /* Cada módulo é iniciado dentro de um try/catch: se UM minigame tiver
+   * problema, ele é o único que deixa de funcionar — a casa, as crianças
+   * e os outros jogos continuam de pé. (Sem isso, um erro em qualquer
+   * arquivo derrubava o app inteiro: tela vazia e botões sem resposta.) */
+  const seguro = (nome, fn) => {
+    try { fn(); }
+    catch (e) {
+      console.error(`[Ninhada] falha ao iniciar "${nome}":`, e);
+      falhas.push(nome);
+    }
+  };
+  const falhas = [];
+
+  seguro("notificações", initPushUI);
+  seguro("loja", initShop);
+  seguro("flappy", initMinigame);
+  seguro("recados", initBoard);
+  seguro("feira de ciências", initCircuit);
+  seguro("dino", initDino);
+  seguro("álbum", initPhotos);
+  seguro("dever de casa", initHomework);
+  seguro("pescaria", initFishing);
+  seguro("2048", init2048);
+  seguro("memória", initMemory);
+  seguro("color match", initColorMatch);
+  seguro("food drop", initFoodDrop);
+  seguro("match 3", initMatch3);
+  seguro("star popper", initStarPopper);
+  seguro("sky jump", initSkyJump);
+  seguro("cliff jump", initCliffJump);
+  seguro("hill drive", initHillDrive);
+  seguro("goal", initGoal);
+  seguro("connect", initConnect);
+
+  if (falhas.length) {
+    const aviso = document.createElement("div");
+    aviso.className = "aviso-falha";
+    aviso.textContent = `⚠️ Não deu para iniciar: ${falhas.join(", ")}. O resto do jogo funciona normalmente.`;
+    document.body.appendChild(aviso);
+    setTimeout(() => aviso.remove(), 9000);
+  }
+
   tick();
 
   setInterval(() => { if (room) syncDecay(); }, 60_000);

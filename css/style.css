@@ -709,3 +709,94 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   width: 100%; height: auto; display: block;
   border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none;
 }
+
+/* ============ FARMACINHA (remédio) ============ */
+.farmacia { margin-top: 14px; text-align: center; }
+.farmacia .cook-btn { background: #E8F0FF; color: var(--primary-d); }
+
+/* ============ CONNECT 2 ============ */
+.c2-wrap { position: relative; }
+.c2-grid {
+  display: grid; gap: 4px; padding: 6px;
+  background: #EFE3EE; border-radius: 14px; box-shadow: var(--shadow);
+}
+.c2-cel {
+  aspect-ratio: 1/1; border: 0; border-radius: 8px; cursor: pointer;
+  background: var(--surface); font-size: 1.15rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .1s, box-shadow .1s;
+}
+.c2-cel.vazia { background: transparent; box-shadow: none; cursor: default; }
+.c2-cel.sel { box-shadow: 0 0 0 3px var(--accent); transform: scale(1.1); }
+.c2-linha {
+  position: absolute; inset: 6px; pointer-events: none;
+  opacity: 0; transition: opacity .18s;
+}
+
+/* ============ CLIFF JUMP / HILL DRIVE / GOAL ============ */
+#cj-canvas, #hd-canvas, #gl-canvas {
+  width: 100%; height: auto; display: block;
+  border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none;
+}
+
+/* ============ ARCADES NOVOS ============ */
+#cj-canvas, #hd-canvas, #gl-canvas {
+  width: 100%; height: auto; display: block;
+  border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none;
+}
+.cn-wrap { display: flex; justify-content: center; }
+#cn-canvas {
+  width: 100%; max-width: 340px; height: auto; display: block;
+  border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none;
+}
+
+/* ============ FEIRA DE CIÊNCIAS (laboratório) ============ */
+.circuit-licao {
+  background: #EAF2FF; border-left: 4px solid var(--primary);
+  border-radius: 10px; padding: 10px 12px; margin: 0 0 10px;
+  font-size: .82rem; line-height: 1.45; color: var(--ink);
+}
+.comp-lead { stroke: #B7A98A; stroke-width: 4; stroke-linecap: round; }
+.comp-val  { fill: #2E2836; font-weight: 800; font-size: 11px; pointer-events: none; }
+.comp-hint { fill: #8A7E96; font-weight: 600; font-size: 9px; pointer-events: none; }
+.bateria   { fill: #FFE9A8; stroke: #C9A227; stroke-width: 2; }
+.resistor  { fill: #E8DCC0; stroke: #A8956E; stroke-width: 2; }
+.resistor.vazio { fill: #F3EFF8; stroke: var(--accent); stroke-dasharray: 4 3; }
+.wire-viva { stroke: #FFB020 !important; }
+
+/* multímetro */
+.medidor {
+  background: #232833; color: #CFE8D0; border-radius: 12px; padding: 10px 12px;
+  margin-top: 10px; font-family: ui-monospace, monospace; font-size: .8rem;
+}
+.med-titulo { font-weight: 700; color: #fff; margin-bottom: 6px; }
+.med-item { display: flex; justify-content: space-between; padding: 2px 0; }
+.med-item b { color: #7EFFA0; }
+.med-item.calc b { color: #FFD36B; }
+.med-vazio { color: #7E8896; }
+
+/* gaveta de resistores */
+.gaveta {
+  background: var(--surface); border-radius: 12px; box-shadow: var(--shadow);
+  padding: 12px; margin-top: 10px;
+}
+.gav-titulo { font-weight: 700; font-size: .82rem; margin-bottom: 8px; }
+.gav-linha { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.gav-btn {
+  border: 2px solid var(--accent); background: transparent; color: var(--primary-d);
+  border-radius: 10px; padding: 7px 10px; font: inherit; font-weight: 700;
+  font-size: .78rem; cursor: pointer;
+}
+.gav-btn.on { background: var(--accent); color: #fff; }
+
+.circuit-status { text-align: center; font-weight: 600; font-size: .85rem;
+  min-height: 2.4em; margin: 10px 0; color: var(--ink-soft); }
+.circuit-status.bom  { color: #2E7D4F; }
+.circuit-status.ruim { color: #C0392B; }
+
+/* aviso discreto quando algum módulo falha ao iniciar */
+.aviso-falha {
+  position: fixed; left: 12px; right: 12px; bottom: 78px; z-index: 95;
+  background: #4A3F55; color: #fff; border-radius: 12px; padding: 10px 14px;
+  font-size: .78rem; line-height: 1.4; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+}

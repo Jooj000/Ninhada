@@ -272,6 +272,32 @@ export function touchStreak() {
   });
 }
 
+/* ------------------------------------------------------------------
+ * REMÉDIO 💊 — cura o resfriado na hora, cobrando da casa.
+ * Também dá um empurrãozinho no ânimo (ficar doente é chato).
+ * ---------------------------------------------------------------- */
+export function giveMedicine(babyId) {
+  const out = { ok: false, motivo: "" };
+  if (!babyId) return Promise.resolve(out);
+  return runTransaction(roomRef, (room) => {
+    if (!room) return room;
+    const baby = room.babies && room.babies[babyId];
+    if (!baby) return room;
+    const custo = GAME_CONFIG.remedioCusto ?? 25;
+    if ((room.coins ?? 0) < custo) { out.motivo = "semSaldo"; return room; }
+
+    const now = Date.now();
+    const s = applyDecay(baby, now);
+    s.cold = false;                                  // resfriado curado
+    s.love = clamp((s.love ?? 0) + (GAME_CONFIG.remedioLove ?? 10));
+    s.xp = (s.xp ?? 0) + (GAME_CONFIG.remedioXp ?? 15);
+    room.coins = (room.coins ?? 0) - custo;
+    room.babies[babyId] = s;
+    out.ok = true;
+    return room;
+  }).then(() => out);
+}
+
 /* Cura um bebê específico. */
 export function healBaby(babyId) {
   return runTransaction(babyRef(babyId), (baby) => {

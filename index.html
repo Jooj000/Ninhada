@@ -146,6 +146,18 @@
       <button class="hub-card" data-goto="screen-skyjump" data-min-phase="crawling">
         <span class="hub-emoji">☁️</span><span class="hub-name">Sky Jump</span>
       </button>
+      <button class="hub-card" data-goto="screen-cliffjump" data-min-phase="crawling">
+        <span class="hub-emoji">🛹</span><span class="hub-name">Cliff Jump</span>
+      </button>
+      <button class="hub-card" data-goto="screen-hilldrive" data-min-phase="crawling">
+        <span class="hub-emoji">🚙</span><span class="hub-name">Hill Drive</span>
+      </button>
+      <button class="hub-card" data-goto="screen-goal" data-min-phase="newborn">
+        <span class="hub-emoji">⚽</span><span class="hub-name">Goal</span>
+      </button>
+      <button class="hub-card" data-goto="screen-connect" data-min-phase="toddler">
+        <span class="hub-emoji">🔗</span><span class="hub-name">Connect</span>
+      </button>
       <!-- Novos minigames entram como cards aqui, com data-min-phase. -->
     </div>
   </section>
@@ -190,11 +202,14 @@
       <h1 class="screen-title">Feira de Ciências</h1>
       <span id="circuit-level" class="arcade-active"></span>
     </header>
+    <p id="circuit-licao" class="circuit-licao"></p>
     <div id="circuit-root" class="circuit-wrap"></div>
-    <p id="circuit-status" class="hint"></p>
+    <div id="circuit-medidor" class="medidor"></div>
+    <div id="circuit-gaveta" class="gaveta" hidden></div>
+    <p id="circuit-status" class="circuit-status"></p>
     <div class="circuit-controls">
       <button id="circuit-clear" class="ghost-btn">Limpar fios</button>
-      <button id="circuit-new" class="ghost-btn">Novo desafio</button>
+      <button id="circuit-new" class="ghost-btn">Próximo nível</button>
     </div>
   </section>
 
@@ -258,6 +273,10 @@
     </header>
     <div id="bathroom-baby" class="room-baby-view"></div>
     <p class="touch-hint">Esfregue o bebê deslizando o dedo para dar banho 🫧</p>
+    <div class="farmacia">
+      <button id="med-btn" class="cook-btn">💊 Dar remédio</button>
+      <p id="med-msg" class="cook-msg"></p>
+    </div>
   </section>
 
   <!-- ============ CÔMODO: QUARTO (sono) ============ -->
@@ -324,6 +343,60 @@
     <p class="hint">Deslize (ou use as setas) para juntar as peças.</p>
   </section>
 
+  <!-- ---- sub-tela: Cliff Jump ---- -->
+  <section id="screen-cliffjump" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Cliff Jump</h1>
+    </header>
+    <div class="mini-wrap">
+      <canvas id="cj-canvas"></canvas>
+      <div id="cj-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
+    </div>
+    <p class="hint">Toque para pular · segure para pular mais alto · toque de novo no ar para o pulo duplo</p>
+  </section>
+
+  <!-- ---- sub-tela: Hill Drive ---- -->
+  <section id="screen-hilldrive" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Hill Drive</h1>
+    </header>
+    <div class="mini-wrap">
+      <canvas id="hd-canvas"></canvas>
+      <div id="hd-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
+    </div>
+    <p class="hint">Lado direito acelera, esquerdo freia. Cuidado para não capotar!</p>
+  </section>
+
+  <!-- ---- sub-tela: Goal ---- -->
+  <section id="screen-goal" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Goal</h1>
+    </header>
+    <div class="mini-wrap">
+      <canvas id="gl-canvas"></canvas>
+      <div id="gl-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
+    </div>
+    <p id="gl-msg" class="cook-msg"></p>
+    <p class="hint">Deslize da bola até o alvo verde. Depois de 3 gols o alvo começa a andar!</p>
+  </section>
+
+  <!-- ---- sub-tela: Connect ---- -->
+  <section id="screen-connect" class="screen">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-arcade">←</button>
+      <h1 class="screen-title">Connect</h1>
+    </header>
+    <p id="cn-hud" class="hint"></p>
+    <div class="cm-timer-bar"><div id="cn-timer" class="cm-timer-fill"></div></div>
+    <div class="cn-wrap"><canvas id="cn-canvas"></canvas></div>
+    <p id="cn-msg" class="cook-msg"></p>
+    <button id="cn-new" class="cook-btn">Começar</button>
+    <p class="hint">Ligue os pares iguais. Só vale se NENHUMA casa ficar vazia!</p>
+  </section>
+
   <!-- ---- sub-tela: Star Popper ---- -->
   <section id="screen-starpopper" class="screen">
     <header class="topbar">
@@ -347,7 +420,7 @@
       <canvas id="sj-canvas"></canvas>
       <div id="sj-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
     </div>
-    <p class="hint">Arraste para os lados. Plataformas rosas quebram — pegue as 🪙!</p>
+    <p class="hint">No celular, incline para os lados (ou arraste). Dá para atravessar a borda! Plataformas rosas quebram — pegue as 🪙</p>
   </section>
 
   <!-- ---- sub-tela: Match 3 ---- -->

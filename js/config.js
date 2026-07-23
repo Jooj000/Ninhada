@@ -47,6 +47,9 @@ export const GAME_CONFIG = {
   funPerMinigame:      BALANCE.care.funPerMinigame,
   xpPerCare:           BALANCE.care.xpPerCare,
   xpPerAction:         BALANCE.care.xpPerAction,
+  remedioCusto:        BALANCE.care.remedioCusto,
+  remedioLove:         BALANCE.care.remedioLove,
+  remedioXp:           BALANCE.care.remedioXp,
 
   startingCoins:       BALANCE.economy.startingCoins,
   adoptCost:           BALANCE.economy.adoptCost,
@@ -71,6 +74,8 @@ export const GAME_CONFIG = {
 };
 
 export const MINIGAMES = BALANCE.minigames;
+export const STARPOPPER = BALANCE.starpopper;
+export const SKYJUMP = BALANCE.skyjump;
 export const TIER_MULTIPLIER = BALANCE.tierMultiplier;
 export const NOTIFY = BALANCE.notify;
 export const WEATHER = {

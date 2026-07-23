@@ -9,6 +9,7 @@
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { SKYJUMP as SJ } from "./config.js";
 
 export function initSkyJump() {
   const canvas = document.getElementById("sj-canvas");
@@ -17,24 +18,28 @@ export function initSkyJump() {
   const W = (canvas.width = 320);
   const H = (canvas.height = 460);
 
-  const GRAV = 0.42, PULO = -11.4, LARG = 62, ALT = 12;
-  const N_PLATS = 6;      // menos plataformas = dá pra errar de verdade
-  const VAO = 92;         // distância vertical entre elas
+  const GRAV = SJ.gravidade, PULO = -SJ.forcaPulo, LARG = 62, ALT = 12;
+  const N_PLATS = SJ.plataformas;
+  /* Vão entre plataformas: o máximo fica logo abaixo da altura do pulo
+   * (forcaPulo² / 2·gravidade ≈ 155 px), então sempre dá pra alcançar —
+   * mas por pouco. */
+  const VAO_MIN = SJ.vaoMin, VAO_MAX = SJ.vaoMax;
+  const sorteiaVao = () => VAO_MIN + Math.random() * (VAO_MAX - VAO_MIN);
   let heroi, plats, altura, camera, rodando, morto, lastT = 0, alvoX = null;
   let moedas, metrosPagos;
 
   function novaPlat(y) {
-    const quebra = altura > 300 && Math.random() < 0.28;    // mais quebradiças
+    const quebra = altura > 300 && Math.random() < SJ.chanceQuebra;
     const p = { x: 10 + Math.random() * (W - LARG - 20), y, quebra, usada: false };
     // ~28% das plataformas trazem uma moeda flutuando acima
-    if (Math.random() < 0.28) p.moeda = { dy: -26, pego: false };
+    if (Math.random() < SJ.chanceMoeda) p.moeda = { dy: -26, pego: false };
     return p;
   }
 
   function reset() {
     heroi = { x: W / 2 - 16, y: H - 120, vy: 0, vx: 0, w: 32, h: 32 };
     plats = [{ x: W / 2 - LARG / 2, y: H - 60, quebra: false, usada: false }];
-    for (let i = 1; i < N_PLATS; i++) plats.push(novaPlat(H - 60 - i * VAO));
+    { let y = H - 60; for (let i = 1; i < N_PLATS; i++) { y -= sorteiaVao(); plats.push(novaPlat(y)); } }
     altura = 0; camera = 0; rodando = false; morto = false; alvoX = null;
     moedas = 0; metrosPagos = 0;
     setOverlay("Toque para começar", "Arraste para os lados!");
@@ -49,12 +54,17 @@ export function initSkyJump() {
   function update(dt) {
     if (!rodando || morto) return;
 
-    // horizontal: segue o dedo, com atravessamento nas bordas
-    if (alvoX !== null) heroi.vx = (alvoX - (heroi.x + heroi.w / 2)) * 0.18;
+    // horizontal: o dedo tem prioridade; sem dedo, vale a inclinação
+    if (alvoX !== null) {
+      heroi.vx = (alvoX - (heroi.x + heroi.w / 2)) * 0.18;
+    } else if (tiltLigado && Math.abs(inclinacao) > 0.06) {
+      heroi.vx += inclinacao * (SJ.sensibilidadeInclinacao ?? 1.1) * dt;
+    }
     heroi.vx *= 0.88;
     heroi.x += heroi.vx * dt;
+    // ATRAVESSAR A BORDA: sai de um lado, entra pelo outro
     if (heroi.x + heroi.w < 0) heroi.x = W;
-    if (heroi.x > W) heroi.x = -heroi.w;
+    else if (heroi.x > W) heroi.x = -heroi.w;
 
     heroi.vy += GRAV * dt;
     heroi.y += heroi.vy * dt;
@@ -84,7 +94,7 @@ export function initSkyJump() {
     plats = plats.filter((p) => p.y < H + 30);
     while (plats.length < N_PLATS) {
       const maisAlta = Math.min(...plats.map((p) => p.y));
-      plats.push(novaPlat(maisAlta - (VAO - 18 + Math.random() * 36)));
+      plats.push(novaPlat(maisAlta - sorteiaVao()));
     }
 
     // pegar moedas (basta encostar)
@@ -153,6 +163,10 @@ export function initSkyJump() {
     ctx.textAlign = "right"; ctx.font = "bold 12px system-ui, sans-serif";
     ctx.fillStyle = "#8A7E96";
     ctx.fillText(`🏆 ${getRecord("skyjump")}`, W - 12, 26);
+    if (tiltLigado) {
+      ctx.fillStyle = "rgba(74,63,85,.5)";
+      ctx.fillText("📱 incline o celular", W - 12, 44);
+    }
   }
 
   function loop(t) {
@@ -169,15 +183,48 @@ export function initSkyJump() {
     ov.querySelector(".mini-sub").textContent = sub;
   }
 
+  /* ---------------- INCLINAÇÃO (só celular) ----------------
+   * `gamma` é a inclinação esquerda/direita em graus. Enquanto o dedo
+   * estiver na tela, o toque manda (a inclinação fica em espera).
+   * No iOS 13+ é obrigatório pedir permissão a partir de um toque. */
+  let inclinacao = 0, tiltLigado = false;
+
+  const ehCelular = () =>
+    window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+
+  function ouvirInclinacao() {
+    if (tiltLigado) return;
+    tiltLigado = true;
+    window.addEventListener("deviceorientation", (e) => {
+      if (e.gamma == null) return;
+      // limita a ±35°, o suficiente para virar o celular sem exagero
+      inclinacao = Math.max(-35, Math.min(35, e.gamma)) / 35;
+    });
+  }
+
+  async function ligarInclinacao() {
+    if (!ehCelular()) return;
+    const D = window.DeviceOrientationEvent;
+    if (!D) return;
+    if (typeof D.requestPermission === "function") {     // iOS 13+
+      try {
+        const r = await D.requestPermission();
+        if (r === "granted") ouvirInclinacao();
+      } catch (_) { /* usuário recusou: continua no toque */ }
+    } else {
+      ouvirInclinacao();                                  // Android
+    }
+  }
+
   const seguir = (e) => {
     const rect = canvas.getBoundingClientRect();
     alvoX = ((e.clientX - rect.left) / rect.width) * W;
   };
   canvas.style.touchAction = "none";
-  canvas.addEventListener("pointerdown", (e) => { comecar(); seguir(e); });
+  canvas.addEventListener("pointerdown", (e) => { ligarInclinacao(); comecar(); seguir(e); });
   canvas.addEventListener("pointermove", (e) => { if (e.pressure > 0 || e.buttons) seguir(e); });
   canvas.addEventListener("pointerup", () => { alvoX = null; });
-  document.getElementById("sj-overlay").addEventListener("pointerdown", comecar);
+  document.getElementById("sj-overlay").addEventListener("pointerdown", () => { ligarInclinacao(); comecar(); });
 
   window.addEventListener("keydown", (e) => {
     const tela = document.getElementById("screen-skyjump");
