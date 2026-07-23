@@ -71,23 +71,28 @@ export function initSkyJump() {
      *   -> atrito -> posição
      * Assim o boneco demora a engrenar, CONTINUA deslizando quando o
      * aparelho volta ao centro e para aos poucos. */
+    /* As fontes de controle SOMAM suas acelerações — nenhuma desliga a
+     * outra. (Antes era um `else if`: bastava o arraste deixar um alvo
+     * preso para a INCLINAÇÃO parar de responder para sempre.)
+     * E nada aqui olha se o Pou está no ar ou pisando: o controle
+     * horizontal vale IGUAL nos dois casos. */
     let ax = 0;
 
+    if (tiltLigado) {
+      // grausSuaves já vem filtrado (passa-baixa) do sensor
+      const zona = SJ.zonaMortaGraus ?? 6;
+      const g = Math.abs(grausSuaves) - zona;
+      if (g > 0) ax += Math.sign(grausSuaves) * g * (SJ.acelPorGrau ?? 0.030);
+      // dentro da zona morta não soma nada: o boneco segue por INÉRCIA
+    }
     if (alvoX !== null) {
       // arrastar o dedo também ACELERA rumo ao ponto (não teleporta a vel.)
-      ax = (alvoX - (heroi.x + heroi.w / 2)) * (SJ.acelToque ?? 0.014);
-    } else if (setaX !== 0) {
-      ax = setaX * (SJ.acelSeta ?? 0.42);
-    } else if (tiltLigado) {
-      // grausSuaves já vem filtrado (passa-baixa) do sensor
-      const zona = SJ.zonaMortaGraus ?? 7;
-      const g = Math.abs(grausSuaves) - zona;
-      if (g > 0) ax = Math.sign(grausSuaves) * g * (SJ.acelPorGrau ?? 0.012);
-      // dentro da zona morta ax = 0: o boneco segue por INÉRCIA
+      ax += (alvoX - (heroi.x + heroi.w / 2)) * (SJ.acelToque ?? 0.0011);
     }
+    if (setaX !== 0) ax += setaX * (SJ.acelSeta ?? 0.2);
 
     heroi.vx += ax * dt;                       // integra: v = ∫a
-    heroi.vx *= Math.pow(SJ.atritoH ?? 0.985, dt);   // atrito suave e contínuo
+    heroi.vx *= Math.pow(SJ.atritoH ?? 0.93, dt);   // atrito suave e contínuo
 
     // ÚNICO limite é a velocidade — a aceleração nunca é cortada
     const VMAX = SJ.velMaxH ?? 6.5;
@@ -249,8 +254,13 @@ export function initSkyJump() {
   canvas.style.touchAction = "none";
   canvas.addEventListener("pointerdown", (e) => { ligarInclinacao(); comecar(); seguir(e); });
   canvas.addEventListener("pointermove", (e) => { if (e.pressure > 0 || e.buttons) seguir(e); });
-  canvas.addEventListener("pointerup", () => { alvoX = null; });
-  canvas.addEventListener("pointercancel", () => { alvoX = null; });
+  /* no WINDOW: se o dedo escorregar para fora do canvas, o alvo é
+   * liberado do mesmo jeito (se ficasse preso, o arraste continuaria
+   * "puxando" o boneco e a inclinação parecia morta). */
+  const soltar = () => { alvoX = null; };
+  window.addEventListener("pointerup", soltar);
+  window.addEventListener("pointercancel", soltar);
+  canvas.addEventListener("lostpointercapture", soltar);
   document.getElementById("sj-overlay").addEventListener("pointerdown", () => { ligarInclinacao(); comecar(); });
 
   window.addEventListener("keydown", (e) => {

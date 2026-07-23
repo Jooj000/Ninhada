@@ -32,7 +32,7 @@ export function initHillDrive() {
   const view = fullscreenCanvas(canvas, "screen-hilldrive");
   const ctx = view.ctx;
 
-  let W = 360, H = 640, s = 1, BASE = 380, CAR = 46, RODAS = 32, CLR = 20, GRAV = 0.42;
+  let W = 360, H = 640, s = 1, BASE = 380, CAR = 46, RODAS = 32, CLR = 20, GRAV = 0.42, ALONGA = 1.3;
 
   let carro, cam, rodando, morto, lastT = 0, moedas, pegas;
   let ultimaMoedaX = 0;
@@ -43,8 +43,9 @@ export function initHillDrive() {
     s = Math.max(1, Math.min(2.4, H / 300));
     BASE = H * 0.58;
     CAR = Math.max(40, Math.min(84, HD.tamanhoCarro * s));
-    RODAS = CAR * 0.68;       // distância entre as rodas
-    CLR = CAR * 0.42;         // altura do centro acima do chão
+    ALONGA = HD.alongarCorpo ?? 1.3;    // só estica na HORIZONTAL
+    RODAS = CAR * 0.68 * ALONGA;        // entre-eixos maior = mais comprido
+    CLR = CAR * 0.42;                   // altura do centro acima do chão
     GRAV = HD.gravidade * s;
   }
 
@@ -69,7 +70,7 @@ export function initHillDrive() {
       vx: 0, vy: 0, ang: anguloRodas(60 * s), va: 0,
       noChao: true, parado: 0,
     };
-    cam = 0; rodando = false; morto = false; acelera = 0;
+    cam = 0; rodando = false; morto = false; acelera = 0; empinada = 0;
     moedas = []; pegas = 0;
     ultimaMoedaX = 300 * s;
     for (let i = 0; i < 40; i++) {
@@ -111,6 +112,14 @@ export function initHillDrive() {
       v *= Math.pow(HD.atritoSolo, dt);
       v = Math.max(HD.velMinRe * s, Math.min(HD.velMax * s, v));
 
+      /* EMPINAR NO CHÃO: o torque do motor levanta o nariz enquanto as
+       * rodas ainda tocam. Guardamos essa inclinação extra para somar
+       * ao ângulo do relevo — é o que dá o "cavalinho" do Hill Climb. */
+      /* sinal: nariz para CIMA é ângulo NEGATIVO, e `alvoAng` subtrai
+       * `empinada` — então acelerar tem de fazer `empinada` CRESCER. */
+      empinada += (acelera * (HD.torqueSolo ?? 1.2) * 0.02 - empinada * 0.06) * dt;
+      empinada = Math.max(-0.35, Math.min(0.9, empinada));
+
       carro.vx = v * cos;
       carro.x += carro.vx * dt;
       if (carro.x < 0) { carro.x = 0; carro.vx = 0; v = 0; }
@@ -139,11 +148,14 @@ export function initHillDrive() {
          * taxa d(inclinação)/dt. Ao decolar ele CONSERVA esse giro — por
          * isso uma crista aguda cospe o carro rodando para trás. */
         carro.va = normAng(incNovo - inc) / Math.max(dt, 0.0001) * (HD.giroCrista ?? 0.9);
+        empinada = 0;                 // no ar quem manda é o torque do ar
       } else {
         carro.y = chaoY;
         carro.vy = vyLadeira;
-        // o carro assenta rápido no ângulo real das rodas
-        carro.ang += normAng(incNovo - carro.ang) * Math.min(1, 0.5 * dt);
+        /* assenta no ângulo das rodas MAIS a empinada do motor: é o
+         * "cavalinho" com a roda de trás ainda no chão. */
+        const alvoAng = incNovo - empinada;
+        carro.ang += normAng(alvoAng - carro.ang) * Math.min(1, 0.5 * dt);
         carro.va = 0;
       }
     } else {
@@ -266,7 +278,8 @@ export function initHillDrive() {
     ctx.translate(carro.x - cam, carro.y);
     ctx.rotate(carro.ang);
     desenharBebe(ctx, 0, -CAR * 0.16, CAR * 0.72, { soCabeca: true });
-    ctx.scale(-1, 1);
+    // esticado na horizontal: fica um carrinho mais COMPRIDO
+    ctx.scale(-ALONGA, 1);
     ctx.font = `${CAR}px system-ui, sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
     ctx.fillText("🚙", 0, CAR * 0.34);

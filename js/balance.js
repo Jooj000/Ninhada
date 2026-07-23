@@ -142,17 +142,19 @@ export const BALANCE = {
     // voo de verdade. E TOPO PESADO: a criança sentada em cima fica
     // ACIMA do eixo das rodas, então no ar o peso dela faz o carro girar
     // sozinho — quem não corrigir com os pedais, capota.
-    gravidade: 0.30,
+    gravidade: 0.24,           // mais LEVE: sai do chão fácil
     motor: 0.30,            // força de aceleração
     freio: 0.34,            // força da ré/freio
     atritoSolo: 0.988,      // quanto o carro perde de velocidade sozinho
     velMax: 10.5,
     velMinRe: -3.2,
     // Rotação no ar: acelerar empina, frear abaixa o nariz.
-    torqueAr: 0.016,
+    torqueAr: 0.030,           // FORÇA para empinar/corrigir no ar
     atritoAngular: 0.996,   // o giro quase não amortece sozinho
     giroCrista: 0.5,        // ao decolar, herda o giro que a rampa impôs
     topoPesado: 0.0055,     // desequilíbrio do peso alto (o que faz capotar)
+    alongarCorpo: 1.3,      // carroceria mais COMPRIDA (só na horizontal)
+    torqueSolo: 1.2,        // no chão o motor já empina (~23° de cavalinho)
     // Só perde quando a CABEÇA da criança encosta no chão (como no
     // Hill Climb Racing). Inclinar o carro por si só não derruba.
     // Altura da cabeça MEDIDA A PARTIR DO CHÃO (fração do tamanho do carro).
@@ -182,16 +184,18 @@ export const BALANCE = {
      * Resultado: o boneco DEMORA a ganhar velocidade, CONTINUA deslizando
      * quando o celular volta ao centro e para aos poucos. */
     filtroInclinacao: 0.18,     // passa-baixa (0..1): menor = mais suave
-    zonaMortaGraus: 7,          // até ±7° ele nem se mexe
+    zonaMortaGraus: 6,          // até ±6° ele nem se mexe
     grausMax: 24,               // leitura do sensor satura aqui
     /* Calibrados para a velocidade terminal NATURAL (aceleração ÷ atrito)
      * já dar ~velMaxH: o teto quase nunca é acionado, então o movimento
      * é físico e não "no limite do joystick". Com estes números:
-     *   inclinação máxima -> topo de velocidade em ~1,3 s
-     *   nivelou o aparelho -> desliza ~220 px por ~2 s antes de parar
-     *   inverter o lado    -> ~0,5 s (dá pra sentir o peso) */
-    acelPorGrau: 0.012,         // aceleração por grau ALÉM da zona morta
-    atritoH: 0.97,              // por frame: desacelera devagar ao nivelar
+     *   inclinação máxima -> topo de velocidade em ~0,5 s
+     *   nivelou o aparelho -> desliza ~85 px por ~0,9 s antes de parar
+     *   num único pulo (~0,75 s) já dá pra atravessar meia tela
+     * Ainda é massa com inércia, mas responde dentro do arco de UM pulo
+     * — antes demorava mais que o pulo inteiro e parecia travado. */
+    acelPorGrau: 0.030,         // aceleração por grau ALÉM da zona morta
+    atritoH: 0.93,              // por frame: desacelera devagar ao nivelar
     velMaxH: 6.5,               // ÚNICO teto: a velocidade (nunca a aceleração)
     acelToque: 0.0011,          // arrastar: aceleração rumo ao dedo (por px)
     acelSeta: 0.2,              // setas do teclado: aceleração constante
