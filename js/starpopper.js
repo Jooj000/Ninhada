@@ -226,7 +226,7 @@ export function initStarPopper() {
     const vx = bala.vx * c - bala.vy * sn;      // velocidade no referencial da massa
     const vy = bala.vx * sn + bala.vy * c;
     const torque = loc.x * vy - loc.y * vx;    // componente z do produto vetorial
-    vAng += torque * (SP.torque ?? 0.00055) * 0.001;
+    vAng += (torque / 1000) * (SP.torque ?? 0.115);
     const teto = SP.giroMax ?? 0.05;
     vAng = Math.max(-teto, Math.min(teto, vAng));
 
@@ -275,8 +275,8 @@ export function initStarPopper() {
     if (!rodando || morto) return;
 
     ang += vAng * dt;
-    vAng *= Math.pow(SP.atrito ?? 0.996, dt);     // atrito: desacelera devagar
-    if (Math.abs(vAng) < 0.00008) vAng = 0;
+    vAng *= Math.pow(SP.atrito ?? 0.9903, dt);    // atrito: para sozinho em ~10 s
+    if (Math.abs(vAng) < (SP.pisoGiro ?? 0.0001)) vAng = 0;
 
     cresceEm -= dt * (1000 / 60);
     if (cresceEm <= 0) {

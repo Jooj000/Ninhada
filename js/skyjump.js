@@ -57,10 +57,14 @@ export function initSkyJump() {
     // horizontal: o dedo tem prioridade; sem dedo, vale a inclinação
     if (alvoX !== null) {
       heroi.vx = (alvoX - (heroi.x + heroi.w / 2)) * 0.18;
-    } else if (tiltLigado && Math.abs(inclinacao) > 0.06) {
-      heroi.vx += inclinacao * (SJ.sensibilidadeInclinacao ?? 1.1) * dt;
+    } else if (tiltLigado) {
+      // a inclinação vira VELOCIDADE ALVO e o bebê chega nela rápido:
+      // acumular aceleração dava aquela sensação de atraso ao virar o celular
+      const alvoVx = Math.abs(inclinacao) < 0.05 ? 0 : inclinacao * (SJ.velMaxInclinacao ?? 6.5);
+      const resp = Math.min(1, (SJ.respostaInclinacao ?? 0.45) * dt);
+      heroi.vx += (alvoVx - heroi.vx) * resp;
     }
-    heroi.vx *= 0.88;
+    if (alvoX !== null || !tiltLigado) heroi.vx *= 0.88;
     heroi.x += heroi.vx * dt;
     // ATRAVESSAR A BORDA: sai de um lado, entra pelo outro
     if (heroi.x + heroi.w < 0) heroi.x = W;
@@ -197,8 +201,8 @@ export function initSkyJump() {
     tiltLigado = true;
     window.addEventListener("deviceorientation", (e) => {
       if (e.gamma == null) return;
-      // limita a ±35°, o suficiente para virar o celular sem exagero
-      inclinacao = Math.max(-35, Math.min(35, e.gamma)) / 35;
+      const g = SJ.grausMax ?? 26;
+      inclinacao = Math.max(-g, Math.min(g, e.gamma)) / g;
     });
   }
 

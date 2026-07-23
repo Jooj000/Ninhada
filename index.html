@@ -146,9 +146,6 @@
       <button class="hub-card" data-goto="screen-skyjump" data-min-phase="crawling">
         <span class="hub-emoji">☁️</span><span class="hub-name">Sky Jump</span>
       </button>
-      <button class="hub-card" data-goto="screen-cliffjump" data-min-phase="crawling">
-        <span class="hub-emoji">🛹</span><span class="hub-name">Cliff Jump</span>
-      </button>
       <button class="hub-card" data-goto="screen-hilldrive" data-min-phase="crawling">
         <span class="hub-emoji">🚙</span><span class="hub-name">Hill Drive</span>
       </button>
@@ -343,19 +340,6 @@
     <p class="hint">Deslize (ou use as setas) para juntar as peças.</p>
   </section>
 
-  <!-- ---- sub-tela: Cliff Jump ---- -->
-  <section id="screen-cliffjump" class="screen">
-    <header class="topbar">
-      <button class="back-btn" data-goto="screen-arcade">←</button>
-      <h1 class="screen-title">Cliff Jump</h1>
-    </header>
-    <div class="mini-wrap">
-      <canvas id="cj-canvas"></canvas>
-      <div id="cj-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
-    </div>
-    <p class="hint">Toque para pular · segure para pular mais alto · toque de novo no ar para o pulo duplo</p>
-  </section>
-
   <!-- ---- sub-tela: Hill Drive ---- -->
   <section id="screen-hilldrive" class="screen">
     <header class="topbar">
@@ -380,7 +364,7 @@
       <div id="gl-overlay" class="mini-overlay"><div class="mini-title"></div><div class="mini-sub"></div></div>
     </div>
     <p id="gl-msg" class="cook-msg"></p>
-    <p class="hint">Deslize da bola até o alvo verde. Depois de 3 gols o alvo começa a andar!</p>
+    <p class="hint">Arraste para escolher o LADO e solte — só a direção conta. É gol dentro do alvo verde; fora dele a criança defende!</p>
   </section>
 
   <!-- ---- sub-tela: Connect ---- -->

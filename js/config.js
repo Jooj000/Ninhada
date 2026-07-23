@@ -76,6 +76,7 @@ export const GAME_CONFIG = {
 export const MINIGAMES = BALANCE.minigames;
 export const STARPOPPER = BALANCE.starpopper;
 export const SKYJUMP = BALANCE.skyjump;
+export const HILLDRIVE = BALANCE.hilldrive;
 export const TIER_MULTIPLIER = BALANCE.tierMultiplier;
 export const NOTIFY = BALANCE.notify;
 export const WEATHER = {

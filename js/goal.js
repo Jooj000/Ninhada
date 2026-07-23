@@ -1,10 +1,12 @@
 /* =====================================================================
  * goal.js — GOAL (cobrança de pênalti)
  * ---------------------------------------------------------------------
- * Regra do original (fonte: wikis do Pou): há um ALVO VERDE dentro do
- * gol e você desliza o dedo até ele para chutar. A partir de certo
- * ponto o alvo começa a se mexer, e o goleiro tenta defender.
- * Errar o gol (ou o goleiro pegar) custa uma chance.
+ * Como no original: NÃO existe força de chute, só DIREÇÃO. O alvo verde
+ * corre na HORIZONTAL dentro do gol e você escolhe onde a bola vai.
+ *
+ * O goleiro é a própria criança: ela se joga para o lado da bola e
+ * DEFENDE tudo que não passar dentro do alvo. Ou seja, o alvo é
+ * justamente o cantinho onde ela não alcança.
  * ===================================================================== */
 
 import { rewardGame, getRecord } from "./firebase-sync.js";
@@ -17,28 +19,30 @@ export function initGoal() {
   const ctx = canvas.getContext("2d");
   const W = (canvas.width = 360), H = (canvas.height = 420);
 
-  // trave
-  const GX = 40, GY = 60, GW = W - 80, GH = 150;
+  const GX = 34, GY = 62, GW = W - 68, GH = 156;      // trave
+  const LINHA = GY + GH;                               // linha do gol
+  const BOLA0 = { x: W / 2, y: H - 56 };
 
-  let alvo, bola, goleiro, gols, chances, rodando, morto, lastT = 0, estado;
-  let arrastando = null;
+  let alvo, bola, goleiro, gols, chances, rodando, morto, estado, lastT = 0;
+  let mira = W / 2, apontando = false;
 
   function reset() {
     gols = 0; chances = 3; rodando = false; morto = false; estado = "mira";
+    mira = W / 2;
     novoAlvo();
-    bola = { x: W / 2, y: H - 60, vx: 0, vy: 0, r: 12, viva: false };
-    goleiro = { x: W / 2, alvoX: W / 2, w: 54, vel: 2.4 };
-    setOverlay("Toque para começar", "Deslize o dedo até o alvo verde!");
+    bola = { ...BOLA0, vx: 0, vy: 0, r: 13, viva: false, t: 0 };
+    goleiro = { x: W / 2, alvoX: W / 2, pulo: 0, defendeu: false };
+    setOverlay("Toque para começar", "Arraste para escolher o LADO e solte");
     desenhar();
   }
 
   function novoAlvo() {
-    const mov = gols >= 3;                       // depois de 3 gols, o alvo se mexe
+    const larg = Math.max(46, 84 - gols * 5);          // vai apertando
+    const move = gols >= 2;
     alvo = {
-      x: GX + 26 + Math.random() * (GW - 52),
-      y: GY + 24 + Math.random() * (GH - 48),
-      r: Math.max(16, 26 - gols),                // vai encolhendo
-      vx: mov ? (Math.random() < 0.5 ? -1 : 1) * (0.9 + gols * 0.12) : 0,
+      x: GX + larg / 2 + Math.random() * (GW - larg),
+      larg,
+      vx: move ? (Math.random() < 0.5 ? -1 : 1) * (1.1 + gols * 0.22) : 0,
     };
   }
 
@@ -47,57 +51,61 @@ export function initGoal() {
     if (!rodando) { rodando = true; setOverlay("", ""); }
   }
 
-  function chutar(destX, destY) {
+  /* Chuta: só a DIREÇÃO importa; a velocidade é sempre a mesma. */
+  function chutar() {
     if (!rodando || bola.viva || estado !== "mira") return;
-    const dx = destX - bola.x, dy = destY - bola.y;
+    const destinoX = Math.max(GX + 6, Math.min(GX + GW - 6, mira));
+    const dx = destinoX - bola.x, dy = LINHA - 30 - bola.y;
     const d = Math.hypot(dx, dy) || 1;
-    const forca = 9;
-    bola.vx = (dx / d) * forca; bola.vy = (dy / d) * forca;
-    bola.viva = true; estado = "voando";
-    // o goleiro só reage depois de um instante (senão pegava tudo)
-    setTimeout(() => { goleiro.alvoX = destX + (Math.random() - 0.5) * 130; }, 130);
+    const V = 8.5;                                     // fixa: sem força de chute
+    bola.vx = (dx / d) * V; bola.vy = (dy / d) * V;
+    bola.viva = true; bola.destinoX = destinoX;
+    estado = "voando";
+    goleiro.defendeu = false;
   }
 
   function update(dt) {
     if (!rodando || morto) return;
 
+    // alvo corre só na horizontal
     if (alvo.vx) {
       alvo.x += alvo.vx * dt;
-      if (alvo.x < GX + alvo.r || alvo.x > GX + GW - alvo.r) alvo.vx *= -1;
+      if (alvo.x - alvo.larg / 2 < GX) { alvo.x = GX + alvo.larg / 2; alvo.vx *= -1; }
+      if (alvo.x + alvo.larg / 2 > GX + GW) { alvo.x = GX + GW - alvo.larg / 2; alvo.vx *= -1; }
     }
 
-    goleiro.x += (goleiro.alvoX - goleiro.x) * 0.06 * dt;
-    goleiro.x = Math.max(GX + goleiro.w / 2, Math.min(GX + GW - goleiro.w / 2, goleiro.x));
+    // goleiro: fica no meio; quando a bola sai, se joga para o lado dela
+    const destino = bola.viva ? bola.destinoX : W / 2;
+    goleiro.alvoX += (destino - goleiro.alvoX) * Math.min(1, 0.075 * dt);
+    goleiro.x += (goleiro.alvoX - goleiro.x) * Math.min(1, 0.16 * dt);
+    goleiro.pulo = bola.viva ? Math.min(1, goleiro.pulo + 0.05 * dt) : Math.max(0, goleiro.pulo - 0.1 * dt);
 
     if (!bola.viva) return;
     bola.x += bola.vx * dt; bola.y += bola.vy * dt;
-    bola.r = Math.max(5, bola.r - 0.06 * dt);        // perspectiva: diminui ao longe
+    bola.t += dt;
+    bola.r = Math.max(6, 13 - bola.t * 0.08);          // afasta = diminui
 
-    if (bola.y <= GY + GH) {                          // chegou na linha do gol
-      const dentro = bola.x > GX && bola.x < GX + GW && bola.y > GY;
-      const pegou = Math.abs(bola.x - goleiro.x) < goleiro.w / 2 + bola.r
-                    && bola.y > GY + GH - 46;
-      if (pegou) resultado(false, "O goleiro pegou! 🧤");
-      else if (dentro) {
-        const acertouAlvo = Math.hypot(bola.x - alvo.x, bola.y - alvo.y) < alvo.r + bola.r;
-        if (acertouAlvo) resultado(true, "GOL NO ALVO! ⚽🎯");
-        else resultado(false, "Fora do alvo!");
-      } else resultado(false, "Pra fora! 😬");
+    if (bola.y <= LINHA - 26) {
+      const dentroDoGol = bola.x > GX && bola.x < GX + GW;
+      const noAlvo = Math.abs(bola.x - alvo.x) < alvo.larg / 2;
+      if (!dentroDoGol) resultado(false, "Pra fora! 😬");
+      else if (noAlvo) resultado(true, "GOL! ⚽🎯");
+      else { goleiro.defendeu = true; resultado(false, "A criança defendeu! 🧤"); }
     }
-    if (bola.y < -30 || bola.x < -30 || bola.x > W + 30) resultado(false, "Pra fora! 😬");
   }
 
   function resultado(marcou, msg) {
     bola.viva = false; estado = "espera";
     if (marcou) gols++; else chances--;
-    document.getElementById("gl-msg").textContent = msg;
+    const el = document.getElementById("gl-msg");
+    if (el) el.textContent = msg;
     setTimeout(() => {
       if (chances <= 0) return fim();
-      bola = { x: W / 2, y: H - 60, vx: 0, vy: 0, r: 12, viva: false };
-      goleiro.alvoX = W / 2;
+      bola = { ...BOLA0, vx: 0, vy: 0, r: 13, viva: false, t: 0 };
+      goleiro.pulo = 0; goleiro.defendeu = false;
       novoAlvo();
       estado = "mira";
-    }, 800);
+    }, 850);
   }
 
   async function fim() {
@@ -112,40 +120,55 @@ export function initGoal() {
   }
 
   function desenhar() {
-    ctx.fillStyle = "#6BB77B"; ctx.fillRect(0, 0, W, H);        // gramado
-    ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 3;
-    ctx.strokeRect(GX - 22, GY, GW + 44, GH + 70);              // grande área
+    ctx.fillStyle = "#6BB77B"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#63AE74";
+    for (let i = 0; i < 6; i++) ctx.fillRect(0, GY + GH + 20 + i * 34, W, 17);
+
+    ctx.strokeStyle = "rgba(255,255,255,.32)"; ctx.lineWidth = 3;
+    ctx.strokeRect(GX - 20, GY, GW + 40, GH + 66);
 
     // rede
-    ctx.fillStyle = "rgba(255,255,255,.14)"; ctx.fillRect(GX, GY, GW, GH);
-    ctx.strokeStyle = "rgba(255,255,255,.3)"; ctx.lineWidth = 1;
-    for (let x = GX; x <= GX + GW; x += 16) {
-      ctx.beginPath(); ctx.moveTo(x, GY); ctx.lineTo(x, GY + GH); ctx.stroke();
-    }
-    for (let y = GY; y <= GY + GH; y += 16) {
-      ctx.beginPath(); ctx.moveTo(GX, y); ctx.lineTo(GX + GW, y); ctx.stroke();
-    }
+    ctx.fillStyle = "rgba(255,255,255,.13)"; ctx.fillRect(GX, GY, GW, GH);
+    ctx.strokeStyle = "rgba(255,255,255,.28)"; ctx.lineWidth = 1;
+    for (let x = GX; x <= GX + GW; x += 15) { ctx.beginPath(); ctx.moveTo(x, GY); ctx.lineTo(x, GY + GH); ctx.stroke(); }
+    for (let y = GY; y <= GY + GH; y += 15) { ctx.beginPath(); ctx.moveTo(GX, y); ctx.lineTo(GX + GW, y); ctx.stroke(); }
     ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.strokeRect(GX, GY, GW, GH);
 
-    // alvo verde
-    ctx.fillStyle = "rgba(126,200,160,.55)"; ctx.strokeStyle = "#2E7D4F"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(alvo.x, alvo.y, alvo.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(alvo.x, alvo.y, alvo.r * 0.45, 0, Math.PI * 2); ctx.stroke();
+    // ALVO: faixa vertical que corre na horizontal
+    ctx.fillStyle = "rgba(126,220,150,.45)";
+    ctx.fillRect(alvo.x - alvo.larg / 2, GY + 3, alvo.larg, GH - 6);
+    ctx.strokeStyle = "#2E7D4F"; ctx.lineWidth = 3;
+    ctx.strokeRect(alvo.x - alvo.larg / 2, GY + 3, alvo.larg, GH - 6);
+    ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.font = "bold 11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("MIRE AQUI", alvo.x, GY + GH / 2);
 
-    // goleiro
-    ctx.font = "40px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
-    ctx.fillText("🧤", goleiro.x, GY + GH + 6);
+    // goleiro = a criança, que se joga
+    const gy = LINHA - 6 - goleiro.pulo * 16;
+    const inclina = (goleiro.x - W / 2) / (GW / 2) * goleiro.pulo * 0.8;
+    ctx.save();
+    ctx.translate(goleiro.x, gy);
+    ctx.rotate(inclina);
+    ctx.font = "40px system-ui, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    ctx.fillText(goleiro.defendeu ? "🧤" : "👶", 0, 0);
+    ctx.restore();
+    ctx.textBaseline = "alphabetic";
 
-    // linha da mira enquanto arrasta
-    if (arrastando && estado === "mira") {
-      ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 3; ctx.setLineDash([6, 6]);
-      ctx.beginPath(); ctx.moveTo(bola.x, bola.y);
-      ctx.lineTo(arrastando.x, arrastando.y); ctx.stroke(); ctx.setLineDash([]);
+    // mira: só direção (uma seta horizontal)
+    if (estado === "mira" && rodando) {
+      const mx = Math.max(GX + 6, Math.min(GX + GW - 6, mira));
+      ctx.strokeStyle = apontando ? "rgba(255,255,255,.9)" : "rgba(255,255,255,.45)";
+      ctx.lineWidth = 3; ctx.setLineDash([7, 7]);
+      ctx.beginPath(); ctx.moveTo(BOLA0.x, BOLA0.y); ctx.lineTo(mx, LINHA - 26); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(mx, LINHA - 26, 6, 0, Math.PI * 2); ctx.fill();
     }
 
+    ctx.textAlign = "center";
     ctx.font = `${bola.r * 2}px system-ui, sans-serif`;
     ctx.fillText("⚽", bola.x, bola.y + bola.r);
-    ctx.textBaseline = "alphabetic";
 
     ctx.textAlign = "left"; ctx.font = "bold 16px system-ui, sans-serif"; ctx.fillStyle = "#fff";
     ctx.fillText(`⚽ ${gols}   ${"❤️".repeat(Math.max(0, chances))}`, 12, 28);
@@ -167,17 +190,15 @@ export function initGoal() {
     ov.querySelector(".mini-sub").textContent = sub;
   }
 
-  const pos = (e) => {
+  const px = (e) => {
     const r = canvas.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H };
+    return ((e.clientX - r.left) / r.width) * W;       // só a horizontal importa
   };
   canvas.style.touchAction = "none";
-  canvas.addEventListener("pointerdown", (e) => { comecar(); arrastando = pos(e); });
-  canvas.addEventListener("pointermove", (e) => { if (arrastando) arrastando = pos(e); });
-  canvas.addEventListener("pointerup", (e) => {
-    if (arrastando) { const p = pos(e); chutar(p.x, p.y); }
-    arrastando = null;
-  });
+  canvas.addEventListener("pointerdown", (e) => { comecar(); apontando = true; mira = px(e); });
+  canvas.addEventListener("pointermove", (e) => { if (apontando) mira = px(e); });
+  canvas.addEventListener("pointerup", () => { if (apontando) chutar(); apontando = false; });
+  canvas.addEventListener("pointercancel", () => { apontando = false; });
   document.getElementById("gl-overlay").addEventListener("pointerdown", comecar);
 
   reset();

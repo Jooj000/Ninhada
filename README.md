@@ -242,7 +242,7 @@ todos no mesmo retângulo. (O minigame já usa Canvas, então você tem os dois 
 | Itens da loja e preços | `assets-map.js` → `SHOP_ITEMS` | |
 | Adicionar roupa/chapéu novo | `assets-map.js` (`ASSETS` + `SHOP_ITEMS`) + png na pasta | |
 
-### Minigames prontos (16)
+### Minigames prontos (15)
 | Jogo | Libera em | Paga por |
 |------|-----------|----------|
 | Flappy Bebê | Recém-nascido | tubo passado |
@@ -254,7 +254,6 @@ todos no mesmo retângulo. (O minigame já usa Canvas, então você tem os dois 
 | Match 3 | Engatinhando | pontos ÷100 |
 | Star Popper | Engatinhando | bolha estourada + moedinhas |
 | Sky Jump | Engatinhando | moeda pega + 100 m subidos |
-| Cliff Jump | Engatinhando | plataforma passada |
 | Hill Drive | Engatinhando | metros + moedas |
 | Feira de Ciências | Criança | circuito completo (5 níveis) |
 | Dever de Casa | Criança | acerto (até Ensino Médio) |

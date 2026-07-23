@@ -12,6 +12,7 @@
 import { rewardGame, getRecord } from "./firebase-sync.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { HILLDRIVE as HD } from "./config.js";
 
 export function initHillDrive() {
   const canvas = document.getElementById("hd-canvas");
@@ -19,10 +20,11 @@ export function initHillDrive() {
   const ctx = canvas.getContext("2d");
   const W = (canvas.width = 420), H = (canvas.height = 260);
 
-  const GRAV = 0.42;
+  const GRAV = HD.gravidade;
   const BASE = H * 0.62;
 
   let carro, cam, rodando, morto, lastT = 0, moedas, pegas;
+  let ultimaMoedaX = 0;
   let acelera = 0;            // +1 acelerando, -1 freando/ré
 
   /* Altura do terreno em qualquer x (soma de ondas: colinas suaves). */
@@ -38,10 +40,14 @@ export function initHillDrive() {
   }
 
   function reset() {
-    carro = { x: 60, y: solo(60) - 20, vx: 0, vy: 0, ang: 0, noChao: true };
+    carro = { x: 60, y: solo(60) - 20, vx: 0, vy: 0, ang: 0, va: 0, noChao: true };
     cam = 0; rodando = false; morto = false; acelera = 0;
     moedas = []; pegas = 0;
-    for (let i = 1; i < 60; i++) semearMoeda(i * 260 + Math.random() * 120);
+    ultimaMoedaX = 300;
+    for (let i = 0; i < 40; i++) {
+      ultimaMoedaX += HD.moedaMin + Math.random() * (HD.moedaMax - HD.moedaMin);
+      semearMoeda(ultimaMoedaX);
+    }
     setOverlay("Toque para começar", "Direita acelera · esquerda freia");
     desenhar();
   }
@@ -65,33 +71,52 @@ export function initHillDrive() {
     carro.noChao = carro.y >= chao - 21;
 
     if (carro.noChao) {
-      // motor empurra na direção da ladeira; a gravidade puxa na descida
-      carro.vx += (acelera * 0.26 - Math.sin(inc) * 0.42) * dt;
-      carro.vx *= Math.pow(0.985, dt);                  // atrito
-      carro.ang += (inc - carro.ang) * 0.25 * dt;       // acompanha o relevo
+      /* NO CHÃO
+       * - o motor empurra ao longo da ladeira
+       * - a gravidade puxa pela componente do declive: g·sen(θ)
+       *   (por isso subida segura e descida ganha velocidade sozinha)
+       * - o carro assenta no relevo, mas sem "grudar" na hora */
+      const puxaoDaLadeira = Math.sin(inc) * GRAV * 1.15;
+      const forca = acelera > 0 ? HD.motor : acelera < 0 ? -HD.freio : 0;
+      carro.vx += (forca - puxaoDaLadeira) * dt;
+      carro.vx *= Math.pow(HD.atritoSolo, dt);
+      carro.vx = Math.max(HD.velMinRe, Math.min(HD.velMax, carro.vx));
+
+      carro.ang += (inc - carro.ang) * Math.min(1, 0.22 * dt);
+      carro.va *= 0.6;
       carro.y = chao - 20;
       carro.vy = 0;
-      if (carro.vx < -3) carro.vx = -3;
-      if (carro.vx > 9) carro.vx = 9;
+
+      // rampa: se o chão "some" logo à frente e há velocidade, decola
+      const frente = solo(carro.x + 16);
+      if (carro.vx > 2.6 && frente > chao + 5) {
+        carro.vy = -Math.min(10.5, carro.vx * 0.95);
+        carro.va = -0.012 * carro.vx;          // sai empinando um pouquinho
+        carro.y -= 3;
+      }
     } else {
+      /* NO AR
+       * acelerar empina (gira anti-horário), frear abaixa o nariz.
+       * A rotação tem inércia: por isso dá para "consertar" o pouso. */
       carro.vy += GRAV * dt;
       carro.y += carro.vy * dt;
-      carro.ang += acelera * 0.035 * dt;                // gira no ar
+      carro.va += -acelera * HD.torqueAr * dt;
+      carro.va *= Math.pow(HD.atritoAngular, dt);
+      carro.ang += carro.va * dt;
+
+      if (Math.abs(carro.ang) > HD.anguloCapota) return fim("Capotou no ar! 🙃");
+
       if (carro.y >= chao - 20) {
-        // aterrissou: se estiver muito de lado, capota
         const diff = Math.abs(((carro.ang - inc) + Math.PI) % (Math.PI * 2) - Math.PI);
-        if (diff > 1.15) return fim("Capotou!");
-        carro.y = chao - 20; carro.vy = 0;
+        if (diff > HD.anguloQueda) return fim("Aterrissou torto! 💥");
+        carro.y = chao - 20;
+        carro.vy = 0;
+        carro.vx *= 0.93;                       // pousada custa um pouco de velocidade
       }
     }
 
     carro.x += carro.vx * dt;
-    if (carro.x < 0) carro.x = 0;
-    // saltou de uma rampa?
-    if (carro.noChao && carro.vx > 3 && solo(carro.x + 14) > chao + 6) {
-      carro.vy = -Math.min(9, carro.vx * 0.9);
-      carro.y -= 2;
-    }
+    if (carro.x < 0) { carro.x = 0; carro.vx = 0; }
 
     cam = carro.x - 110;
 
@@ -99,8 +124,10 @@ export function initHillDrive() {
       if (m.pego) continue;
       if (Math.abs(m.x - carro.x) < 22 && Math.abs(m.y - carro.y) < 34) { m.pego = true; pegas++; }
     }
-    while (moedas.length && moedas[moedas.length - 1].x < carro.x + 3000)
-      semearMoeda(moedas[moedas.length - 1].x + 200 + Math.random() * 180);
+    while (ultimaMoedaX < carro.x + 3000) {
+      ultimaMoedaX += HD.moedaMin + Math.random() * (HD.moedaMax - HD.moedaMin);
+      semearMoeda(ultimaMoedaX);
+    }
 
     // parou de vez numa subida = fim (não dá pra continuar)
     if (carro.noChao && Math.abs(carro.vx) < 0.06 && acelera >= 0 && distancia() > 3) {
@@ -161,10 +188,13 @@ export function initHillDrive() {
     ctx.save();
     ctx.translate(carro.x - cam, carro.y);
     ctx.rotate(carro.ang);
-    ctx.font = "30px system-ui, sans-serif";
-    ctx.fillText("🚙", 0, 0);
-    ctx.font = "16px system-ui, sans-serif";
-    ctx.fillText("👶", -2, -14);
+    // o emoji do carro aponta para a ESQUERDA; espelho para ele "andar" p/ direita
+    ctx.scale(-1, 1);
+    ctx.font = `${HD.tamanhoCarro}px system-ui, sans-serif`;
+    ctx.fillText("🚙", 0, 4);
+    ctx.scale(-1, 1);                            // desespelha o bebê
+    ctx.font = `${Math.round(HD.tamanhoCarro * 0.5)}px system-ui, sans-serif`;
+    ctx.fillText("👶", 1, -HD.tamanhoCarro * 0.34);
     ctx.restore();
     ctx.textBaseline = "alphabetic";
 

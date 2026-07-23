@@ -98,13 +98,11 @@ export const BALANCE = {
     match3:     { minPhase: "crawling", coinsPerPoint: 1.2,   xpPerPoint: 2,    hard: false },
     starpopper: { minPhase: "crawling", coinsPerPoint: 0.22,  xpPerPoint: 0.5,  hard: false },
     // ----- arcades do Pou -----
-    cliffjump:  { minPhase: "crawling", coinsPerPoint: 0.5,   xpPerPoint: 1,    hard: false },
     hilldrive:  { minPhase: "crawling", coinsPerPoint: 0.08,  xpPerPoint: 0.16, hard: false },
     goal:       { minPhase: "newborn",  coinsPerPoint: 2,     xpPerPoint: 4,    hard: false },
     // sky jump: 1 ponto = 1 moeda pega OU 100 m subidos
     skyjump:    { minPhase: "crawling", coinsPerPoint: 1,     xpPerPoint: 3,    hard: false },
     // ----- arcades novos -----
-    cliffjump:  { minPhase: "crawling", coinsPerPoint: 0.55,  xpPerPoint: 1.1,  hard: false },
     hilldrive:  { minPhase: "crawling", coinsPerPoint: 0.06,  xpPerPoint: 0.14, hard: false },
     goal:       { minPhase: "toddler",  coinsPerPoint: 2,     xpPerPoint: 4,    hard: false },
     connect:    { minPhase: "toddler",  coinsPerPoint: 3.5,   xpPerPoint: 7,    hard: true  },
@@ -134,6 +132,25 @@ export const BALANCE = {
     janelaFisgadaMs: 800,  // tempo para reagir ao "❗"
   },
 
+  /* ================= HILL DRIVE ================= */
+  hilldrive: {
+    gravidade: 0.42,
+    motor: 0.30,            // força de aceleração
+    freio: 0.34,            // força da ré/freio
+    atritoSolo: 0.988,      // quanto o carro perde de velocidade sozinho
+    velMax: 9.5,
+    velMinRe: -3.2,
+    // Rotação no ar: acelerar empina, frear abaixa o nariz.
+    torqueAr: 0.011,
+    atritoAngular: 0.985,
+    // TOMBA se aterrissar torto mais que isto (rad) — menor = mais difícil.
+    anguloQueda: 0.75,
+    // ou se capotar de vez (girou demais no ar)
+    anguloCapota: 2.1,
+    tamanhoCarro: 46,
+    moedaMin: 450, moedaMax: 800,   // moedas bem mais espaçadas
+  },
+
   /* ================= SKY JUMP ================= */
   skyjump: {
     gravidade: 0.42,
@@ -145,7 +162,11 @@ export const BALANCE = {
     plataformas: 6,
     chanceMoeda: 0.28,
     chanceQuebra: 0.28,
-    sensibilidadeInclinacao: 1.1,   // quanto o giro do celular move o bebê
+    // A inclinação define a VELOCIDADE direto (não acelera aos poucos),
+    // senão dá a sensação de atraso ao virar o celular.
+    velMaxInclinacao: 6.5,
+    respostaInclinacao: 0.45,   // 1 = instantâneo · 0.45 = suave mas rápido
+    grausMax: 26,               // inclinar 26° já é o máximo
   },
 
   /* ================= STAR POPPER ================= */
@@ -154,9 +175,12 @@ export const BALANCE = {
     cresceSegundos: 35,      // tempo entre as ONDAS de crescimento
     bolhasPorOnda: 5,        // quantas bolhas vêm de uma vez
     bolhasPorOndaExtra: 1,   // +N a cada rodada vencida
-    torque: 0.00055,         // força do giro por impacto (os dois sentidos)
-    atrito: 0.996,           // mais perto de 1 = gira por mais tempo
-    giroMax: 0.05,           // teto da velocidade angular
+    // O torque do impacto é normalizado (÷1000) antes de multiplicar por
+    // este número, então ele é legível: 0.115 dá ~120 graus/s num tiro bom.
+    torque: 0.115,
+    atrito: 0.9903,          // calculado para PARAR sozinho em ~10 s
+    giroMax: 0.075,          // teto (~430 graus/s)
+    pisoGiro: 0.0001,        // abaixo disso considera parado
     penalidade: 5,           // pontos perdidos ao errar o tiro
     mostrarProxima: true,    // mostrar a próxima bolha no canhão
     chanceMoeda: 0.10,       // chance de uma bolha nova vir com moedinha

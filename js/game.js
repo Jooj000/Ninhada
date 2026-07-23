@@ -39,7 +39,6 @@ import { initFoodDrop } from "./fooddrop.js";
 import { initMatch3 } from "./match3.js";
 import { initStarPopper } from "./starpopper.js";
 import { initSkyJump } from "./skyjump.js";
-import { initCliffJump } from "./cliffjump.js";
 import { initHillDrive } from "./hilldrive.js";
 import { initGoal } from "./goal.js";
 import { initConnect } from "./connect.js";
@@ -383,7 +382,6 @@ async function main() {
   seguro("match 3", initMatch3);
   seguro("star popper", initStarPopper);
   seguro("sky jump", initSkyJump);
-  seguro("cliff jump", initCliffJump);
   seguro("hill drive", initHillDrive);
   seguro("goal", initGoal);
   seguro("connect", initConnect);
