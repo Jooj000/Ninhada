@@ -805,23 +805,57 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .banner-bebe { display: none; }
 
 @media (min-width: 1000px) {
+  /* sem caixa, sem borda: só a criança ocupando a lateral livre */
   .banner-bebe {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    position: fixed; left: max(16px, calc(50vw - 480px)); top: 50%;
-    transform: translateY(-50%);
-    width: 210px; padding: 16px 12px 18px;
-    background: var(--surface); border-radius: 22px; box-shadow: var(--shadow);
-    z-index: 20; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 2px;
+    position: fixed; top: 0; bottom: 0;
+    left: 0; width: calc(50vw - 240px);          /* toda a sobra à esquerda */
+    background: none; border: 0; box-shadow: none; padding: 0;
+    z-index: 5; pointer-events: none;
   }
   .banner-stage {
-    width: 180px; height: 180px; position: relative;
-    background: transparent; box-shadow: none; border-radius: 16px;
+    position: relative; background: none; box-shadow: none; border-radius: 0;
+    width: min(90%, 74vh); height: min(90%, 74vh);   /* preenche a lateral */
   }
-  .banner-nome { font-weight: 800; font-size: 1rem; color: var(--ink); }
-  .banner-fase { font-size: .74rem; color: var(--ink-soft); }
+  .banner-nome { font-weight: 800; font-size: 1.15rem; color: var(--ink); }
+  .banner-fase { font-size: .8rem; color: var(--ink-soft); }
 }
-/* telas muito largas: afasta um pouco mais do conteúdo */
-@media (min-width: 1400px) {
-  .banner-bebe { left: calc(50vw - 520px); width: 240px; }
-  .banner-stage { width: 210px; height: 210px; }
+
+/* ============ TAMANHO DOS JOGOS NA TELA ============ */
+/* Todo canvas de minigame se ajusta à largura E respeita a altura da tela,
+   para nunca passar da dobra nem ficar minúsculo. */
+.mini-wrap { position: relative; display: flex; justify-content: center; }
+.mini-wrap canvas,
+#fd-canvas, #sp-canvas, #sj-canvas, #hd-canvas, #gl-canvas,
+#fish-canvas, #cn-canvas, #dino-canvas, #mini-canvas {
+  width: 100%; height: auto; max-width: 100%;
+  max-height: 56vh; object-fit: contain;
+  display: block; margin: 0 auto;
+  border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none;
 }
+/* os jogos "em pé" (mais altos que largos) podem usar mais altura */
+#fish-canvas { width: auto; max-height: 62vh; }
+#gl-canvas, #sp-canvas, #sj-canvas, #fd-canvas { width: auto; max-height: 60vh; }
+/* os "deitados" priorizam a largura */
+#dino-canvas, #hd-canvas { max-height: 44vh; }
+.g2048-grid, .m3-grid, .mem-grid { max-width: min(100%, 60vh); margin: 0 auto; }
+
+/* ============ BOTÃO / MODO DEITADO ============ */
+.btn-deitar {
+  display: block; margin: 0 auto 8px; border: 0; border-radius: 999px;
+  padding: 8px 16px; font: inherit; font-weight: 700; font-size: .82rem;
+  background: var(--surface); box-shadow: var(--shadow); color: var(--ink);
+  cursor: pointer;
+}
+.btn-deitar:active { background: var(--accent); color: #fff; }
+.mini-wrap.deitado {
+  width: 100vw; height: 100vh; display: flex;
+  align-items: center; justify-content: center; background: #1D1A26;
+}
+.mini-wrap.deitado canvas {
+  width: 100%; height: 100%; max-width: 100vw; max-height: 100vh;
+  object-fit: contain; border-radius: 0; box-shadow: none;
+}
+.mini-wrap:fullscreen { background: #1D1A26; }
+.mini-wrap:fullscreen canvas { max-height: 100vh; max-width: 100vw; }

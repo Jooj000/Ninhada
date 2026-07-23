@@ -124,7 +124,10 @@ export function initDino() {
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.font = `${h + 14}px system-ui, sans-serif`;
-    ctx.fillText("🦖", cx, pes + 4 + passo);
+    // o emoji do dino aponta para a ESQUERDA; espelho p/ ele correr à direita
+    ctx.translate(cx, pes + 4 + passo);
+    ctx.scale(-1, 1);
+    ctx.fillText("🦖", 0, 0);
     ctx.restore();
 
     // a criança montada (some quando está abaixada, senão bate nos pássaros)

@@ -104,10 +104,14 @@ export function initMinigame() {
     // criança primeiro (fica ATRÁS do avião)
     desenharBebe(ctx, -2, -bird.r * 0.35, bird.r * 2.1, { soCabeca: true });
 
+    // o foguete aponta para cima-direita; giro 45° para ele voar deitado
+    ctx.save();
+    ctx.rotate(Math.PI / 4);
     ctx.font = `${bird.r * 2.6}px system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("✈️", 0, bird.r * 0.15);
+    ctx.fillText("🚀", 0, bird.r * 0.15);
+    ctx.restore();
     ctx.restore();
     ctx.textBaseline = "alphabetic";
   }

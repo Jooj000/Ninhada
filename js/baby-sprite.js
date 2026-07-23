@@ -17,6 +17,15 @@ import { getActiveBaby } from "./session.js";
 import { conditionAsset } from "./render-utils.js";
 
 const LADO = 256;                 // resolução do sprite pronto
+
+/* ONDE FICA A CABEÇA dentro da arte (medido no quadro de 1024×1024):
+ *   300px de ar à esquerda · 350px de cabeça · 380px de ar à direita
+ *   a cabeça começa a 650px do rodapé e tem 320px de altura
+ * Guardado em FRAÇÕES para valer em qualquer resolução de sprite. */
+const CABECA = {
+  x: 300 / 1024, larg: 350 / 1024,
+  y: (1024 - 650 - 320) / 1024, alt: 320 / 1024,
+};
 const cacheImgs = new Map();      // src -> HTMLImageElement (ou null se falhou)
 
 let canvasPronto = null;          // canvas com o boneco montado
@@ -106,7 +115,7 @@ export function spriteBebe() {
  * DESENHAR — é isso que os jogos chamam.
  *   ctx      contexto do canvas do jogo
  *   x, y     ponto de ANCORAGEM (x = centro, y = base/pés)
- *   altura   altura desejada em pixels
+ *   altura   altura desejada: do BONECO inteiro, ou da CABEÇA se soCabeca
  *   opts     { espelhar, giro, alpha, soCabeca }
  * ------------------------------------------------------------------- */
 export function desenharBebe(ctx, x, y, altura, opts = {}) {
@@ -120,13 +129,19 @@ export function desenharBebe(ctx, x, y, altura, opts = {}) {
   if (espelhar) ctx.scale(-1, 1);
 
   if (sp) {
-    const larg = altura;                       // o sprite é quadrado
+    /* ESCALA UNIFORME — nunca esticar nem achatar a criança.
+     * `altura` é o tamanho que o boneco INTEIRO teria; com `soCabeca`
+     * a gente só recorta a parte de cima, mantendo a mesma escala. */
     if (soCabeca) {
-      // recorta só o terço de cima (a cabeça) — para espiar atrás do avião
-      const parte = LADO * 0.42;
-      ctx.drawImage(sp, 0, 0, LADO, parte, -larg / 2, -altura, larg, altura);
+      /* Recorta EXATAMENTE a cabeça e desenha na proporção real dela
+       * (nada de esticar). Aqui `altura` é a altura da CABEÇA. */
+      const sx = CABECA.x * LADO, sy = CABECA.y * LADO;
+      const sw = CABECA.larg * LADO, sh = CABECA.alt * LADO;
+      const dh = altura, dw = altura * (sw / sh);      // mantém a proporção
+      ctx.drawImage(sp, sx, sy, sw, sh, -dw / 2, -dh, dw, dh);
     } else {
-      ctx.drawImage(sp, -larg / 2, -altura, larg, altura);
+      const d = altura;                                // quadro quadrado: 1:1
+      ctx.drawImage(sp, -d / 2, -d, d, d);
     }
   } else {
     ctx.font = `${Math.round(altura)}px system-ui, sans-serif`;

@@ -103,8 +103,8 @@ export const BALANCE = {
     // sky jump: 1 ponto = 1 moeda pega OU 100 m subidos
     skyjump:    { minPhase: "crawling", coinsPerPoint: 1,     xpPerPoint: 3,    hard: false },
     // ----- arcades novos -----
-    hilldrive:  { minPhase: "crawling", coinsPerPoint: 0.06,  xpPerPoint: 0.14, hard: false },
-    goal:       { minPhase: "toddler",  coinsPerPoint: 2,     xpPerPoint: 4,    hard: false },
+    hilldrive:  { minPhase: "crawling", coinsPerPoint: 0.005, xpPerPoint: 0.012, hard: false },
+    goal:       { minPhase: "toddler",  coinsPerPoint: 0.75,  xpPerPoint: 1.6,  hard: false },
     connect:    { minPhase: "toddler",  coinsPerPoint: 3.5,   xpPerPoint: 7,    hard: true  },
   },
   // Multiplicador por faixa etária (índice da fase mínima do jogo).
@@ -168,7 +168,7 @@ export const BALANCE = {
     // senão dá a sensação de atraso ao virar o celular.
     velMaxInclinacao: 11,
     respostaInclinacao: 0.7,    // 1 = instantâneo
-    grausMax: 5,                // basta inclinar 5° para ir com tudo
+    grausMax: 15,               // inclinar 15° já é o máximo
   },
 
   /* ================= STAR POPPER ================= */

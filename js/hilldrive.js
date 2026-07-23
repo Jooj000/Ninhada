@@ -124,10 +124,13 @@ export function initHillDrive() {
      *     cabeça = ( x + h·sen(ang) , chaoDoCarro − h·cos(ang) )
      * Ou seja: inclinar não derruba; deitar o carro (~85°+) sim.        */
     const h = HD.tamanhoCarro * (HD.alturaCabeca ?? 0.78);
-    const apoio = solo(carro.x);
+    // O pivô é o PRÓPRIO CARRO (base dele), NÃO o chão: senão, voando alto
+    // a conta usava o solo lá embaixo e matava só de inclinar no ar.
+    const baseDoCarro = carro.y + 20;
     const cabecaX = carro.x + h * Math.sin(carro.ang);
-    const cabecaY = apoio - h * Math.cos(carro.ang);
-    if (cabecaY >= solo(cabecaX) - 2) return fim("Bateu a cabeça! 🤕");
+    const cabecaY = baseDoCarro - h * Math.cos(carro.ang);
+    // margem generosa: só conta quando a cabeça realmente afunda no chão
+    if (cabecaY >= solo(cabecaX) + 2) return fim("Bateu a cabeça! 🤕");
 
     cam = carro.x - 110;
 

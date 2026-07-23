@@ -42,6 +42,7 @@ import { initSkyJump } from "./skyjump.js";
 import { initHillDrive } from "./hilldrive.js";
 import { initGoal } from "./goal.js";
 import { initConnect } from "./connect.js";
+import { initDeitar } from "./tela-cheia.js";
 
 /* Onde cada botão de cuidado leva (o status é cuidado no cômodo). */
 const ACTION_SCREEN = {
@@ -414,6 +415,9 @@ async function main() {
   seguro("hill drive", initHillDrive);
   seguro("goal", initGoal);
   seguro("connect", initConnect);
+  // jogos largos ganham o botão de deitar a tela
+  seguro("deitar dino", () => initDeitar("screen-dino"));
+  seguro("deitar hill drive", () => initDeitar("screen-hilldrive"));
 
   if (falhas.length) {
     const aviso = document.createElement("div");

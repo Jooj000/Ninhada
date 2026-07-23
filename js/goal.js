@@ -20,7 +20,7 @@ export function initGoal() {
   const ctx = canvas.getContext("2d");
   const W = (canvas.width = 360), H = (canvas.height = 420);
 
-  const GX = 34, GY = 62, GW = W - 68, GH = 156;      // trave
+  const GX = 52, GY = 74, GW = W - 104, GH = 128;     // trave (gol pequeno)
   const LINHA = GY + GH;                               // linha do gol
   const BOLA0 = { x: W / 2, y: H - 56 };
 
@@ -147,7 +147,7 @@ export function initGoal() {
     // GOLEIRA = a própria criança (boneco completo equipado), que se joga
     const gy = LINHA - 4 - goleiro.pulo * 18;
     const inclina = (goleiro.x - W / 2) / (GW / 2) * goleiro.pulo * 0.9;
-    desenharBebe(ctx, goleiro.x, gy, 68, {
+    desenharBebe(ctx, goleiro.x, gy, GH * 1.05, {   // do tamanho do gol
       giro: inclina,
       espelhar: goleiro.x < W / 2,
     });
