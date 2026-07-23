@@ -413,7 +413,8 @@ function updateTile(refs, baby) {
 function layoutTiles() {
   const ids = Object.keys(tiles);
   const n = ids.length;
-  const w = n <= 1 ? 60 : n === 2 ? 42 : n === 3 ? 30 : 26;
+  // ~1,6x maior também no modo grupo (com teto para não se sobreporem)
+  const w = n <= 1 ? 92 : n === 2 ? 62 : n === 3 ? 46 : 40;
   ids.forEach((id, i) => {
     const el = tiles[id].el;
     el.style.width = `${w}%`;

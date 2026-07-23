@@ -102,7 +102,12 @@ export function initHillDrive() {
       // velocidade escalar ao longo da ladeira (reconstruída do vx)
       let v = carro.vx / cos;
       const forca = acelera > 0 ? HD.motor : acelera < 0 ? -HD.freio : 0;
-      v += (forca * s - GRAV * Math.sin(inc)) * dt;   // motor − gravidade na ladeira
+      /* Gravidade AO LONGO da ladeira. Atenção ao sinal: y cresce para
+       * BAIXO, então subida dá `inc` NEGATIVO. Somando g·sen(inc) a
+       * subida freia e a descida embala — que é o certo. (Com o sinal
+       * trocado o carro ganhava velocidade morro acima e vivia caçando
+       * o ponto mais alto.) */
+      v += (forca * s + GRAV * Math.sin(inc)) * dt;
       v *= Math.pow(HD.atritoSolo, dt);
       v = Math.max(HD.velMinRe * s, Math.min(HD.velMax * s, v));
 

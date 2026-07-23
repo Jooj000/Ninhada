@@ -74,7 +74,7 @@ export const ASSETS = {
 
   /* ---- Camadas equipáveis (chave = id da categoria) ---- */
   corpo: {
-    pele_clara: {src:"assets/sprites/corpo/pele%20clara.png",placeholder:"#FBD9B8",label:"Pele Clara"},
+    pele_clara: {src:"assets/sprites/corpo/Pele%20Clara.png",placeholder:"#FBD9B8",label:"Pele Clara"},
     pele_morena: {src:"assets/sprites/corpo/Pele%20Morena.png",placeholder:"#b6fa89",label:"Pele Morena"},
   },
   face: {
@@ -97,8 +97,8 @@ export const ASSETS = {
     bota_galinha: {src:"assets/sprites/sapatos/Bota%20Galinha.png",placeholder:"#73db7d",label:"Bota Galinha"},
   },
   acessorios: {
-    lacos_vermelhos: {src:"assets/sprites/accessories/lacos%20vermelhos.png",placeholder:"#FFB4A2",label:"Laços vermelhos"},
-    pulseiras_coloridas: {src:"assets/sprites/accessories/pulseiras%20coloridas.png",placeholder:"#A2C4FF",label:"Pulseiras coloridas"},
+    lacos_vermelhos: {src:"assets/sprites/accessories/Lacos%20Vermelhos.png",placeholder:"#FFB4A2",label:"Laços vermelhos"},
+    pulseiras_coloridas: {src:"assets/sprites/accessories/Pulseiras%20Coloridas.png",placeholder:"#A2C4FF",label:"Pulseiras coloridas"},
   },
   brinquedos: {
     teto: {src:"assets/sprites/toys/teto.png",placeholder:"#2702d6",label:"Teto"},
@@ -167,10 +167,31 @@ export function variacoesDeSrc(src) {
   const ponto = src.lastIndexOf(".");
   if (ponto < 0) return [src];
   const base = src.slice(0, ponto), ext = src.slice(ponto + 1);
-  const tentativas = [ext, ext.toLowerCase(), ext.toUpperCase(),
-                      "png", "PNG", "gif", "GIF"];
+  const exts = ["png", "PNG", "gif", "GIF"];
+  const listaExt = [ext, ext.toLowerCase(), ext.toUpperCase(), ...exts];
+
+  /* variações de CAIXA do nome do arquivo (a pasta fica intacta):
+   * "pele clara" -> "pele clara", "Pele Clara", "PELE CLARA" */
+  const corte = base.lastIndexOf("/");
+  const pasta = corte < 0 ? "" : base.slice(0, corte + 1);
+  const nome = corte < 0 ? base : base.slice(corte + 1);
+  /* Atenção: o espaço vem codificado como %20, então ele também separa
+   * palavras. "pele%20clara" -> "Pele%20Clara". */
+  const titulo = nome
+    .split(/(%20|\s|_)/)
+    .map((p) => (/^(%20|\s|_)$/.test(p)
+      ? p
+      : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()))
+    .join("");
+  const nomes = [nome, titulo, nome.toLowerCase(), nome.toUpperCase()];
+
   const vistos = new Set();
-  return tentativas
-    .filter((e) => (vistos.has(e) ? false : vistos.add(e)))
-    .map((e) => `${base}.${e}`);
+  const saida = [];
+  for (const n of nomes) {
+    for (const e of listaExt) {
+      const cand = `${pasta}${n}.${e}`;
+      if (!vistos.has(cand)) { vistos.add(cand); saida.push(cand); }
+    }
+  }
+  return saida;
 }

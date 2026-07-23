@@ -1409,3 +1409,57 @@ body {
   transform: scale(1.22);
   filter: drop-shadow(0 0 10px #FFE55C) drop-shadow(0 2px 4px rgba(0,0,0,.5));
 }
+
+/* =====================================================================
+ * ============ V5 — CRIANÇA VISÍVEL, MAIOR, E TOPO ARRUMADO =========
+ * ===================================================================== */
+
+/* ---- 1) A CRIANÇA SUMIA: o placeholder das camadas é cinza a 10% com
+ *  !important, o que anulava a cor sólida da POSE base. Na tela antiga
+ *  isso não aparecia porque o palco tinha fundo rosa; na cena nova o
+ *  palco é transparente, então uma arte que não carregasse deixava a
+ *  criança literalmente invisível. A pose base volta a ter cor sólida. */
+.layer.layer-base.is-placeholder {
+  background-color: rgba(140, 120, 160, .55) !important;
+  color: #fff;
+  border-radius: 18px;
+}
+
+/* ---- 2) `hidden` tem que vencer o `display` do seletor de classe ---- */
+.single-view[hidden], .room-view[hidden], .scene-baby[hidden] { display: none !important; }
+
+/* ---- 3) restos do visual antigo de "caixinha" no modo grupo ---- */
+.scene-stage .room-view {
+  background: none; box-shadow: none; border-radius: 0;
+  aspect-ratio: auto; overflow: visible;
+}
+
+/* ---- 4) CRIANÇA ~1,6x MAIOR ----
+ * Era min(72%, 46dvh). Agora min(100%, 74dvh) ≈ 1,6x, com um piso em px
+ * para navegadores sem dvh (aí o valor min() inteiro seria descartado). */
+.scene-baby { width: 72%; width: min(100%, 74dvh, 620px); }
+.scene-stage { overflow: visible; }
+.single-view { padding-bottom: 0; }
+
+/* ---- 5) TOPO: moedas e temperatura sobem para a MESMA linha do
+ *  foguinho e do sino; os chips de status ficam sozinhos embaixo. ---- */
+.top-row1 {
+  display: flex; align-items: center; gap: 8px;
+  justify-content: space-between;
+}
+.top-row1 .coins-pill { margin: 0; }
+.top-row1 .streak-pill { margin: 0; }
+.top-row2 { justify-content: center; }
+
+/* nas telas baixas, a criança não empurra os controles para fora */
+@media (max-height: 680px) {
+  .scene-baby { width: min(100%, 62dvh, 520px); }
+  .hotspots { min-height: 58px; }
+}
+
+/* tiles do modo grupo acompanham o aumento (e o nome não encosta) */
+.scene-stage .room-baby { gap: 0; }
+.scene-stage .mini-name {
+  background: rgba(255,255,255,.78); backdrop-filter: blur(2px);
+  font-size: .74rem;
+}
