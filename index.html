@@ -48,6 +48,7 @@
 
     <!-- controles: criança, grupo/solo, foto, adotar -->
     <div class="scene-controls">
+      <select id="home-baby-select" class="home-baby-select" aria-label="Escolher criança"></select>
       <button id="view-toggle" class="round-btn" title="Ver todos no cômodo">👥</button>
       <button id="photo-btn" class="round-btn" title="Tirar foto">📸</button>
       <button id="adopt-btn" class="round-btn adopt-mini" hidden title="Adotar">➕</button>
@@ -365,11 +366,6 @@
   </section>
 
   <!-- ============ BANNER LATERAL (só em tela larga / PC) ============ -->
-  <aside id="banner-bebe" class="banner-bebe" aria-hidden="true">
-    <div id="banner-stage" class="baby-stage banner-stage" data-mood="happy"></div>
-    <span id="banner-nome" class="banner-nome"></span>
-    <span id="banner-fase" class="banner-fase"></span>
-  </aside>
 
   <!-- Registro do Service Worker (PWA + auto-update) -->
   <script src="js/register-sw.js"></script>

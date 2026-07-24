@@ -1419,10 +1419,16 @@ body {
  *  isso não aparecia porque o palco tinha fundo rosa; na cena nova o
  *  palco é transparente, então uma arte que não carregasse deixava a
  *  criança literalmente invisível. A pose base volta a ter cor sólida. */
+/* Sem quadrado visível: quando a arte demora ou falta, mostramos só uma
+ * sombra suave e arredondada, nada de "caixa" na hitbox da criança. */
 .layer.layer-base.is-placeholder {
-  background-color: rgba(140, 120, 160, .55) !important;
-  color: #fff;
-  border-radius: 18px;
+  background-color: transparent !important;
+  background-image: radial-gradient(50% 42% at 50% 76%, rgba(120,100,140,.30), transparent 70%) !important;
+  color: rgba(74,63,85,.55);
+  border-radius: 0;
+}
+.layer, .baby-stage, .mini-stage, .scene-baby-stage {
+  border: 0 !important; outline: 0 !important;
 }
 
 /* ---- 2) `hidden` tem que vencer o `display` do seletor de classe ---- */
@@ -1604,7 +1610,8 @@ body {
 }
 
 /* a lista suspensa de crianças não existe mais (quem escolhe é o modo grupo) */
-#home-baby-select { display: none !important; }
+/* seletor de crianças de volta (some só quando o grupo está aberto) */
+.modo-grupo #home-baby-select { display: none; }
 
 /* =====================================================================
  * ============ V9 — BONECO GRANDE NO PC · GRUPO JUNTO · DEITADO ======
@@ -1651,4 +1658,86 @@ body {
 
   /* grupo deitado: linha larga, todos com o pé na mesma altura */
   .room-baby { max-height: 92%; margin-bottom: 0 !important; }
+}
+
+/* =====================================================================
+ * ============ V10 — CRIANÇA GRANDE (o método do banner) ============
+ * O banner ficava grande porque definia LARGURA E ALTURA explícitas em
+ * vh (`min(90%, 74vh)`), em vez de deixar a altura sair do aspect-ratio
+ * dentro de um flex — que é o que vinha encolhendo a criança da cena.
+ * Aqui aplicamos o mesmo método ao palco da cena. O banner saiu.
+ * ===================================================================== */
+.banner-bebe { display: none !important; }
+
+.scene-baby {
+  width: auto;                       /* quem manda agora é o palco */
+  max-width: none;
+}
+.scene-baby-stage {
+  width: min(94vw, 62vh);
+  height: min(94vw, 62vh);
+  aspect-ratio: auto;                /* altura explícita, como no banner */
+  background: none; box-shadow: none; border-radius: 0;
+}
+
+@media (min-width: 1000px) {
+  :root { --coluna: min(620px, calc(100dvh * 0.66)); }
+  .scene-baby-stage {
+    width: min(var(--coluna), 74vh);
+    height: min(var(--coluna), 74vh);
+  }
+}
+
+/* ---- ÁREA ÚTIL DO CORPO = 1,5x a largura da cabeça ----
+ * O sprite tem muita margem transparente; a "caixa" real da criança é
+ * bem mais estreita que o palco. Declaramos essa proporção para o modo
+ * grupo poder encostar as caixas sem que os corpos se sobreponham —
+ * assim cabem MAIORES no mesmo espaço. */
+:root { --corpo-util: 0.5; }        /* fração do palco ocupada pelo corpo */
+.room-baby .mini-stage { width: 100%; height: auto; aspect-ratio: 1 / 1; }
+.room-view { gap: 0; }
+/* Sem margens negativas: elas deslocavam as crianças de lado quando um
+ * tile ficava oculto (o oculto ainda conta como :first-child). A
+ * aproximação agora vem do gap zero + larguras generosas. */
+.room-baby { margin-left: 0; margin-right: 0; }
+
+/* chip de saúde: vermelho quando cai */
+.chip[data-chave="health"]::before {
+  background: linear-gradient(180deg, transparent calc(100% - var(--fill, 0%)),
+              #F3B0B0 calc(100% - var(--fill, 0%)));
+}
+
+/* No celular só Dino e Hill Drive usam a tela deitada; o resto fica
+   travado em retrato pelo JS. Aqui garantimos que, se ainda assim girar
+   (site no navegador), a cena não quebre. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .screen.scene.active .scene-baby-stage { width: auto; height: min(70%, 260px); }
+}
+
+/* a criança SELECIONADA se destaca das outras do cômodo */
+.room-baby { transition: filter .2s, transform .2s; }
+.room-baby.ativa { transform: translateY(-2%) scale(1.04); }
+.room-baby:not(.ativa) { filter: brightness(.9) saturate(.85); }
+
+
+/* =====================================================================
+ * ============ V11 — AJUSTES FINOS =================================
+ * ===================================================================== */
+
+/* 6) No PC as crianças do grupo sobem 30% de uma cabeça.
+ *    A cabeça é ~1/3 da altura do palco, então 30% dela ≈ 10% do palco. */
+@media (min-width: 1000px) {
+  .modo-grupo .room-baby { transform: translateY(-10%); }
+}
+
+/* 2) o destaque da selecionada não pode deslocar ninguém */
+.room-baby.ativa { transform: none; }
+.modo-grupo .room-baby.ativa { transform: translateY(-10%); }
+.room-baby.ativa .mini-stage { filter: drop-shadow(0 0 12px rgba(255,229,92,.55)); }
+
+/* efeito do alimento em uma linha curtinha */
+.food-efeito {
+  display: block; margin-top: 1px;
+  font-size: .62rem; font-weight: 800; color: var(--primary-d);
+  letter-spacing: .01em;
 }

@@ -17,6 +17,7 @@
 import {
   initSync, onStateChange, syncDecay, addBaby, renameBaby,
   boostStatus, sootheNightmare, setDormindo, acertarSono,
+  moverCrianca, marcarOcupada,
 } from "./firebase-sync.js";
 import { ASSETS } from "./assets-map.js";
 import { GAME_CONFIG, ROOM_NAME, BALANCE } from "./config.js";
@@ -104,6 +105,28 @@ let roomIdx = Math.max(0, ROOMS.findIndex((r) => r.id === (localStorage.getItem(
 
 const currentRoom = () => ROOMS[roomIdx];
 
+/* Pedido de troca de cômodo vindo das setinhas: quem anda é a CRIANÇA.
+ * O cômodo é gravado nela, então os dois jogadores que a estão guiando
+ * vão juntos. Se ela estiver ocupada com o outro jogador, não sai. */
+async function pedirTrocaDeComodo(passo) {
+  const alvo = ROOMS[(roomIdx + passo + ROOMS.length) % ROOMS.length];
+  const id = getActiveBaby();
+  if (!id) { setRoom(alvo.id); return; }
+  const r = await moverCrianca(id, alvo.id);
+  if (!r.ok) {
+    flashMsg(TEXTO_OCUPADA[r.motivo] || "Ela está ocupada agora… 🙃");
+    return;
+  }
+  setRoom(alvo.id);      // o espelho local; o Firebase confirma para os dois
+}
+
+const TEXTO_OCUPADA = {
+  cozinha: "Alguém está cozinhando com ela 🍳",
+  minigame: "Ela está jogando com alguém 🎮",
+  banho: "Ela está no banho 🛁",
+  ocupada: "Ela está ocupada agora… 🙃",
+};
+
 function setRoom(idxOrId) {
   const idx = typeof idxOrId === "number"
     ? (idxOrId + ROOMS.length) % ROOMS.length
@@ -169,7 +192,8 @@ function setLights(off) {
   }
   lightsOff = off;
   // registra no Firebase: o sono CONTINUA correndo com o app fechado
-  if (getActiveBaby()) setDormindo(getActiveBaby(), off);
+  // quem está no quarto dorme junto (mesmo tendo vindo acompanhando outra)
+  for (const id of colegasDeComodo()) setDormindo(id, off);
   document.getElementById("lights-overlay").hidden = !off;
   document.getElementById("screen-home").classList.toggle("lights-off", off);
   clearInterval(sleepTimer);
@@ -177,7 +201,10 @@ function setLights(off) {
     sleepTimer = setInterval(() => {
       const home = document.getElementById("screen-home");
       if (home.classList.contains("active") && currentRoom().id === "quarto" && lightsOff) {
-        boostStatus(getActiveBaby(), "sleep", BALANCE.care.sleepPerTick);
+        // no quarto escuro, TODAS as crianças do cômodo dormem
+        for (const id of colegasDeComodo()) {
+          boostStatus(id, "sleep", BALANCE.care.sleepPerTick);
+        }
         registerCare();
       }
     }, 1500);
@@ -193,6 +220,22 @@ const TELAS_DE_JOGO = new Set([
 ]);
 const ehTelaDeJogo = (id) => TELAS_DE_JOGO.has(id);
 
+/* --- CARIMBO DE "OCUPADA" (trava entre os dois jogadores) --- */
+let atividadeAtual = null, atividadeTimer = null;
+function marcarAtividade(oque) {
+  atividadeAtual = oque;
+  clearInterval(atividadeTimer);
+  const id = getActiveBaby();
+  if (!id) return;
+  marcarOcupada(id, oque);
+  if (oque) {
+    // renova enquanto durar (se o app fechar, o carimbo expira sozinho)
+    atividadeTimer = setInterval(() => {
+      if (atividadeAtual && getActiveBaby()) marcarOcupada(getActiveBaby(), atividadeAtual);
+    }, 12000);
+  }
+}
+
 /* --- PORTAS DE BEM-ESTAR --- */
 function babyAtivo() {
   return (room && room.babies && room.babies[getActiveBaby()]) || null;
@@ -207,6 +250,7 @@ function podeDormir() {
 function podeBrincar() {
   const b = babyAtivo();
   if (!b) return true;
+  if (b.doente) return false;          // doente não brinca
   const m = BALANCE.status.minParaBrincar || { hunger: 20, sleep: 20 };
   return !((b.hunger ?? 100) < m.hunger && (b.sleep ?? 100) < m.sleep);
 }
@@ -232,6 +276,8 @@ let bubbles = [];               // {x, y, el} em coordenadas do palco
 let hygieneAcc = 0;
 
 function setTool(t) {
+  /* dando banho também é atividade: trava a criança no cômodo */
+  if (typeof marcarAtividade === "function") marcarAtividade(arguments[0] ? "banho" : null);
   tool = tool === t ? null : t;
   const layer = document.getElementById("bubbles-layer");
   layer.style.pointerEvents = tool ? "auto" : "none";
@@ -345,6 +391,7 @@ const CHIP_DEFS = [
   { key: "hygiene", emoji: "🧼", label: "Higiene" },
   { key: "fun",     emoji: "🎈", label: "Diversão" },
   { key: "love",    emoji: "💛", label: "Afeto" },
+  { key: "health",  emoji: "❤️", label: "Saúde" },
   { key: "xp",      emoji: "⭐", label: "XP" },
 ];
 let showPct = false;
@@ -431,7 +478,9 @@ function createTile(babyId) {
   const el = document.createElement("div");
   el.className = "room-baby";
   el.innerHTML = `<div class="mini-stage" data-mood="happy"></div><span class="mini-name"></span>`;
-  el.addEventListener("click", () => { setActiveBaby(babyId); setView("single"); });
+  /* Clicar numa criança do cômodo a torna a SELECIONADA — mas a visão
+   * continua em GRUPO enquanto houver mais de uma ali. */
+  el.addEventListener("click", () => { setActiveBaby(babyId); });
   const stage = el.querySelector(".mini-stage");
   const refs = {
     el, stage,
@@ -454,7 +503,10 @@ function layoutTiles() {
   /* Larguras em % do palco. Precisam CABER na altura: uma criança
    * ocupando 92% da largura ficava mais alta que o palco e a cabeça
    * saía pela borda de cima. O CSS ainda limita a altura (max-height). */
-  const w = n <= 1 ? 46 : n === 2 ? 38 : n === 3 ? 31 : 26;
+  /* Como a área ÚTIL do corpo é ~1,5x a cabeça (bem menor que o palco
+   * quadrado), as caixas podem se sobrepor sem os corpos se tocarem —
+   * por isso as larguras aqui são generosas. */
+  const w = n <= 1 ? 62 : n === 2 ? 52 : n === 3 ? 44 : n === 4 ? 38 : 32;
   /* Layout em LINHA (flex), não mais posicionamento absoluto com
    * percentuais fixos: assim a turma inteira sempre CABE no palco —
    * é o "enquadramento" que faltava, e nenhuma cabeça sai pela borda. */
@@ -486,10 +538,25 @@ function reconcile(babies) {
   applyActiveVisibility();
 }
 
-/* A lista suspensa de crianças foi removida: quem escolhe é o MODO GRUPO
- * (toque na criança para deixá-la ativa). Mantido como no-op para não
- * espalhar ifs pelo reconcile. */
-function syncSelect() { /* sem lista: nada a sincronizar */ }
+/* Lista suspensa de crianças (funciona junto com o modo grupo). */
+function syncSelect(babies) {
+  const select = document.getElementById("home-baby-select");
+  if (!select) return;
+  const ids = Object.keys(babies || {});
+  const sig = ids.map((id) => `${id}:${babies[id].name || ""}`).join("|");
+  if (select.dataset.sig !== sig) {
+    select.dataset.sig = sig;
+    select.innerHTML = "";
+    for (const id of ids) {
+      const op = document.createElement("option");
+      op.value = id;
+      op.textContent = babies[id].name || "Bebê";
+      select.appendChild(op);
+    }
+  }
+  const ativo = getActiveBaby();
+  if (ativo && select.value !== ativo) select.value = ativo;
+}
 
 function applyActiveVisibility() {
   const active = getActiveBaby();
@@ -542,7 +609,33 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
+/* Quem está no MESMO cômodo da criança ativa. */
+function colegasDeComodo() {
+  if (!room || !room.babies) return [];
+  const ativa = room.babies[getActiveBaby()];
+  const comodo = (ativa && ativa.room) || currentRoom().id;
+  return Object.keys(room.babies).filter(
+    (id) => ((room.babies[id].room) || "quarto") === comodo);
+}
+
+/* Sincroniza a tela com o cômodo GRAVADO na criança (é assim que o
+ * segundo jogador é levado junto) e decide solo x grupo:
+ * com mais de uma criança no cômodo, o visual é de GRUPO — mas as
+ * interações continuam valendo para a criança selecionada. */
+function seguirCrianca() {
+  if (!room || !room.babies) return;
+  const ativa = room.babies[getActiveBaby()];
+  if (!ativa) return;
+  const comodo = ativa.room || "quarto";
+  if (currentRoom().id !== comodo) setRoom(comodo);
+
+  const juntos = colegasDeComodo();
+  const querGrupo = juntos.length > 1;
+  if (querGrupo !== (viewMode === "room")) setView(querGrupo ? "room" : "single");
+}
+
 function desenharQuadro() {
+  seguirCrianca();
   if (room && room.babies) {
     const now = Date.now();
     const activeId = getActiveBaby();
@@ -551,7 +644,12 @@ function desenharQuadro() {
       if (id === activeId) updateChips(decayed);
       try {
         if (viewMode === "single" && cards[id] && id === activeId) updateCard(cards[id], decayed);
-        if (viewMode === "room" && tiles[id]) updateTile(tiles[id], decayed);
+        if (viewMode === "room" && tiles[id]) {
+        const noComodo = ((baby.room) || "quarto") === currentRoom().id;
+        tiles[id].el.style.display = noComodo ? "" : "none";
+        tiles[id].el.classList.toggle("ativa", id === activeId);
+        if (noComodo) updateTile(tiles[id], decayed);
+      }
       } catch (e) {
         if (!erroAvisado) { erroAvisado = true; console.error("[Ninhada] erro ao desenhar a criança:", e); }
       }
@@ -568,10 +666,20 @@ let cameFromTray = false;
 export function showScreen(id) {
   /* Sem barriga cheia E sem sono, a criança não brinca. */
   if (id.startsWith("screen-") && ehTelaDeJogo(id) && !podeBrincar()) {
-    flashMsg("Ela está com fome e com sono… cuide dela antes de brincar 🍽️😴");
+    const b = babyAtivo();
+    flashMsg(b && b.doente
+      ? "Ela está doente… dê um remédio e deixe descansar 🤒"
+      : "Ela está com fome e com sono… cuide dela antes de brincar 🍽️😴");
     return;
   }
   if (id === "screen-dino" || id === "screen-hilldrive") liberarRotacao();
+  else travarRetrato();          // deitar SÓ nesses dois jogos
+
+  /* Enquanto a criança está numa atividade, o outro jogador não
+   * consegue tirá-la do cômodo. O carimbo vale ~25 s e é renovado. */
+  const atividade = ehTelaDeJogo(id) ? "minigame"
+                  : id === "screen-kitchen" ? "cozinha" : null;
+  marcarAtividade(atividade);   // sair da tela já passa null: destrava na hora
   const prev = currentScreen;
   if (prev === id) return;
   currentScreen = id;
@@ -594,6 +702,7 @@ function openTray() {
   updateTrayLocks();
 }
 function closeTray(clearFlag = true) {
+  marcarAtividade(null);        // fechou a bandeja: a criança já pode andar
   document.getElementById("games-tray").hidden = true;
   if (clearFlag) cameFromTray = false;
 }
@@ -632,8 +741,11 @@ function wireNav() {
 
   document.getElementById("tray-close").addEventListener("click", () => closeTray(true));
 
-  document.getElementById("room-prev").addEventListener("click", () => setRoom(roomIdx - 1));
-  document.getElementById("room-next").addEventListener("click", () => setRoom(roomIdx + 1));
+  document.getElementById("room-prev").addEventListener("click", () => pedirTrocaDeComodo(-1));
+  document.getElementById("room-next").addEventListener("click", () => pedirTrocaDeComodo(1));
+
+  document.getElementById("home-baby-select")
+    .addEventListener("change", (e) => setActiveBaby(e.target.value));
 
   document.getElementById("view-toggle")
     .addEventListener("click", () => setView(viewMode === "single" ? "room" : "single"));
@@ -655,27 +767,10 @@ function wireNav() {
   });
 }
 
-/* ================= BANNER LATERAL (PC) ========================== */
-let bannerRefs = null;
-function atualizarBanner(state) {
-  try {
-    const alvo = document.getElementById("banner-stage");
-    if (!alvo) return;
-    const box = document.getElementById("banner-bebe");
-    const baby = state && state.babies && state.babies[getActiveBaby()];
-    if (!baby) { if (box) box.style.display = "none"; return; }
-    if (box) box.style.display = "";
-    if (!bannerRefs) bannerRefs = buildStageLayers(alvo, false);
-    paintBabyLayers(bannerRefs, baby);
-    alvo.dataset.mood = moodFor(baby);
-    const nome = document.getElementById("banner-nome");
-    const fase = document.getElementById("banner-fase");
-    if (nome) nome.textContent = baby.name || "Bebê";
-    if (fase) fase.textContent = phaseForXp(baby.xp || 0).name;
-  } catch (e) {
-    console.error("[Ninhada] banner lateral:", e);
-  }
-}
+/* O banner lateral foi removido: a criança da CENA agora usa o mesmo
+ * método de dimensionamento que ele usava (largura E altura explícitas
+ * em vh), que era o que dava o tamanho grande. */
+function atualizarBanner() { /* sem banner */ }
 
 /* ================= BOOTSTRAP ================================== */
 /* O manifest pedia "portrait", o que TRAVA a rotação em app instalado.

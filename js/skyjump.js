@@ -39,7 +39,7 @@ export function initSkyJump() {
   let heroi, plats, altura, camera, rodando, morto, lastT = 0, alvoX = null;
   let moedas;
   let setaX = 0;                 // -1 / 0 / +1 pelas setas do teclado
-  let estabiliza = 0;            // 1 logo após inverter o sentido, decai a 0
+  let platAtual = null;          // plataforma pisada por último (base da câmera)
   const VMAX_H = () => (SJ.velMaxH ?? 6.5) * sx;
   let grausSuaves = 0;           // leitura do sensor JÁ filtrada
 
@@ -51,7 +51,7 @@ export function initSkyJump() {
     PULO = -SJ.forcaPulo * sy;
     VAO_MIN = SJ.vaoMin * sy;          // o vão acompanha o pulo
     VAO_MAX = SJ.vaoMax * sy;
-    LARG = 66 * sx;
+    LARG = W * (SJ.larguraPlataforma ?? 1 / 6);
     ALT = 12 * sy;
     // com o vão proporcional, o número de plataformas na tela é constante
     N_PLATS = Math.ceil(H / ((VAO_MIN + VAO_MAX) / 2)) + 3;
@@ -72,7 +72,8 @@ export function initSkyJump() {
     plats = [{ x: W / 2 - LARG / 2, y: H - 60 * sy, quebra: false, usada: false }];
     { let y = H - 60 * sy; for (let i = 1; i < N_PLATS; i++) { y -= sorteiaVao(); plats.push(novaPlat(y)); } }
     altura = 0; camera = 0; rodando = false; morto = false; alvoX = null;
-    moedas = 0; lastT = 0; setaX = 0; grausSuaves = 0; estabiliza = 0;
+    moedas = 0; lastT = 0; setaX = 0; grausSuaves = 0;
+    platAtual = plats[0];
     setOverlay("Toque para começar", "Arraste para os lados!");
     desenhar();
   }
@@ -86,58 +87,39 @@ export function initSkyJump() {
   function update(dt) {
     if (!rodando || morto) return;
 
-    /* ============ HORIZONTAL: SÓ INÉRCIA E ATRITO ============
-     * Não existe mais "aceleração proporcional ao ângulo". O boneco
-     * tem uma velocidade ALVO ditada pelo ângulo do celular e apenas
-     * TENTA alcançá-la — quem segura essa perseguição é o ATRITO.
-     *
-     *   alvo   = (ângulo / ângulo máximo) · velocidade máxima
-     *   vx    += (alvo − vx) · adesao        (a "tração" com o alvo)
-     *   vx    *= atrito                      (o freio que dá o peso)
-     *
-     * Como o atrito age SEMPRE, o boneco nunca chega instantaneamente
-     * ao alvo: ele desliza, demora a virar e continua andando quando o
-     * celular volta ao centro (alvo = 0, sobra só o atrito). */
-    let alvo = null;                         // velocidade que o controle pede
+    /* ============ HORIZONTAL (modelo do Pou) ============
+     * A INCLINAÇÃO dá VELOCIDADE, não aceleração: o ângulo mapeia
+     * direto para vx. Não há atrito nenhum. A única "inércia" é um
+     * amortecedor levíssimo, só para o movimento não dar degrau seco —
+     * ao voltar ao centro, o boneco simplesmente para de andar.
+     * O TOQUE e o TECLADO continuam com o comportamento antigo. */
+    const VMAX = VMAX_H();
+    let alvo = null;
 
     if (tiltLigado) {
       const zona = SJ.zonaMortaGraus ?? 3;
       const gMax = SJ.grausMax ?? 24;
       const excesso = Math.abs(grausSuaves) - zona;
-      if (excesso > 0) {
-        const t = Math.min(1, excesso / Math.max(1, gMax - zona));
-        alvo = Math.sign(grausSuaves) * t * VMAX_H();
-      } else {
-        alvo = 0;                            // no centro: só o atrito trabalha
-      }
+      // velocidade PROPORCIONAL ao ângulo (dentro da zona morta: parado)
+      alvo = excesso <= 0 ? 0
+           : Math.sign(grausSuaves) * Math.min(1, excesso / Math.max(1, gMax - zona)) * VMAX;
     }
+
+    /* ---- toque: inalterado (persegue o dedo) ---- */
     if (alvoX !== null) {
-      // arrastar: o alvo é proporcional à distância até o dedo
       const d = alvoX - (heroi.x + heroi.w / 2);
-      const porToque = Math.max(-1, Math.min(1, d / (W * 0.28))) * VMAX_H();
-      alvo = alvo === null ? porToque : (alvo + porToque) / 2;
+      const porToque = Math.max(-1, Math.min(1, d / (W * 0.28))) * VMAX;
+      alvo = alvo === null ? porToque : porToque;      // o dedo tem prioridade
     }
-    if (setaX !== 0) alvo = setaX * VMAX_H();
+    /* ---- teclado: inalterado ---- */
+    if (setaX !== 0) alvo = setaX * VMAX;
 
-    /* Com o celular NO CENTRO (alvo 0) não há perseguição nenhuma:
-     * sobra só o atrito. É daí que vem a inércia — o boneco continua
-     * deslizando e vai parando sozinho, em vez de ser puxado de volta. */
-    if (alvo) {
-      const contra = heroi.vx !== 0 && Math.sign(alvo) !== Math.sign(heroi.vx);
-      let adesao = SJ.adesao ?? 0.20;
-      if (contra) {
-        adesao *= (SJ.freioInversao ?? 1);      // a própria perseguição já freia
-        estabiliza = 1;                          // arma o amortecimento da virada
-      } else if (estabiliza > 0) {
-        estabiliza = Math.max(0, estabiliza - dt / Math.max(1, SJ.estabilizaFrames ?? 34));
-        adesao *= 1 - estabiliza * (1 - (SJ.estabilizaMin ?? 0.14));
-      }
-      heroi.vx += (alvo - heroi.vx) * adesao * dt;
+    if (alvo !== null) {
+      // amortecedor leve: aproxima vx do alvo sem degrau (sem atrito)
+      const k = Math.min(1, (SJ.amortecedor ?? 0.35) * dt);
+      heroi.vx += (alvo - heroi.vx) * k;
     }
 
-    heroi.vx *= Math.pow(SJ.atritoH ?? 0.945, dt);   // ATRITO: o peso do boneco
-
-    const VMAX = VMAX_H();
     heroi.vx = Math.max(-VMAX, Math.min(VMAX, heroi.vx));
 
     heroi.x += heroi.vx * dt;
@@ -153,6 +135,7 @@ export function initSkyJump() {
         const emCima = heroi.y + heroi.h >= p.y && heroi.y + heroi.h <= p.y + ALT + heroi.vy * dt;
         const dentro = heroi.x + heroi.w > p.x && heroi.x < p.x + LARG;
         if (emCima && dentro) {
+          platAtual = p;                      // vira a "base" da câmera
           heroi.vy = PULO;
           if (p.quebra) p.sumiu = true;
           break;
@@ -160,10 +143,17 @@ export function initSkyJump() {
       }
     }
 
-    if (heroi.y < H * 0.4) {
-      const d = H * 0.4 - heroi.y;
-      heroi.y += d; camera += d; altura += d;
-      for (const p of plats) p.y += d;
+    /* CÂMERA (como no Pou): a plataforma em que ele acabou de pisar
+     * vira a MAIS BAIXA, com a base a ~8% do rodapé. O mundo desce até
+     * lá suavemente, em vez de rolar por um limiar de altura. */
+    if (platAtual && !platAtual.sumiu) {
+      const alvoY = H * (1 - (SJ.baseAcimaDoRodape ?? 0.08));
+      const d = alvoY - platAtual.y;
+      if (d > 0.5) {
+        const passo = Math.min(d, d * 0.25 * dt);
+        heroi.y += passo; camera += passo; altura += passo;
+        for (const p of plats) p.y += passo;
+      }
     }
 
     plats = plats.filter((p) => p.y < H + 30 * sy);

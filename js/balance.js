@@ -38,7 +38,7 @@ export const BALANCE = {
   /* ================= CUIDADOS ================= */
   care: {
     // Remédio: cura resfriado na hora (e dá uma ajudinha no ânimo).
-    remedioCusto: 25,
+    remedioCusto: 220,      // MUITO caro: cura só 15% e é 1 por dia
     remedioLove: 10,
     remedioXp: 15,
     // Quanto cada ação de botão recupera.
@@ -54,10 +54,10 @@ export const BALANCE = {
     hygienePerPixel: 0.06,
     // Sono ganho por "tique" com a luz apagada (a cada 1,5 s).
     // Baixou de 4 para 1,6: encher o sono agora leva bem mais tempo.
-    sleepPerTick: 1.6,
+    sleepPerTick: 0.0625,       // 100 pontos ≈ 40 min de luz apagada
     /* Dormir CONTINUA com o app fechado: ao voltar, o tempo em que a
      * criança ficou no escuro é convertido nesta taxa por hora. */
-    sleepPerHourDormindo: 38,
+    sleepPerHourDormindo: 150,  // 100 pontos ≈ 40 min dormindo (app fechado)
   },
 
   /* ================= CRESCIMENTO ================= */
@@ -109,7 +109,7 @@ export const BALANCE = {
     fooddrop:   { minPhase: "newborn",  coinsPerPoint: 0.2,   xpPerPoint: 1.6,  hard: false },
     memory:     { minPhase: "crawling", coinsPerPoint: 0.2,   xpPerPoint: 1.1,  hard: false },
     colormatch: { minPhase: "crawling", coinsPerPoint: 0.3,   xpPerPoint: 1.8,  hard: false },
-    g2048:      { minPhase: "toddler",  coinsPerPoint: 0.16,  xpPerPoint: 1.10, hard: true  },   // 2x
+    g2048:      { minPhase: "toddler",  coinsPerPoint: 0.32,  xpPerPoint: 2.20, hard: true  },   // 4x do original
     match3:     { minPhase: "crawling", coinsPerPoint: 0.3,   xpPerPoint: 2,    hard: false },
     starpopper: { minPhase: "crawling", coinsPerPoint: 0.06,  xpPerPoint: 0.5,  hard: false },
     // ----- arcades do Pou -----
@@ -179,6 +179,31 @@ export const BALANCE = {
     moedaMin: 170, moedaMax: 320,   // bem mais moedas pelo caminho
   },
 
+  /* ================= SAÚDE ================= */
+  health: {
+    // limiares (com histerese: adoece cedo, mas só sara bem melhor)
+    doenteAbaixo: 35,
+    saraAcima: 55,
+
+    // pesos do cálculo por HORA (ver state.ajustarSaude)
+    pesoHigiene: 3.5,       // higiene é o que mais pesa
+    pesoSaciedade: 3.0,
+    pesoMedia: 2.0,
+    bonusTempoBom: 1.0,     // temperatura agradável
+    penalidadeFrio: 3.0,    // frio derruba
+
+    // doces: até este número por dia não faz mal
+    docesSemPenalidade: 3,
+    penalidadePorDoce: 2.5,
+
+    // efeitos de estar DOENTE (por hora)
+    doenteLovePorHora: 6,
+    doenteFunPorHora: 8,
+
+    // remédio: 15% mais caro e SÓ UM por dia
+    remedioCura: 15,        // cura 15 pontos de saúde (é um empurrãozinho)
+  },
+
   /* ================= FLAPPY BABY ================= */
   flappy: {
     /* A distância HORIZONTAL entre os canos é sorteada como uma fração
@@ -190,56 +215,35 @@ export const BALANCE = {
 
   /* ================= SKY JUMP ================= */
   skyjump: {
-    gravidade: 0.42,
-    forcaPulo: 11.4,
-    // Altura máxima que o pulo alcança = forcaPulo² / (2 × gravidade) ≈ 155 px.
-    // O vão MÁXIMO fica um tiquinho abaixo disso, senão vira impossível.
-    vaoMin: 70,
-    vaoMax: 139,
+    /* Números tirados do comportamento do Pou (tela de referência 460 px):
+     *   - o pulo sobe 40% da altura da tela
+     *   - ida + volta levam ~1,2 s (0,6 s subindo)
+     *   => g = 0,40·H / (t²/2)  e  impulso = g·t                       */
+    gravidade: 0.284,
+    forcaPulo: 10.22,
+    // vãos com folga dentro dos 40% do pulo (o maior fica em ~34% da tela)
+    vaoMin: 78,
+    vaoMax: 150,
+    larguraPlataforma: 1 / 6,   // fração da LARGURA da tela
+    baseAcimaDoRodape: 0.08,    // a plataforma pisada fica 8% acima do chão
     plataformas: 6,
     chanceMoeda: 0.28,
     chanceQuebra: 0.28,
-    /* ---- CONTROLE HORIZONTAL: MASSA e INÉRCIA (como no Pou) ----
-     * O celular NÃO é um joystick analógico: a inclinação não define a
-     * velocidade, ela gera ACELERAÇÃO. O fluxo é
-     *   inclinação -> filtro -> zona morta -> aceleração -> velocidade
-     *   -> atrito -> posição
-     * Resultado: o boneco DEMORA a ganhar velocidade, CONTINUA deslizando
-     * quando o celular volta ao centro e para aos poucos. */
-    /* O amortecimento estava EMPILHADO: filtro lento + zona morta larga
-     * + curva quadrática + atrito, tudo somando atraso ANTES de o boneco
-     * sair do lugar. Agora o freio vem só DEPOIS do movimento começar
-     * (inércia + atrito), como no Doodle Jump/Pou. */
-    filtroInclinacao: 0.45,     // passa-baixa: ganho MÍNIMO (só contra tremor)
-    saltoInclinacao: 4,         // virada ≥4° é "de propósito" e passa na hora
-    zonaMortaGraus: 3,          // só o bastante p/ o boneco não vibrar parado
-    grausMax: 24,               // leitura do sensor satura aqui
-    /* Calibrados para a velocidade terminal NATURAL (aceleração ÷ atrito)
-     * já dar ~velMaxH: o teto quase nunca é acionado, então o movimento
-     * é físico e não "no limite do joystick". Com estes números:
-     *   10° de inclinação  -> já sai do lugar em ~0,2 s (era >1 s)
-     *   a força é PROPORCIONAL ao ângulo (linear), sem ponto morto largo
-     *   nivelou o aparelho -> desliza ~135 px por ~1,4 s: o "peso" está
-     *   na INÉRCIA depois de andar, não numa demora para começar
-     * Ainda é massa com inércia, mas responde dentro do arco de UM pulo
-     * — antes demorava mais que o pulo inteiro e parecia travado. */
-    /* A aceleração NÃO é linear com o ângulo: segue uma curva
-     * (t^curvaInclinacao), com t indo de 0 na borda da zona morta a 1 na
-     * inclinação máxima. Assim inclinar pouco quase não acelera e o
-     * ajuste fino fica fácil; a força total só vem no ângulo cheio. */
-    /* MODELO: inércia + atrito (sem aceleração por ângulo).
-     * O ângulo define a velocidade ALVO; `adesao` é o quanto o boneco
-     * consegue perseguir esse alvo a cada quadro, e o atrito segura. */
-    adesao: 0.20,               // tração com o alvo (maior = obedece mais rápido)
-    curvaInclinacao: 1,         // mantido: 1 = alvo proporcional ao ângulo
-    atritoH: 0.945,             // por frame: freia um pouquinho mais que antes
-    /* Inversão brusca de sentido: freia rápido, mas sem catapultar. */
-    freioInversao: 1,           // a perseguição já freia sozinha; sem extra
-    estabilizaFrames: 34,       // ~0,6 s para a tração voltar ao normal após virar
-    estabilizaMin: 0.14,        // no instante da virada, só 14% da tração
-    velMaxH: 6.5,               // ÚNICO teto: a velocidade (nunca a aceleração)
-    acelToque: 0.0011,          // arrastar: aceleração rumo ao dedo (por px)
-    acelSeta: 0.20,             // setas do teclado: aceleração constante
+
+    /* ---- CONTROLE POR INCLINAÇÃO (só ele; o toque continua igual) ----
+     * A inclinação dá VELOCIDADE, não aceleração: vx alvo = (ângulo /
+     * ângulo máximo) · velMaxH. Não existe atrito. A única "inércia" é
+     * um amortecedor levíssimo que impede o degrau seco — ao voltar ao
+     * centro o boneco simplesmente para de andar. */
+    filtroInclinacao: 0.5,      // passa-baixa mínimo (contra tremor)
+    saltoInclinacao: 3,         // virada ≥3° passa direto
+    zonaMortaGraus: 3,
+    grausMax: 24,
+    velMaxH: 6.0,               // velocidade no ângulo máximo
+    amortecedor: 0.35,          // 1 = instantâneo · 0,35 = resistência leve
+    /* toque e teclado (inalterados) */
+    acelToque: 0.0011,
+    acelSeta: 0.20,
   },
 
   /* ================= MATCH 3 ================= */

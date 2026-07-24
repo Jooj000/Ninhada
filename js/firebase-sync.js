@@ -18,7 +18,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
 import { firebaseConfig, ROOM_ID, GAME_CONFIG, MINIGAMES, BALANCE } from "./config.js";
-import { defaultRoom, defaultBaby, applyDecay, clamp, phaseForXp, nextColdState, isNightNow, wantsNightmare, nextFatigue, tierMultiplier } from "./state.js";
+import { defaultRoom, defaultBaby, applyDecay, ajustarSaude, estaDoente, clamp, phaseForXp, nextColdState, isNightNow, wantsNightmare, nextFatigue, tierMultiplier } from "./state.js";
 
 let db = null;
 let roomRef = null;
@@ -77,8 +77,29 @@ export function syncDecay() {
   return runTransaction(babiesRef(), (babies) => {
     if (!babies) return babies;
     const now = Date.now();
+    const H = BALANCE.health || {};
     for (const id of Object.keys(babies)) {
-      babies[id] = applyDecay(babies[id], now);
+      const antes = babies[id];
+      const horas = Math.max(0, (now - (antes.lastUpdate || now)) / 3_600_000);
+      const b = applyDecay(antes, now);
+
+      /* SAÚDE: não decai pelo relógio — é recalculada a partir de como
+       * a criança vem sendo cuidada (higiene, saciedade, média, clima e
+       * excesso de doce). */
+      const clima = (typeof window !== "undefined" && window.__STATE__ && window.__STATE__.weather) || null;
+      const temp = clima ? (clima.temp ?? 20) : 20;
+      b.health = ajustarSaude(b, horas, {
+        frio: !!(clima && (clima.main === "cold" || temp < 12)),
+        tempoBom: !!(clima && temp >= 18 && temp <= 28),
+      });
+
+      /* DOENTE: bloqueia brincar e derruba afeto e alegria. */
+      b.doente = estaDoente(b);
+      if (b.doente) {
+        b.love = clamp((b.love ?? 0) - (H.doenteLovePorHora ?? 6) * horas);
+        b.fun  = clamp((b.fun  ?? 0) - (H.doenteFunPorHora  ?? 8) * horas);
+      }
+      babies[id] = b;
     }
     return babies;
   });
@@ -98,6 +119,39 @@ export function boostStatus(babyId, key, amount, xp = GAME_CONFIG.xpPerCare, act
     s.fatigue = fatigue;
     s.xp = (s.xp ?? 0) + Math.round((xp || 0) * factor);   // só o XP cansa
     return s;
+  });
+}
+
+/* ---------------------------------------------------------------------
+ * CÔMODO DA CRIANÇA (o jogador segue a CRIANÇA, não o cômodo)
+ * O cômodo fica gravado no bebê. Se dois jogadores estão guiando a
+ * mesma criança e um aperta a setinha, os DOIS vão junto — porque
+ * ambos apenas espelham `baby.room`.
+ * ------------------------------------------------------------------- */
+export function moverCrianca(babyId, roomId) {
+  const out = { ok: false, motivo: "" };
+  if (!babyId) return Promise.resolve(out);
+  return runTransaction(babyRef(babyId), (baby) => {
+    if (!baby) return baby;
+    /* OCUPADA: se outro jogador está no meio de uma atividade com ela
+     * (cozinhando, jogando, dando banho), ninguém a tira do cômodo. */
+    const oc = baby.ocupada;
+    if (oc && oc.ate && oc.ate > Date.now()) { out.motivo = oc.oque || "ocupada"; return baby; }
+    baby.room = roomId;
+    out.ok = true;
+    return baby;
+  }).then(() => out);
+}
+
+/* Marca/desmarca a criança como OCUPADA numa atividade. O carimbo tem
+ * validade curta e é renovado enquanto a atividade continua, para que
+ * um app fechado no meio do caminho não trave a criança para sempre. */
+export function marcarOcupada(babyId, oque, segundos = 25) {
+  if (!babyId) return Promise.resolve();
+  return runTransaction(babyRef(babyId), (baby) => {
+    if (!baby) return baby;
+    baby.ocupada = oque ? { oque, ate: Date.now() + segundos * 1000 } : null;
+    return baby;
   });
 }
 
@@ -239,16 +293,41 @@ export function getRecord(gameId) {
  * dar XP (pratos cozinhados) e registrar a receita descoberta.
  * Transação no nó raiz porque mexe em coins + baby + recipes juntos.
  * ---------------------------------------------------------------- */
-export function serveFood(babyId, { hunger = 0, xp = 0, cost = 0, recipeId = null }) {
+export function serveFood(babyId, { hunger = 0, xp = 0, cost = 0, recipeId = null, efeitos = null }) {
   return runTransaction(roomRef, (room) => {
     if (!room) return room;
     if ((room.coins ?? 0) < cost) return;                 // sem saldo -> aborta
     const baby = room.babies && room.babies[babyId];
     if (!baby) return;
-    room.coins -= cost;
     const now = Date.now();
+    const hoje = dayKey();
+
+    /* Contadores DIÁRIOS (doces, cafés): viram na troca do dia. */
+    if (baby.diaDoce !== hoje) { baby.diaDoce = hoje; baby.doces = 0; baby.cafes = 0; }
+
+    /* Limite por dia (ex.: no máximo 2 cafés). */
+    if (efeitos && efeitos.limiteDia) {
+      const campo = efeitos.contador || "doces";
+      if ((baby[campo] ?? 0) >= efeitos.limiteDia) return;   // aborta: já bebeu demais
+    }
+
+    room.coins -= cost;
     const s = applyDecay(baby, now);
     s.hunger = clamp((s.hunger ?? 0) + hunger);           // alimentar SEMPRE alimenta
+
+    /* ---- EFEITOS DA COMIDA ---- */
+    if (efeitos) {
+      if (efeitos.sleep)  s.sleep  = clamp((s.sleep  ?? 0) + efeitos.sleep);
+      if (efeitos.love)   s.love   = clamp((s.love   ?? 0) + efeitos.love);
+      if (efeitos.health) s.health = clamp((s.health ?? 100) + efeitos.health);
+      if (efeitos.gordura) s.health = clamp((s.health ?? 100) - 4);
+      if (efeitos.doce) s.doces = (s.doces ?? 0) + 1;
+      if (efeitos.limiteDia) {
+        const campo = efeitos.contador || "doces";
+        s[campo] = (s[campo] ?? 0) + 1;
+      }
+      s.diaDoce = hoje;
+    }
     const { factor, fatigue } = nextFatigue(s, "care_food", now, 0);
     s.fatigue = fatigue;
     s.xp = (s.xp ?? 0) + Math.round(xp * factor);         // só o XP cansa
@@ -348,12 +427,18 @@ export function giveMedicine(babyId) {
     if (!room) return room;
     const baby = room.babies && room.babies[babyId];
     if (!baby) return room;
-    const custo = GAME_CONFIG.remedioCusto ?? 25;
+    const custo = GAME_CONFIG.remedioCusto ?? 29;
     if ((room.coins ?? 0) < custo) { out.motivo = "semSaldo"; return room; }
+
+    const hoje = dayKey();
+    if (baby.remedioDia === hoje) { out.motivo = "jaTomouHoje"; return room; }  // SÓ 1 por dia
 
     const now = Date.now();
     const s = applyDecay(baby, now);
     s.cold = false;                                  // resfriado curado
+    s.remedioDia = hoje;
+    s.health = clamp((s.health ?? 100) + ((BALANCE.health && BALANCE.health.remedioCura) || 45));
+    s.doente = estaDoente(s);
     s.love = clamp((s.love ?? 0) + (GAME_CONFIG.remedioLove ?? 10));
     s.xp = (s.xp ?? 0) + (GAME_CONFIG.remedioXp ?? 15);
     room.coins = (room.coins ?? 0) - custo;

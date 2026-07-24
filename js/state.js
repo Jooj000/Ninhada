@@ -12,6 +12,9 @@
 import { GAME_CONFIG, TIER_MULTIPLIER, BALANCE } from "./config.js";
 
 export const STATUS_KEYS = ["hunger", "sleep", "hygiene", "fun", "love"];
+/* Saúde é um status à parte: não decai com o tempo — ela SOBE ou DESCE
+ * em função de como a criança está sendo cuidada (ver ajustarSaude). */
+export const SAUDE_KEY = "health";
 
 /* Fases de vida em ordem. O bebê sobe de fase ao atingir o xpNeeded. */
 export const PHASES = BALANCE.growth.phases;
@@ -25,10 +28,55 @@ export function defaultBaby(name = "Bebê") {
   return {
     name,
     hunger: 80, sleep: 80, hygiene: 80, fun: 80, love: 80,
+    health: 100,          // saúde: 0–100 (abaixo de doenteAbaixo, adoece)
+    doces: 0,             // doces comidos hoje (zera na virada do dia)
+    cafes: 0,             // cafés tomados hoje
+    remedioDia: null,     // dia em que tomou remédio (1 por dia)
+    diaDoce: null,        // dia a que se referem os contadores acima
     xp: 0,
     equipped: {},
+    room: "quarto",        // em qual cômodo a criança está
     lastUpdate: Date.now(),
   };
+}
+
+/* -------------------------------------------------------------------
+ * SAÚDE
+ * Não decai sozinha com o relógio: é recalculada a partir dos outros
+ * status. Cuidado bom empurra para cima, descuido puxa para baixo.
+ *   sobem  : higiene e saciedade altas, média boa, temperatura amena
+ *   descem : sujeira, fome, média ruim, frio, excesso de doce/gordura
+ * ----------------------------------------------------------------- */
+export function ajustarSaude(state, horas, opcoes = {}) {
+  const H = BALANCE.health;
+  if (!H || horas <= 0) return state.health ?? 100;
+  const s = state;
+  const media = STATUS_KEYS.reduce((t, k) => t + (s[k] ?? 0), 0) / STATUS_KEYS.length;
+
+  let delta = 0;
+  // higiene e saciedade pesam mais que o resto
+  delta += ((s.hygiene ?? 0) - 50) / 50 * H.pesoHigiene;
+  delta += ((s.hunger  ?? 0) - 50) / 50 * H.pesoSaciedade;
+  delta += (media - 50) / 50 * H.pesoMedia;
+
+  // frio castiga; temperatura amena ajuda
+  if (opcoes.frio) delta -= H.penalidadeFrio;
+  else if (opcoes.tempoBom) delta += H.bonusTempoBom;
+
+  // excesso de doce/gordura do dia
+  const excesso = Math.max(0, (s.doces ?? 0) - H.docesSemPenalidade);
+  if (excesso > 0) delta -= excesso * H.penalidadePorDoce;
+
+  return clamp((s.health ?? 100) + delta * horas);
+}
+
+/* A criança fica DOENTE abaixo deste limite (e só sara acima do outro). */
+export function estaDoente(state) {
+  const H = BALANCE.health || {};
+  const doente = !!state.doente;
+  const h = state.health ?? 100;
+  if (doente) return h < (H.saraAcima ?? 55);      // histerese: sara mais alto
+  return h < (H.doenteAbaixo ?? 35);
 }
 
 /* Estado inicial da CASA (compartilhado entre os bebês e os dois jogadores).
@@ -111,6 +159,10 @@ export function isNightNow(d = new Date()) {
 /* Decide se um bebê deve ter um pesadelo agora (dado o sorteio). */
 export function wantsNightmare(baby, night, roll) {
   if (!night || baby.nightmare) return false;
+  /* Só tem pesadelo quem está DORMINDO no QUARTO: nada de pesadelo em
+   * pé na cozinha. `dormindoDesde` é o carimbo da luz apagada. */
+  if (!baby.dormindoDesde) return false;
+  if ((baby.room || "quarto") !== "quarto") return false;
   const base = GAME_CONFIG.nightmareChance ?? 0.4;
   const p = (baby.sleep ?? 100) < 40 ? base + 0.25 : base;   // sono baixo = mais pesadelo
   return roll < p;

@@ -20,7 +20,7 @@ import { giveMedicine } from "./firebase-sync.js";
 import { applyDecay, moodFor } from "./state.js";
 import { paintBabyLayers, buildStageLayers } from "./render-utils.js";
 import {
-  READY_FOODS, INGREDIENTS, RECIPES, INGREDIENT_COST, UNKNOWN_DISH, matchRecipe,
+  READY_FOODS, INGREDIENTS, RECIPES, INGREDIENT_COST, UNKNOWN_DISH, matchRecipe, descreverEfeitos,
 } from "./recipes.js";
 
 /* refs de cada palco de cômodo (montados uma vez) */
@@ -50,8 +50,11 @@ function initKitchen() {
   READY_FOODS.forEach((f) => {
     const b = document.createElement("button");
     b.className = "food-btn";
-    b.innerHTML = `<span class="food-emoji">${f.emoji}</span><span>${f.label}</span><small>${f.cost} 🪙</small>`;
-    b.onclick = () => { serveFood(getActiveBaby(), { hunger: f.hunger, xp: f.xp ?? GAME_CONFIG.xpPerCare, cost: f.cost }); registerCare(); };
+    const efeito = descreverEfeitos(f);
+    b.innerHTML = `<span class="food-emoji">${f.emoji}</span><span>${f.label}</span>`
+      + `<small>${f.cost} 🪙</small>`
+      + (efeito ? `<small class="food-efeito">${efeito}</small>` : "");
+    b.onclick = () => { serveFood(getActiveBaby(), { hunger: f.hunger, xp: f.xp ?? GAME_CONFIG.xpPerCare, cost: f.cost, efeitos: f.efeitos || null }); registerCare(); };
     readyRow.appendChild(b);
   });
 
@@ -102,7 +105,7 @@ async function cook() {
   const xp = Math.round(recipe.xp * quality);
   const discovered = recipe.id && quality >= 0.5 ? recipe.id : null;
 
-  await serveFood(getActiveBaby(), { hunger, xp, cost, recipeId: discovered });
+  await serveFood(getActiveBaby(), { hunger, xp, cost, recipeId: discovered, efeitos: recipe.efeitos || null });
   registerCare();
 
   const msg = document.getElementById("cook-msg");
