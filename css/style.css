@@ -1847,3 +1847,99 @@ body {
 @media (orientation: landscape) and (max-height: 560px) {
   .screen.scene.active .scene-baby-stage { width: auto; height: min(66%, 240px); }
 }
+
+/* =====================================================================
+ * ============ V14 — RETRATO FORÇADO DE VERDADE =====================
+ * `screen.orientation.lock()` falha fora de tela cheia e o `orientation`
+ * do manifest só vale para o app INSTALADO — no navegador nada disso
+ * segura. A solução que funciona em qualquer lugar é girar a própria
+ * interface: quando o aparelho está deitado, giramos 90° e trocamos
+ * largura por altura, de modo que o jogo continue de pé na mão do
+ * jogador. Dino e Hill Drive ficam de fora (marcados por .permite-deitar).
+ * ===================================================================== */
+@media (orientation: landscape) and (max-height: 620px) and (pointer: coarse) {
+  body:not(.permite-deitar) {
+    /* o "palco" passa a ter as medidas trocadas */
+    position: fixed;
+    top: 0; left: 0;
+    width: 100dvh;
+    height: 100dvw;
+    transform-origin: top left;
+    transform: rotate(90deg) translateY(-100dvh);
+    overflow: hidden;
+  }
+  /* telas fixas precisam acompanhar as novas medidas */
+  body:not(.permite-deitar) .screen.scene.active,
+  body:not(.permite-deitar) .screen.game-screen.active,
+  body:not(.permite-deitar) .games-tray {
+    width: 100dvh;
+    height: 100dvw;
+  }
+}
+
+/* =====================================================================
+ * ============ V15 — COZINHA NO PADRÃO ESCURO SEM CAIXAS ============
+ * ===================================================================== */
+.page-screen.page-dark { background: #1A1526; }
+.page-dark .screen-title, .page-dark .room-h2 { color: #F4EFF9; }
+.page-dark .hint, .page-dark .room-h2 small { color: #A99DBE; }
+.page-dark .back-btn {
+  background: rgba(255,255,255,.08); color: #F4EFF9; box-shadow: none;
+}
+.page-dark .coins-pill { background: rgba(255,255,255,.08); color: #F4EFF9; box-shadow: none; }
+.page-dark .room-h2::after { background: linear-gradient(90deg, rgba(255,255,255,.16), transparent); }
+
+/* SEM CAIXINHAS: os itens são só emoji + texto sobre o fundo escuro */
+.page-dark .food-btn,
+.page-dark .recipe-card {
+  background: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  color: #F4EFF9;
+  padding: 8px 4px;
+}
+.page-dark .food-btn:hover { transform: translateY(-3px); box-shadow: none !important; }
+.page-dark .food-btn .food-emoji,
+.page-dark .recipe-card .food-emoji {
+  font-size: 2.2rem;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.5));
+}
+.page-dark .food-btn small:not(.food-efeito) {
+  background: rgba(255, 216, 128, .16); color: #F5D98B;
+}
+.page-dark .food-efeito { color: #C9B6E8; }
+
+/* sem saldo: apagado e sem clique */
+.food-btn.sem-saldo { opacity: .35; pointer-events: none; filter: grayscale(1); }
+
+/* panela sem cartão, só o contorno tracejado do "lugar" */
+.page-dark .pot {
+  background: none !important;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.14) !important;
+}
+.page-dark .pot-empty { color: #A99DBE; }
+.page-dark .cook-msg { color: #F4E9B8; }
+.page-dark .recipe-card:not(.found) { opacity: .45; }
+.page-dark .recipe-card:not(.found) .food-emoji { filter: grayscale(1); }
+
+/* o minigame que a criança está a fim hoje */
+.tray-item.preferido .hub-emoji { animation: hotPulse 1.4s ease-in-out infinite; }
+.tray-item.preferido .hub-name::after { content: " 💛"; }
+
+/* ---------------- CONQUISTAS ---------------- */
+.conq-lista { display: flex; flex-direction: column; gap: 8px; }
+.conq {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  opacity: .55;
+}
+.conq.feita { opacity: 1; }
+.conq-emoji { font-size: 1.7rem; width: 2rem; text-align: center; }
+.conq-txt { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.conq-txt b { font-size: .86rem; color: #F4EFF9; font-weight: 700; }
+.conq-txt small { font-size: .7rem; color: #A99DBE; }
+.conq-barra { height: 4px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
+.conq-barra i { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+.conq.feita .conq-barra i { background: #7EC8A0; }
+.conq-premio { font-size: .78rem; font-weight: 800; color: #F5D98B; white-space: nowrap; }

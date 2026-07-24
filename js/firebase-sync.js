@@ -214,9 +214,39 @@ export function addFun(babyId, amount, xp = GAME_CONFIG.xpPerAction) {
 /* Recompensa de minigame: paga pela PONTUAÇÃO (não por jogar), com
  * multiplicador de faixa etária e desconto de fadiga. Devolve o que
  * foi realmente pago, para a tela mostrar. */
+/* O minigame "com vontade" do dia. É derivado do DIA + id do bebê, então
+ * os dois jogadores veem exatamente o mesmo sem precisar sincronizar. */
+/* Marca conquistas como feitas e paga o prêmio (múltiplo de 50). */
+export function pagarConquistas(lista) {
+  if (!lista || !lista.length) return Promise.resolve(0);
+  return runTransaction(roomRef, (room) => {
+    if (!room) return room;
+    room.conquistas = room.conquistas || {};
+    let total = 0;
+    for (const c of lista) {
+      if (room.conquistas[c.id]) continue;     // outro jogador já pegou
+      room.conquistas[c.id] = true;
+      total += c.premio;
+    }
+    room.coins = (room.coins ?? 0) + total;
+    return room;
+  }).then((r) => {
+    const feitas = (r && r.snapshot && r.snapshot.val && r.snapshot.val()) || null;
+    return lista.reduce((t, c) => t + c.premio, 0);
+  });
+}
+
+export function minigameDoDia(babyId) {
+  const chave = `${dayKey()}|${babyId || ""}`;
+  let h = 0;
+  for (let i = 0; i < chave.length; i++) h = (h * 31 + chave.charCodeAt(i)) >>> 0;
+  const ids = Object.keys(MINIGAMES);
+  return ids[h % ids.length];
+}
+
 export function rewardGame(babyId, gameId, points, score = null, extraCoins = 0) {
   const cfg = MINIGAMES[gameId] || {};
-  const out = { coins: 0, xp: 0, factor: 1, record: false };
+  const out = { coins: 0, xp: 0, factor: 1, record: false, vontade: false };
   if (!babyId || (!(points > 0) && !(extraCoins > 0))) return Promise.resolve(out);
 
   return runTransaction(roomRef, (room) => {
@@ -248,6 +278,17 @@ export function rewardGame(babyId, gameId, points, score = null, extraCoins = 0)
 
     s.fatigue = fatigue;
     s.xp = (s.xp ?? 0) + xp;
+    /* VONTADE DO DIA: se é o jogo que a criança está a fim, rende mais
+     * e ainda dá afeto (o sorteio é do dia, igual para os dois jogadores). */
+    if (gameId === minigameDoDia(babyId)) {
+      const V = BALANCE.vontade || {};
+      const m2 = V.bonusMultiplicador ?? 1.8;
+      coins = Math.round(coins * m2);
+      xp = Math.round(xp * m2);
+      s.love = clamp((s.love ?? 0) + (V.lovePorRodada ?? 12));
+      out.vontade = true;
+    }
+
     /* Jogar CANSA: sono, fome e higiene caem mais rápido ao brincar. */
     {
       const d = (BALANCE.status && BALANCE.status.minigameDrain) || {};
@@ -293,7 +334,8 @@ export function getRecord(gameId) {
  * dar XP (pratos cozinhados) e registrar a receita descoberta.
  * Transação no nó raiz porque mexe em coins + baby + recipes juntos.
  * ---------------------------------------------------------------- */
-export function serveFood(babyId, { hunger = 0, xp = 0, cost = 0, recipeId = null, efeitos = null }) {
+export function serveFood(babyId, { hunger = 0, xp = 0, cost = 0, recipeId = null, efeitos = null, foodId = null }) {
+  const out = { ok: false, enjoo: false };
   return runTransaction(roomRef, (room) => {
     if (!room) return room;
     if ((room.coins ?? 0) < cost) return;                 // sem saldo -> aborta
@@ -309,6 +351,16 @@ export function serveFood(babyId, { hunger = 0, xp = 0, cost = 0, recipeId = nul
     if (efeitos && efeitos.limiteDia) {
       const campo = efeitos.contador || "doces";
       if ((baby[campo] ?? 0) >= efeitos.limiteDia) return;   // aborta: já bebeu demais
+    }
+
+    /* ENJOO: ninguém quer a mesma comida o tempo todo. Olhamos as
+     * ÚLTIMAS 6 refeições; se esta já apareceu 2 vezes, a criança
+     * recusa a terceira. */
+    const idComida = foodId || recipeId || null;
+    const historico = Array.isArray(baby.ultimasComidas) ? baby.ultimasComidas.slice(-6) : [];
+    if (idComida) {
+      const repeticoes = historico.filter((x) => x === idComida).length;
+      if (repeticoes >= 2) { out.enjoo = true; return; }     // recusa a 3ª
     }
 
     room.coins -= cost;
@@ -331,10 +383,14 @@ export function serveFood(babyId, { hunger = 0, xp = 0, cost = 0, recipeId = nul
     const { factor, fatigue } = nextFatigue(s, "care_food", now, 0);
     s.fatigue = fatigue;
     s.xp = (s.xp ?? 0) + Math.round(xp * factor);         // só o XP cansa
+    if (idComida) {
+      s.ultimasComidas = [...historico, idComida].slice(-6);
+    }
     room.babies[babyId] = s;
     if (recipeId) { room.recipes = room.recipes || {}; room.recipes[recipeId] = true; }
+    out.ok = true;
     return room;
-  });
+  }).then(() => out);
 }
 
 /* Reavalia o resfriado de um bebê conforme o clima. A trava por

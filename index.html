@@ -166,7 +166,7 @@
   </section>
 
   <!-- ============ COZINHAR (aberto pela faca na Cozinha) ============ -->
-  <section id="screen-kitchen" class="screen page-screen">
+  <section id="screen-kitchen" class="screen page-screen page-dark">
     <header class="topbar">
       <button class="back-btn" data-goto="screen-home">←</button>
       <h1 class="screen-title">Cozinhar</h1>
@@ -250,6 +250,17 @@
       <button id="g2048-new" class="cook-btn">Novo jogo</button>
       <p class="hint">Deslize (ou use as setas) para juntar as peças.</p>
     </div>
+  </section>
+
+  <!-- ---- conquistas ---- -->
+  <section id="screen-conquistas" class="screen page-screen page-dark">
+    <header class="topbar">
+      <button class="back-btn" data-goto="screen-home">←</button>
+      <h1 class="screen-title">Conquistas</h1>
+      <div class="coins-pill"><span class="coin-ico">🪙</span><span id="coins-conq">0</span></div>
+    </header>
+    <p id="conq-resumo" class="hint"></p>
+    <div id="conq-lista" class="conq-lista"></div>
   </section>
 
   <!-- ---- jogo: Match 3 ---- -->

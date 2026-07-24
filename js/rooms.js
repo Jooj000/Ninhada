@@ -55,7 +55,23 @@ function initKitchen() {
     b.innerHTML = `<span class="food-emoji">${f.emoji}</span><span>${f.label}</span>`
       + `<small>${f.cost} 🪙</small>`
       + (efeito ? `<small class="food-efeito">${efeito}</small>` : "");
-    b.onclick = () => { serveFood(getActiveBaby(), { hunger: f.hunger, xp: f.xp ?? GAME_CONFIG.xpPerCare, cost: f.cost, efeitos: f.efeitos || null }); registerCare(); };
+    b.dataset.preco = String(f.cost);
+    b.onclick = () => {
+      if (f.cost > moedas()) {
+        const msg = document.getElementById("cook-msg");
+        if (msg) msg.textContent = `Faltam moedas para ${f.label} (${f.cost} 🪙)`;
+        return;
+      }
+      serveFood(getActiveBaby(), {
+        hunger: f.hunger, xp: f.xp ?? GAME_CONFIG.xpPerCare, cost: f.cost,
+        efeitos: f.efeitos || null, foodId: f.id,
+      }).then((r) => {
+        const msg = document.getElementById("cook-msg");
+        if (r && r.enjoo) { if (msg) msg.textContent = `Enjoou de ${f.label}… tente outra coisa 🙅`; return; }
+        if (msg) msg.textContent = "";
+        registerCare();
+      });
+    };
     readyRow.appendChild(b);
   });
 
@@ -66,6 +82,7 @@ function initKitchen() {
     b.className = "food-btn";
     b.innerHTML = `<span class="food-emoji">${ing.emoji}</span><span>${ing.label}</span><small>${ing.cost ?? INGREDIENT_COST} 🪙</small>`;
     b.onclick = () => addToPot(ing);
+    b.dataset.preco = String(ing.cost ?? INGREDIENT_COST);
     ingRow.appendChild(b);
   });
 
@@ -74,8 +91,21 @@ function initKitchen() {
   renderRecipeBook();
 }
 
+function moedas() {
+  return (window.__STATE__ && window.__STATE__.coins) || 0;
+}
+
 function addToPot(ing) {
   if (pot.length >= 2) pot = [];          // recomeça se já cheia
+  /* SEM SALDO, nem entra na panela: antes dava para montar a receita
+   * inteira e só descobrir na hora de cozinhar que faltava dinheiro. */
+  const jaNaPanela = pot.reduce((t, i) => t + (i.cost ?? INGREDIENT_COST), 0);
+  const preco = ing.cost ?? INGREDIENT_COST;
+  if (jaNaPanela + preco > moedas()) {
+    const msg = document.getElementById("cook-msg");
+    if (msg) msg.textContent = `Faltam moedas para ${ing.label} (${preco} 🪙)`;
+    return;
+  }
   pot.push(ing);
   renderPot();
 }
@@ -106,7 +136,15 @@ async function cook() {
   const xp = Math.round(recipe.xp * quality);
   const discovered = recipe.id && quality >= 0.5 ? recipe.id : null;
 
-  await serveFood(getActiveBaby(), { hunger, xp, cost, recipeId: discovered, efeitos: recipe.efeitos || null });
+  const servido = await serveFood(getActiveBaby(), {
+    hunger, xp, cost, recipeId: discovered, efeitos: recipe.efeitos || null, foodId: recipe.id,
+  });
+  if (servido && servido.enjoo) {
+    const m = document.getElementById("cook-msg");
+    if (m) m.textContent = `Enjoou de ${recipe.label}… varie o cardápio 🙅`;
+    pot = []; renderPot();
+    return;
+  }
   registerCare();
 
   const msg = document.getElementById("cook-msg");
@@ -191,6 +229,14 @@ function renderRecipeBook() {
  * resta o menu de cozinhar, aberto pela faca na Cozinha. */
 export function updateRooms(room) {
   if (!room || !room.babies) return;
+  /* apaga o que está fora do orçamento (contando o que já está na panela) */
+  const jaNaPanela = pot.reduce((t, i) => t + (i.cost ?? INGREDIENT_COST), 0);
+  const saldo = (room.coins ?? 0);
+  document.querySelectorAll("#screen-kitchen .food-btn[data-preco]").forEach((b) => {
+    const naPanela = b.parentElement && b.parentElement.id === "ingredients";
+    const disponivel = naPanela ? saldo - jaNaPanela : saldo;
+    b.classList.toggle("sem-saldo", Number(b.dataset.preco) > disponivel);
+  });
   const baby = room.babies[getActiveBaby()];
   if (!baby) return;
 

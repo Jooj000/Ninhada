@@ -18,6 +18,8 @@ import {
   initSync, onStateChange, syncDecay, addBaby, renameBaby,
   boostStatus, sootheNightmare, setDormindo, acertarSono,
   moverCrianca, marcarOcupada,
+  minigameDoDia,
+  pagarConquistas,
 } from "./firebase-sync.js";
 import { ASSETS } from "./assets-map.js";
 import { GAME_CONFIG, ROOM_NAME, BALANCE } from "./config.js";
@@ -29,6 +31,7 @@ import { attachTouch } from "./touch.js";
 import { buildStageLayers, paintBabyLayers } from "./render-utils.js";
 import { initRooms, updateRooms } from "./rooms.js";
 import { initWeather } from "./weather.js";
+import { CONQUISTAS, novasConquistas, valorAtual, progresso } from "./conquistas.js";
 import { initNightmares, updateNightmares } from "./nightmares.js";
 import { updateStreak, registerCare } from "./streak.js";
 import { initPushUI } from "./push.js";
@@ -74,6 +77,7 @@ const ROOMS = [
       { emoji: "🎤", label: "Em breve", disabled: true, act: () => flashMsg("O microfone chega em breve! 🎤") },
       { emoji: "📝", label: "Recados", act: () => showScreen("screen-board") },
       { emoji: "📔", label: "Álbum", act: () => showScreen("screen-album") },
+      { emoji: "🏅", label: "Conquistas", act: () => showScreen("screen-conquistas") },
       { emoji: "🚪", label: "Lojinha", act: () => openShop("loja") },
     ],
   },
@@ -97,7 +101,8 @@ const ROOMS = [
     hotspots: () => [
       { emoji: "🧼", label: "Ensaboar", cls: tool === "soap" ? "hot-on" : "", act: () => setTool("soap") },
       { emoji: "🚿", label: "Enxaguar", cls: tool === "shower" ? "hot-on" : "", act: () => setTool("shower") },
-      ...(babyHasCold() ? [{ emoji: "💊", label: `Remédio ${GAME_CONFIG.remedioCusto}🪙`, cls: "hot-pulse", act: giveMed }] : []),
+      /* O REMÉDIO SAIU: sopa, vitamina e as receitas de saúde fazem o
+       * mesmo serviço melhor e mais barato, e ainda alimentam. */
     ],
   },
 ];
@@ -413,7 +418,7 @@ function wireBathroom() {
 }
 
 /* ---------------- BANHEIRO: remédio ----------------------------- */
-function babyHasCold() {
+function babyHasCold() {   // mantido: o resfriado ainda existe como estado
   const b = room && room.babies && room.babies[getActiveBaby()];
   return !!(b && b.cold);
 }
@@ -720,8 +725,12 @@ export function showScreen(id) {
       : "Ela está com fome e com sono… cuide dela antes de brincar 🍽️😴");
     return;
   }
-  if (id === "screen-dino" || id === "screen-hilldrive") liberarRotacao();
-  else travarRetrato();          // deitar SÓ nesses dois jogos
+  /* Só estes dois podem deitar. A classe manda no CSS que gira a
+   * interface quando o aparelho está na horizontal (o lock por JS não
+   * é confiável e o manifest só vale para o app instalado). */
+  const deitado = id === "screen-dino" || id === "screen-hilldrive";
+  document.body.classList.toggle("permite-deitar", deitado);
+  if (deitado) liberarRotacao(); else travarRetrato();
 
   /* Enquanto a criança está numa atividade, o outro jogador não
    * consegue tirá-la do cômodo. O carimbo vale ~25 s e é renovado. */
@@ -760,6 +769,13 @@ function closeTray(clearFlag = true) {
 }
 
 function updateTrayLocks() {
+  /* marca o jogo que a criança está a fim hoje (rende mais + afeto) */
+  const preferido = minigameDoDia(getActiveBaby());
+  document.querySelectorAll(".tray-item").forEach((it) => {
+    const id = (it.dataset.goto || "").replace("screen-", "");
+    const chave = id === "2048" ? "g2048" : id;
+    it.classList.toggle("preferido", chave === preferido);
+  });
   if (!room) return;
   const baby = (room.babies || {})[getActiveBaby()];
   const phaseIdx = baby ? PHASES.indexOf(phaseForXp(baby.xp || 0)) : 0;
@@ -824,6 +840,49 @@ function wireNav() {
  * em vh), que era o que dava o tamanho grande. */
 function atualizarBanner() { /* sem banner */ }
 
+/* ================= CONQUISTAS ================================== */
+let conferindoConquistas = false;
+
+function renderConquistas(estado) {
+  const lista = document.getElementById("conq-lista");
+  if (!lista || !document.getElementById("screen-conquistas").classList.contains("active")) return;
+  const feitas = (estado && estado.conquistas) || {};
+  const total = CONQUISTAS.length;
+  const prontas = CONQUISTAS.filter((c) => feitas[c.id]).length;
+  document.getElementById("conq-resumo").textContent =
+    `${prontas} de ${total} conquistas · prêmios são múltiplos de 50 🪙`;
+
+  lista.innerHTML = "";
+  for (const c of CONQUISTAS) {
+    const ok = !!feitas[c.id];
+    const v = valorAtual(c, estado);
+    const p = Math.round(progresso(c, estado) * 100);
+    const el = document.createElement("div");
+    el.className = "conq" + (ok ? " feita" : "");
+    el.innerHTML = `
+      <span class="conq-emoji">${ok ? c.emoji : "🔒"}</span>
+      <span class="conq-txt">
+        <b>${c.titulo}</b>
+        <small>${ok ? "conquistado" : `${Math.min(v, c.alvo)} / ${c.alvo}`}</small>
+        <span class="conq-barra"><i style="width:${p}%"></i></span>
+      </span>
+      <span class="conq-premio">${c.premio} 🪙</span>`;
+    lista.appendChild(el);
+  }
+}
+
+async function conferirConquistas(estado) {
+  if (conferindoConquistas) return;
+  const novas = novasConquistas(estado);
+  if (!novas.length) return;
+  conferindoConquistas = true;
+  try {
+    const premio = await pagarConquistas(novas);
+    const nomes = novas.slice(0, 2).map((c) => c.titulo).join(" · ");
+    flashMsg(`🏅 ${nomes}${novas.length > 2 ? ` +${novas.length - 2}` : ""} · +${premio} 🪙`);
+  } finally { conferindoConquistas = false; }
+}
+
 /* ================= BOOTSTRAP ================================== */
 /* O manifest pedia "portrait", o que TRAVA a rotação em app instalado.
  * Trocamos para "any", mas um PWA já instalado guarda o manifest antigo —
@@ -867,6 +926,11 @@ async function main() {
   }
 
   onStateChange((state) => {
+    window.__STATE__ = state;
+    conferirConquistas(state);
+    renderConquistas(state);
+    const cc = document.getElementById("coins-conq");
+    if (cc) cc.textContent = state.coins ?? 0;
     room = state;
     window.__STATE__ = state;
     const coins = state.coins ?? 0;

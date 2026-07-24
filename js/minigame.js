@@ -33,24 +33,24 @@ export function initMinigame() {
   const RAIO_REF = 18, VAO_CANOS_REF = 220, MARGEM_REF = 60, FUNDO_REF = 200;
 
   let W = 360, H = 640, sx = 1, sy = 1;
-  let GAP = 170, PIPE_W = 64, SPEED = 2.4, GRAVITY = 0.45, FLAP = -7.5;
+  let GAP = 170, GAP_BASE = 170, PIPE_W = 64, SPEED = 2.4, GRAVITY = 0.45, FLAP = -7.5;
   let VAO_CANOS = 220, MARGEM = 60, FUNDO = 200;
 
   let bird, pipes, score, running, dead;
-  let proximoVao = 170;          // distância até o próximo cano (sorteada)
 
   function reset() {
     runId++;                      // nova partida: invalida recompensas pendentes
     if (view.fit()) { W = view.w; H = view.h; }
     sx = W / REF_W; sy = H / REF_H;
 
-    GAP     = GAP_REF * sy;          // abertura: mesma fração da altura
+    GAP_BASE = GAP_REF * sy;         // abertura de referência (fração da altura)
+    GAP      = GAP_BASE;
     PIPE_W  = PIPE_W_REF * sx;
     SPEED   = SPEED_REF * sx;        // canos cruzam a tela no mesmo tempo
     GRAVITY = GRAVITY_REF * sy;      // gravidade e impulso escalam JUNTOS,
     FLAP    = FLAP_REF * sy;         // então a altura do pulo é proporcional
-    // distância entre canos: sorteada a cada cano, entre 0,8x e 1,0x o VÃO
-    VAO_CANOS = GAP;
+    // a distância entre canos volta a ser FIXA e proporcional
+    VAO_CANOS = VAO_CANOS_REF * sx;
     MARGEM  = MARGEM_REF * sy;
     FUNDO   = FUNDO_REF * sy;
 
@@ -65,14 +65,13 @@ export function initMinigame() {
   }
 
   function spawnPipe() {
+    /* A ALTURA DO VÃO varia de cano para cano, entre 0,8x e 1,0x da
+     * abertura de referência — é a passagem que fica mais apertada ou
+     * mais folgada, não a distância entre os canos. */
+    const f = BALANCE.flappy || { vaoMin: 0.8, vaoMax: 1.0 };
+    GAP = GAP_BASE * (f.vaoMin + Math.random() * (f.vaoMax - f.vaoMin));
     const top = MARGEM + Math.random() * Math.max(20, H - GAP - FUNDO);
-    /* O espaço até o PRÓXIMO cano é uma fração da ALTURA DO VÃO:
-     * entre 0,8x e 1,0x. Assim a dificuldade horizontal acompanha a
-     * vertical em qualquer tela. */
-    const f = BALANCE.flappy || { espacoMin: 0.8, espacoMax: 1.0 };
-    const fator = f.espacoMin + Math.random() * (f.espacoMax - f.espacoMin);
-    proximoVao = GAP * fator;
-    pipes.push({ x: W + 20, top, passed: false });
+    pipes.push({ x: W + 20, top, gap: GAP, passed: false });
   }
 
   function flap() {
@@ -89,13 +88,13 @@ export function initMinigame() {
     bird.y += bird.vy;
 
     for (const p of pipes) p.x -= SPEED;
-    if (pipes.length && pipes[pipes.length - 1].x < W - proximoVao) spawnPipe();
+    if (pipes.length && pipes[pipes.length - 1].x < W - VAO_CANOS) spawnPipe();
     pipes = pipes.filter((p) => p.x + PIPE_W > -20);
 
     for (const p of pipes) {
       if (!p.passed && p.x + PIPE_W < bird.x) { p.passed = true; score++; }
       const inX = bird.x + bird.r > p.x && bird.x - bird.r < p.x + PIPE_W;
-      const hit = bird.y - bird.r < p.top || bird.y + bird.r > p.top + GAP;
+      const hit = bird.y - bird.r < p.top || bird.y + bird.r > p.top + (p.gap ?? GAP);
       if (inX && hit) return gameOver();
     }
     if (bird.y + bird.r > H || bird.y - bird.r < 0) return gameOver();
@@ -143,7 +142,7 @@ export function initMinigame() {
     ctx.fillStyle = "#6BB58F";
     const tampa = 16 * sy, borda = 4 * sx;
     ctx.fillRect(p.x - borda, p.top - tampa, PIPE_W + borda * 2, tampa);
-    ctx.fillRect(p.x - borda, p.top + GAP, PIPE_W + borda * 2, tampa);
+    ctx.fillRect(p.x - borda, p.top + (p.gap ?? GAP), PIPE_W + borda * 2, tampa);
   }
 
   function draw() {

@@ -102,6 +102,7 @@ export const ASSETS = {
   },
   brinquedos: {
     teto: {src:"assets/sprites/toys/teto.png",placeholder:"#2702d6",label:"Teto"},
+    regu: {src:"assets/sprites/toys/Regu.png",placeholder:"#889dff",label:"Regu"},
   },
 
   /* ---- CONDIÇÕES (aparecem sozinhas conforme o status cai) ----
@@ -128,20 +129,21 @@ export const ASSETS = {
 
 /* Catálogo da loja: item aponta pra uma categoria + preço. */
 export const SHOP_ITEMS = [
-  {id:"pele_clara", category:"corpo", price:0},
-  {id:"pele_morena", category:"corpo", price:0},
-  {id:"rosto_alice", category:"face", price:0},
-  {id:"rosto_lilian", category:"face", price:0},
-  {id:"rosto_filho", category:"face", price:0},
-  {id:"cabelo_alice", category:"cabelo", price:0},
-  {id:"cabelo_filho", category:"cabelo", price:0},
-  {id:"cabelo_lilian", category:"cabelo", price:0},
-  {id:"camisa_pikachu", category:"camisa", price:100},
-  {id:"bermuda_rosa", category:"calca", price:100},
-  {id:"bota_galinha", category:"sapatos", price:100},
-  {id:"lacos_vermelhos", category:"acessorios", price:100},
-  {id:"pulseiras_coloridas", category:"acessorios", price:100},
-  {id:"teto", category:"brinquedos", price:100},
+  { id: "pele_clara",        category: "corpo",                            price: 0   },
+  { id: "pele_morena",       category: "corpo",                            price: 0   },
+  { id: "rosto_alice",       category: "face",                             price: 0   },
+  { id: "rosto_lilian",      category: "face",                             price: 0   },
+  { id: "rosto_filho",       category: "face",                             price: 0   },
+  { id: "cabelo_alice",      category: "cabelo",                           price: 0   },
+  { id: "cabelo_filho",      category: "cabelo",                           price: 0   },
+  { id: "cabelo_lilian",     category: "cabelo",                           price: 0   },
+  { id: "camisa_pikachu",    category: "camisa",                           price: 100   },
+  { id: "bermuda_rosa",      category: "calca",                            price: 100   },
+  { id: "bota_galinha",      category: "sapatos",                          price: 100   },
+  { id: "lacos_vermelhos",   category: "acessorios",                       price: 100   },
+  { id: "pulseiras_coloridas", category: "acessorios",                       price: 100   },
+  { id: "teto",              category: "brinquedos",                       price: 100   },
+  { id: "regu",              category: "brinquedos",                       price: 100   },
 ];
 
 /* Busca IGNORANDO maiúsculas/minúsculas: "Cabelo_Liso", "cabelo_liso" e

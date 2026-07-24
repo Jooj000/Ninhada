@@ -179,6 +179,13 @@ export const BALANCE = {
     moedaMin: 170, moedaMax: 320,   // bem mais moedas pelo caminho
   },
 
+  /* ================= VONTADE DO DIA ================= */
+  vontade: {
+    // um minigame sorteado por dia rende mais e ainda dá afeto
+    bonusMultiplicador: 1.8,   // moedas e XP multiplicados
+    lovePorRodada: 12,         // afeto ganho por jogar o preferido
+  },
+
   /* ================= SAÚDE ================= */
   health: {
     // limiares (com histerese: adoece cedo, mas só sara bem melhor)
@@ -209,11 +216,11 @@ export const BALANCE = {
 
   /* ================= FLAPPY BABY ================= */
   flappy: {
-    /* A distância HORIZONTAL entre os canos é sorteada como uma fração
-     * da ALTURA DO VÃO: entre 0,8× e 1,0×. Canos mais juntos = mais
-     * difícil, e a dificuldade acompanha o tamanho do vão. */
-    espacoMin: 0.8,
-    espacoMax: 1.0,
+    /* A ALTURA DO VÃO (a passagem entre os canos) é sorteada a cada
+     * cano, entre 0,8× e 1,0× da abertura de referência. A distância
+     * horizontal entre os canos é fixa e proporcional à tela. */
+    vaoMin: 0.8,
+    vaoMax: 1.0,
   },
 
   /* ================= SKY JUMP ================= */

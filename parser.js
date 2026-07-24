@@ -5,10 +5,58 @@ const vm = require('vm');
 const filePath = path.join(__dirname, 'js', 'assets-map.js');
 let content = fs.readFileSync(filePath, 'utf8');
 
-// Isola ASSETS e SHOP_ITEMS para leitura via VM
-const evaluableContent = content
-  .replace(/export\s+const\s+/g, 'var ')
-  .replace(/export\s+function\s+\w+\s*\(.*\)\s*\{[\s\S]*?\}/g, '');
+/* Isola ASSETS e SHOP_ITEMS para leitura via VM.
+ *
+ * Antes isto era feito apagando as funções com uma regex não-gulosa
+ * (`[\s\S]*?\}`), que parava no PRIMEIRO `}` encontrado. Bastava o
+ * arquivo ganhar uma função com template literal (`${n}.${e}`) ou um
+ * bloco interno para a regex cortar no lugar errado e sobrar código
+ * quebrado — era essa a origem do "SyntaxError: Unexpected token '{'".
+ *
+ * Agora fazemos o contrário: em vez de tentar remover o que não
+ * interessa, EXTRAÍMOS exatamente as duas estruturas de dados,
+ * contando chaves/colchetes para achar onde cada uma termina. */
+function extrairEstrutura(txt, nome, abre, fecha) {
+  const marca = new RegExp('export\\s+const\\s+' + nome + '\\s*=\\s*');
+  const m = marca.exec(txt);
+  if (!m) return null;
+
+  let i = txt.indexOf(abre, m.index);
+  if (i < 0) return null;
+
+  let nivel = 0, dentroStr = null, escapado = false;
+  for (let k = i; k < txt.length; k++) {
+    const c = txt[k];
+
+    if (dentroStr) {                       // ignora tudo dentro de texto
+      if (escapado) { escapado = false; continue; }
+      if (c === '\\') { escapado = true; continue; }
+      if (c === dentroStr) dentroStr = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') { dentroStr = c; continue; }
+    if (c === '/' && txt[k + 1] === '/') {  // comentário de linha
+      k = txt.indexOf('\n', k); if (k < 0) break; continue;
+    }
+    if (c === '/' && txt[k + 1] === '*') {  // comentário de bloco
+      k = txt.indexOf('*/', k); if (k < 0) break; k++; continue;
+    }
+    if (c === abre) nivel++;
+    else if (c === fecha) {
+      nivel--;
+      if (nivel === 0) return 'var ' + nome + ' = ' + txt.slice(i, k + 1) + ';';
+    }
+  }
+  return null;
+}
+
+const blocoAssets = extrairEstrutura(content, 'ASSETS', '{', '}');
+const blocoShop   = extrairEstrutura(content, 'SHOP_ITEMS', '[', ']');
+if (!blocoAssets || !blocoShop) {
+  console.error("Não encontrei ASSETS ou SHOP_ITEMS em js/assets-map.js.");
+  process.exit(1);
+}
+const evaluableContent = blocoAssets + '\n' + blocoShop;
 
 try {
   const context = {};
