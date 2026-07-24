@@ -39,7 +39,6 @@ export function initSkyJump() {
   let heroi, plats, altura, camera, rodando, morto, lastT = 0, alvoX = null;
   let moedas;
   let setaX = 0;                 // -1 / 0 / +1 pelas setas do teclado
-  let baseY = null;              // ALTURA da última plataforma pisada (base da câmera)
   const VMAX_H = () => (SJ.velMaxH ?? 6.5) * sx;
   let grausSuaves = 0;           // leitura do sensor JÁ filtrada
 
@@ -73,7 +72,6 @@ export function initSkyJump() {
     { let y = H - 60 * sy; for (let i = 1; i < N_PLATS; i++) { y -= sorteiaVao(); plats.push(novaPlat(y)); } }
     altura = 0; camera = 0; rodando = false; morto = false; alvoX = null;
     moedas = 0; lastT = 0; setaX = 0; grausSuaves = 0;
-    baseY = plats[0].y;
     setOverlay("Toque para começar", "Arraste para os lados!");
     desenhar();
   }
@@ -117,17 +115,14 @@ export function initSkyJump() {
     if (setaX !== 0) alvo = setaX * VMAX;
 
     if (alvo !== null) {
-      /* A velocidade-alvo (do ângulo) continua mandando, mas chegar até
-       * ela passa por um TETO DE ACELERAÇÃO — é a peça que faltava.
-       * Sem ele, um ângulo grande virava velocidade grande na hora e não
-       * dava tempo de estabilizar antes da plataforma.
-       * Para FREAR (alvo contra o movimento, ou voltando ao centro) o
-       * teto é maior: parar é sempre mais fácil do que disparar. */
-      const dif = alvo - heroi.vx;
-      const freando = Math.abs(alvo) < Math.abs(heroi.vx) ||
-                      (heroi.vx !== 0 && alvo !== 0 && Math.sign(alvo) !== Math.sign(heroi.vx));
-      const teto = (freando ? (SJ.acelFreio ?? 0.9) : (SJ.acelMax ?? 0.32)) * dt;
-      heroi.vx += Math.max(-teto, Math.min(teto, dif));
+      /* Só VELOCIDADE SUAVIZADA. A aceleração é "pontual": proporcional
+       * ao quanto falta para o alvo (a = k·(alvo − vx)), e não um teto
+       * fixo. Isso importa porque deixa o movimento SIMÉTRICO no tempo:
+       * tanto ganhar quanto perder velocidade usam a mesma lei, então
+       * girar para um lado e inverter devolve o boneco pelo mesmo
+       * caminho. Um teto fixo (e ainda por cima diferente para frear)
+       * quebrava essa simetria. */
+      heroi.vx += (alvo - heroi.vx) * Math.min(1, (SJ.suavizacao ?? 0.3) * dt);
     }
 
     heroi.vx = Math.max(-VMAX, Math.min(VMAX, heroi.vx));
@@ -145,10 +140,6 @@ export function initSkyJump() {
         const emCima = heroi.y + heroi.h >= p.y && heroi.y + heroi.h <= p.y + ALT + heroi.vy * dt;
         const dentro = heroi.x + heroi.w > p.x && heroi.x < p.x + LARG;
         if (emCima && dentro) {
-          /* A base da câmera é a ALTURA em que ele pisou, não o objeto:
-           * plataforma temporária some no mesmo quadro, e antes disso
-           * fazia a câmera perder a referência e parar de descer. */
-          baseY = p.y;
           heroi.vy = PULO;
           if (p.quebra) p.sumiu = true;
           break;
@@ -159,16 +150,16 @@ export function initSkyJump() {
     /* CÂMERA (como no Pou): a plataforma em que ele acabou de pisar
      * vira a MAIS BAIXA, com a base a ~8% do rodapé. O mundo desce até
      * lá suavemente, em vez de rolar por um limiar de altura. */
-    if (baseY !== null) {
-      const alvoY = H * (1 - (SJ.baseAcimaDoRodape ?? 0.08));
-      const d = alvoY - baseY;
-      if (d > 0.5) {
-        // 0,65x da velocidade anterior: a base subia rápido demais
-        const passo = Math.min(d, d * (SJ.velCamera ?? 0.1625) * dt);
-        heroi.y += passo; camera += passo; altura += passo;
-        baseY += passo;
-        for (const p of plats) p.y += passo;
-      }
+    /* CÂMERA (como no Doodle Jump / Pou): ela não persegue plataforma
+     * nenhuma. Enquanto o boneco SOBE acima da linha dos 48% da tela, o
+     * mundo desce junto com ele — passo a passo, exatamente o quanto ele
+     * subiu. Quando ele chega ao ápice e começa a cair, a câmera para
+     * sozinha (ele deixa de ganhar altura). */
+    const LINHA = H * (SJ.linhaCamera ?? 0.48);
+    if (heroi.y < LINHA) {
+      const d = LINHA - heroi.y;
+      heroi.y += d; camera += d; altura += d;
+      for (const p of plats) p.y += d;
     }
 
     plats = plats.filter((p) => p.y < H + 30 * sy);

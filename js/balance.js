@@ -228,7 +228,6 @@ export const BALANCE = {
     vaoMin: 78,
     vaoMax: 150,
     larguraPlataforma: 1 / 6,   // fração da LARGURA da tela
-    baseAcimaDoRodape: 0.08,    // a plataforma pisada fica 8% acima do chão
     plataformas: 6,
     chanceMoeda: 0.28,
     chanceQuebra: 0.28,
@@ -244,12 +243,12 @@ export const BALANCE = {
     grausMax: 24,
     velMaxH: 6.0,               // velocidade no ângulo máximo
     curvaAngulo: 1.6,           // resposta fina perto do centro
-    /* A velocidade vem do ângulo, mas ela é ALCANÇADA com aceleração
-     * limitada — o complemento que faltava para dar controle. Frear é
-     * bem mais rápido que acelerar, então dá para parar na plataforma. */
-    acelMax: 0.32,              // teto para GANHAR velocidade
-    acelFreio: 0.9,             // teto para PERDER velocidade (quase 3x)
-    velCamera: 0.1625,          // 0,65x da velocidade antiga da câmera
+    /* Movimento: velocidade suavizada, com aceleração PROPORCIONAL ao
+     * que falta (a = k·(alvo − vx)) — nunca um teto fixo. É o que torna
+     * o deslocamento simétrico no tempo: inverter o giro traz o boneco
+     * de volta pelo mesmo caminho. */
+    suavizacao: 0.3,            // k do amortecimento (maior = freia mais seco)
+    linhaCamera: 0.48,          // a câmera sobe quando ele passa dos 48%
     /* toque e teclado (inalterados) */
     acelToque: 0.0011,
     acelSeta: 0.20,

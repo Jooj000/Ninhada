@@ -711,7 +711,11 @@ export function showScreen(id) {
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   const el = document.getElementById(id);
   if (el) el.classList.add("active");
-  if (prev === "screen-home") setLights(false);      // saiu do quarto: luz acesa
+  // voltando para a casa: o quarto reaparece do jeito que ficou
+  if (id === "screen-home") aplicarOverlayLuz(currentRoom().id === "quarto" && quartoEscuro);
+  /* Sair da tela inicial NÃO acende a luz: o quarto continua escuro e
+   * quem está lá segue dormindo. Só escondemos o escurecimento. */
+  if (prev === "screen-home") aplicarOverlayLuz(false);
 
   // sair da tela de um jogo = RESETAR o jogo (fs-canvas.js distribui)
   announceScreenChange(prev, id);

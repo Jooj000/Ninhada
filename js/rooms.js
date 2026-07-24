@@ -50,7 +50,8 @@ function initKitchen() {
   READY_FOODS.forEach((f) => {
     const b = document.createElement("button");
     b.className = "food-btn";
-    const efeito = descreverEfeitos(f);
+    // comida comprada não anuncia XP: o XP é o prêmio de COZINHAR
+    const efeito = descreverEfeitos(f, 0, { semXp: true });
     b.innerHTML = `<span class="food-emoji">${f.emoji}</span><span>${f.label}</span>`
       + `<small>${f.cost} 🪙</small>`
       + (efeito ? `<small class="food-efeito">${efeito}</small>` : "");
@@ -178,7 +179,8 @@ function renderRecipeBook() {
     card.className = "recipe-card" + (found ? " found" : "");
     card.innerHTML = found
       ? `<span class="food-emoji">${r.emoji}</span><span>${r.label}</span>
-         <small>${r.need.map((n) => INGREDIENTS.find((i) => i.id === n)?.emoji || "?").join(" + ")}</small>`
+         <small>${r.need.map((n) => INGREDIENTS.find((i) => i.id === n)?.emoji || "?").join(" + ")}</small>
+         <small class="food-efeito">${descreverEfeitos(r)}</small>`
       : `<span class="food-emoji">❔</span><span>? ? ?</span><small>descubra cozinhando</small>`;
     book.appendChild(card);
   }

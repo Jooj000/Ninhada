@@ -103,14 +103,14 @@ export const UNKNOWN_DISH = { id: null, label: "Papa simples", emoji: "🥄", hu
  *   a FOME vem sempre primeiro, depois XP e os demais status.
  *   Itens com limite diário mostram só "usados/limite".
  * `usados` vem do bebê (contadores do dia). */
-export function descreverEfeitos(item, usados = 0) {
+export function descreverEfeitos(item, usados = 0, opcoes = {}) {
   if (!item) return "";
   const e = item.efeitos || {};
   const ICONE = { sleep: "😴", love: "💛", health: "❤️" };
   const partes = [];
 
   if (item.hunger) partes.push(`+${item.hunger} 🍗`);      // fome SEMPRE primeiro
-  if (item.xp) partes.push(`+${item.xp} ⭐`);
+  if (item.xp && !opcoes.semXp) partes.push(`+${item.xp} ⭐`);
   for (const k of ["health", "sleep", "love"]) {
     if (e[k]) partes.push(`${e[k] > 0 ? "+" : ""}${e[k]} ${ICONE[k]}`);
   }
