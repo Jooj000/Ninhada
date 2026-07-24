@@ -39,7 +39,7 @@ export function initSkyJump() {
   let heroi, plats, altura, camera, rodando, morto, lastT = 0, alvoX = null;
   let moedas;
   let setaX = 0;                 // -1 / 0 / +1 pelas setas do teclado
-  let platAtual = null;          // plataforma pisada por último (base da câmera)
+  let baseY = null;              // ALTURA da última plataforma pisada (base da câmera)
   const VMAX_H = () => (SJ.velMaxH ?? 6.5) * sx;
   let grausSuaves = 0;           // leitura do sensor JÁ filtrada
 
@@ -73,7 +73,7 @@ export function initSkyJump() {
     { let y = H - 60 * sy; for (let i = 1; i < N_PLATS; i++) { y -= sorteiaVao(); plats.push(novaPlat(y)); } }
     altura = 0; camera = 0; rodando = false; morto = false; alvoX = null;
     moedas = 0; lastT = 0; setaX = 0; grausSuaves = 0;
-    platAtual = plats[0];
+    baseY = plats[0].y;
     setOverlay("Toque para começar", "Arraste para os lados!");
     desenhar();
   }
@@ -101,8 +101,10 @@ export function initSkyJump() {
       const gMax = SJ.grausMax ?? 24;
       const excesso = Math.abs(grausSuaves) - zona;
       // velocidade PROPORCIONAL ao ângulo (dentro da zona morta: parado)
-      alvo = excesso <= 0 ? 0
-           : Math.sign(grausSuaves) * Math.min(1, excesso / Math.max(1, gMax - zona)) * VMAX;
+      // curva >1: perto do centro a velocidade sobe devagar (controle fino)
+      const t = excesso <= 0 ? 0 : Math.min(1, excesso / Math.max(1, gMax - zona));
+      alvo = t === 0 ? 0
+           : Math.sign(grausSuaves) * Math.pow(t, SJ.curvaAngulo ?? 1.6) * VMAX;
     }
 
     /* ---- toque: inalterado (persegue o dedo) ---- */
@@ -115,9 +117,17 @@ export function initSkyJump() {
     if (setaX !== 0) alvo = setaX * VMAX;
 
     if (alvo !== null) {
-      // amortecedor leve: aproxima vx do alvo sem degrau (sem atrito)
-      const k = Math.min(1, (SJ.amortecedor ?? 0.35) * dt);
-      heroi.vx += (alvo - heroi.vx) * k;
+      /* A velocidade-alvo (do ângulo) continua mandando, mas chegar até
+       * ela passa por um TETO DE ACELERAÇÃO — é a peça que faltava.
+       * Sem ele, um ângulo grande virava velocidade grande na hora e não
+       * dava tempo de estabilizar antes da plataforma.
+       * Para FREAR (alvo contra o movimento, ou voltando ao centro) o
+       * teto é maior: parar é sempre mais fácil do que disparar. */
+      const dif = alvo - heroi.vx;
+      const freando = Math.abs(alvo) < Math.abs(heroi.vx) ||
+                      (heroi.vx !== 0 && alvo !== 0 && Math.sign(alvo) !== Math.sign(heroi.vx));
+      const teto = (freando ? (SJ.acelFreio ?? 0.9) : (SJ.acelMax ?? 0.32)) * dt;
+      heroi.vx += Math.max(-teto, Math.min(teto, dif));
     }
 
     heroi.vx = Math.max(-VMAX, Math.min(VMAX, heroi.vx));
@@ -135,7 +145,10 @@ export function initSkyJump() {
         const emCima = heroi.y + heroi.h >= p.y && heroi.y + heroi.h <= p.y + ALT + heroi.vy * dt;
         const dentro = heroi.x + heroi.w > p.x && heroi.x < p.x + LARG;
         if (emCima && dentro) {
-          platAtual = p;                      // vira a "base" da câmera
+          /* A base da câmera é a ALTURA em que ele pisou, não o objeto:
+           * plataforma temporária some no mesmo quadro, e antes disso
+           * fazia a câmera perder a referência e parar de descer. */
+          baseY = p.y;
           heroi.vy = PULO;
           if (p.quebra) p.sumiu = true;
           break;
@@ -146,12 +159,14 @@ export function initSkyJump() {
     /* CÂMERA (como no Pou): a plataforma em que ele acabou de pisar
      * vira a MAIS BAIXA, com a base a ~8% do rodapé. O mundo desce até
      * lá suavemente, em vez de rolar por um limiar de altura. */
-    if (platAtual && !platAtual.sumiu) {
+    if (baseY !== null) {
       const alvoY = H * (1 - (SJ.baseAcimaDoRodape ?? 0.08));
-      const d = alvoY - platAtual.y;
+      const d = alvoY - baseY;
       if (d > 0.5) {
-        const passo = Math.min(d, d * 0.25 * dt);
+        // 0,65x da velocidade anterior: a base subia rápido demais
+        const passo = Math.min(d, d * (SJ.velCamera ?? 0.1625) * dt);
         heroi.y += passo; camera += passo; altura += passo;
+        baseY += passo;
         for (const p of plats) p.y += passo;
       }
     }

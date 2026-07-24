@@ -38,7 +38,7 @@ export const BALANCE = {
   /* ================= CUIDADOS ================= */
   care: {
     // Remédio: cura resfriado na hora (e dá uma ajudinha no ânimo).
-    remedioCusto: 220,      // MUITO caro: cura só 15% e é 1 por dia
+    remedioCusto: 140,      // caro, mas 1 por dia e cura MUITO na hora
     remedioLove: 10,
     remedioXp: 15,
     // Quanto cada ação de botão recupera.
@@ -201,7 +201,10 @@ export const BALANCE = {
     doenteFunPorHora: 8,
 
     // remédio: 15% mais caro e SÓ UM por dia
-    remedioCura: 15,        // cura 15 pontos de saúde (é um empurrãozinho)
+    remedioCura: 45,        /* Referência de mercado: a Vitamina dá 10 ❤️ por
+                             * 48 🪙 (0,21 ❤️/moeda). O remédio dá 45 ❤️ por
+                             * 140 🪙 (0,32 ❤️/moeda) E cura resfriado na
+                             * hora — melhor por moeda, mas só 1 por dia. */
   },
 
   /* ================= FLAPPY BABY ================= */
@@ -240,7 +243,13 @@ export const BALANCE = {
     zonaMortaGraus: 3,
     grausMax: 24,
     velMaxH: 6.0,               // velocidade no ângulo máximo
-    amortecedor: 0.35,          // 1 = instantâneo · 0,35 = resistência leve
+    curvaAngulo: 1.6,           // resposta fina perto do centro
+    /* A velocidade vem do ângulo, mas ela é ALCANÇADA com aceleração
+     * limitada — o complemento que faltava para dar controle. Frear é
+     * bem mais rápido que acelerar, então dá para parar na plataforma. */
+    acelMax: 0.32,              // teto para GANHAR velocidade
+    acelFreio: 0.9,             // teto para PERDER velocidade (quase 3x)
+    velCamera: 0.1625,          // 0,65x da velocidade antiga da câmera
     /* toque e teclado (inalterados) */
     acelToque: 0.0011,
     acelSeta: 0.20,
@@ -274,7 +283,8 @@ export const BALANCE = {
   kitchen: {
     // Multiplicadores rápidos (os valores base ficam em recipes.js).
     foodPriceMultiplier: 3.2,   // comida e ingredientes bem mais caros
-    cookXpMultiplier: 1,
+    ingredientePremiumDesconto: 0.7,  // mel/chocolate/frango não podem inviabilizar a receita
+    cookXpMultiplier: 1.4,      // cozinhar rende MAIS que comprar pronto
     readyFoodXpMultiplier: 1,
     cookSpeed: 5,           // velocidade do marcador (maior = mais difícil)
   },

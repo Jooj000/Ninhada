@@ -88,7 +88,10 @@ body {
 }
 /* Placeholder de CAMADA do bebê: tom neutro leve (nunca cor forte),
  * pra PNG transparente por cima não revelar cor berrante. */
-.layer.is-placeholder { background-color: rgba(120,110,130,0.10) !important; }
+/* NADA de quadrado: uma camada que não carregou simplesmente não
+ * aparece. (Antes qualquer camada opcional ausente — acessório,
+ * condição — desenhava um retângulo cinza a 10% sobre a criança.) */
+.layer.is-placeholder { background-color: transparent !important; }
 
 /* Reações de humor (funcionam mesmo com placeholder) */
 .baby-stage[data-mood="happy"]   .baby-doll { animation: breathe 3s ease-in-out infinite; }
@@ -1741,3 +1744,17 @@ body {
   font-size: .62rem; font-weight: 800; color: var(--primary-d);
   letter-spacing: .01em;
 }
+
+
+/* ---- V12: sem nenhuma "caixa" em volta das crianças ---- */
+.scene-baby-stage, .mini-stage, .room-baby .baby-stage,
+.scene-stage .baby-stage {
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;      /* o sprite pode passar da caixa */
+}
+.baby-card .baby-stage { box-shadow: none; }
+
+/* 2) o seletor de crianças também aparece no modo grupo */
+.modo-grupo #home-baby-select { display: inline-block; }

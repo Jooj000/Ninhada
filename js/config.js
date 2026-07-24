@@ -29,7 +29,7 @@ export const ROOM_NAME = "Sala";
 
 /* Chave PÚBLICA do Web Push (a privada fica em server/.env). */
 export const PUSH = {
-  vapidPublicKey: "BJFpt5fM_kAGqxYrkqdcvifVKCRE9k_zt7esf_VSLJV3Ih34T3oRQCYX4rqbVwMRHzFoQjE1F_pR_ybcXTBiUxo",
+  vapidPublicKey: "BLAN8a4kiID_i1h31M0sLu_5bnmYeRpapOY2icrqJ8kyAkNAVSdCVda8wXmTAILpIua9F7bvZnYzkgD22FzdQNk",
 };
 
 /* ---------------------------------------------------------------------

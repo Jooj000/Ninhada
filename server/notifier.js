@@ -32,7 +32,58 @@ if (!DB || !PUB || !PRIV) {
   console.error("Faltam variáveis no .env (DATABASE_URL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY).");
   process.exit(1);
 }
-webpush.setVapidDetails(SUBJECT, PUB, PRIV);
+
+/* ---------------------------------------------------------------------
+ * VALIDAÇÃO DAS CHAVES VAPID
+ * O erro "Vapid private key should be 32 bytes long when decoded" quase
+ * sempre NÃO é problema de código: é a chave chegando suja. As causas
+ * comuns são espaço/quebra de linha coladas junto, aspas em volta, a
+ * chave em base64 comum (com + e /) em vez de base64url (- e _), ou a
+ * PÚBLICA colada no lugar da privada (65 bytes em vez de 32).
+ * Limpamos o que dá e explicamos exatamente o que está errado.
+ * ------------------------------------------------------------------- */
+function limparChave(v) {
+  return String(v || "")
+    .trim()                       // espaços e quebras de linha das secrets
+    .replace(/^["']|["']$/g, "")  // aspas coladas por engano
+    .replace(/\s+/g, "")          // qualquer espaço interno
+    .replace(/\+/g, "-")          // base64 comum -> base64url
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");          // padding
+}
+
+function tamanhoEmBytes(chave) {
+  try { return Buffer.from(chave, "base64url").length; }
+  catch { return -1; }
+}
+
+const PUB_L = limparChave(PUB);
+const PRIV_L = limparChave(PRIV);
+const nPub = tamanhoEmBytes(PUB_L);
+const nPriv = tamanhoEmBytes(PRIV_L);
+
+if (nPriv !== 32 || nPub !== 65) {
+  console.error("\n=== CHAVES VAPID INVÁLIDAS ===");
+  console.error(`  VAPID_PRIVATE_KEY decodifica para ${nPriv} byte(s) — precisa ser 32.`);
+  console.error(`  VAPID_PUBLIC_KEY  decodifica para ${nPub} byte(s) — precisa ser 65.`);
+  if (nPriv === 65 && nPub === 32) {
+    console.error("  >> As duas parecem TROCADAS: a pública está no campo da privada.");
+  } else if (nPriv > 32) {
+    console.error("  >> A privada está longa demais. Se ela tem cabeçalho -----BEGIN,");
+    console.error("     é um PEM: o web-push quer a chave crua em base64url.");
+  } else if (nPriv > 0) {
+    console.error("  >> A privada está curta: provavelmente foi cortada ao copiar.");
+  }
+  console.error("\n  Para gerar um par novo e correto:");
+  console.error("     npx web-push generate-vapid-keys");
+  console.error("  Depois cole cada valor EXATO (sem aspas e sem espaços) nos secrets");
+  console.error("  do repositório: VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY.");
+  console.error("  Atenção: a pública também precisa ser a MESMA usada no app (js/config.js),");
+  console.error("  senão as assinaturas antigas param de funcionar e precisam ser refeitas.\n");
+  process.exit(1);
+}
+
+webpush.setVapidDetails(SUBJECT, PUB_L, PRIV_L);
 
 const url = (path) => `${DB}/${path}.json`;
 const getJSON = async (path) => (await fetch(url(path))).json();

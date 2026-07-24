@@ -131,8 +131,15 @@ function setRoom(idxOrId) {
   const idx = typeof idxOrId === "number"
     ? (idxOrId + ROOMS.length) % ROOMS.length
     : Math.max(0, ROOMS.findIndex((r) => r.id === idxOrId));
-  // sair do cômodo: acende a luz, larga a ferramenta e limpa as bolhas
-  if (ROOMS[roomIdx].id !== ROOMS[idx].id) { setLights(false); setTool(null); clearBubbles(); }
+  /* Sair do cômodo NÃO acende a luz: o quarto continua escuro e quem
+   * ficou lá segue dormindo (o carimbo `dormindoDesde` já é do bebê).
+   * Só largamos a ferramenta de banho e as bolhas. */
+  if (ROOMS[roomIdx].id !== ROOMS[idx].id) {
+    setTool(null); clearBubbles();
+    // a luz é do QUARTO: ao entrar noutro cômodo, o overlay some da tela,
+    // mas o estado do quarto (escuro/claro) fica guardado
+    aplicarOverlayLuz(ROOMS[idx].id === "quarto" && quartoEscuro);
+  }
   roomIdx = idx;
   localStorage.setItem("ninhada-room", ROOMS[idx].id);
 
@@ -180,6 +187,16 @@ function flashMsg(text, ms = 2600) {
 let lightsOff = false;
 let sleepTimer = null;
 
+/* Só o visual: pinta (ou não) o escurecimento na tela atual. */
+function aplicarOverlayLuz(mostrar) {
+  const ov = document.getElementById("lights-overlay");
+  if (ov) ov.hidden = !mostrar;
+  document.getElementById("screen-home").classList.toggle("lights-off", !!mostrar);
+}
+
+/* Estado do QUARTO (não do jogador): fica escuro até alguém acender. */
+let quartoEscuro = localStorage.getItem("ninhada-quarto-escuro") === "1";
+
 function setLights(off) {
   /* PORTA DE BEM-ESTAR: sem higiene E sem barriga cheia, a criança não
    * quer dormir — apagar a luz não adianta. */
@@ -193,16 +210,17 @@ function setLights(off) {
   lightsOff = off;
   // registra no Firebase: o sono CONTINUA correndo com o app fechado
   // quem está no quarto dorme junto (mesmo tendo vindo acompanhando outra)
-  for (const id of colegasDeComodo()) setDormindo(id, off);
+  for (const id of criancasNoComodo("quarto")) setDormindo(id, off);
   document.getElementById("lights-overlay").hidden = !off;
   document.getElementById("screen-home").classList.toggle("lights-off", off);
   clearInterval(sleepTimer);
   if (off) {
     sleepTimer = setInterval(() => {
-      const home = document.getElementById("screen-home");
-      if (home.classList.contains("active") && currentRoom().id === "quarto" && lightsOff) {
-        // no quarto escuro, TODAS as crianças do cômodo dormem
-        for (const id of colegasDeComodo()) {
+      /* Não exige que o jogador esteja no quarto: se o quarto está
+       * escuro, quem está lá dorme mesmo com o jogador noutro cômodo. */
+      if (quartoEscuro) {
+        // no quarto escuro, TODAS as crianças do QUARTO dormem
+        for (const id of criancasNoComodo("quarto")) {
           boostStatus(id, "sleep", BALANCE.care.sleepPerTick);
         }
         registerCare();
@@ -607,6 +625,13 @@ function tick() {
     if (!erroAvisado) { erroAvisado = true; console.error("[Ninhada] erro no loop visual:", e); }
   }
   requestAnimationFrame(tick);
+}
+
+/* Quem está num cômodo qualquer. */
+function criancasNoComodo(comodo) {
+  if (!room || !room.babies) return [];
+  return Object.keys(room.babies).filter(
+    (id) => ((room.babies[id].room) || "quarto") === comodo);
 }
 
 /* Quem está no MESMO cômodo da criança ativa. */
