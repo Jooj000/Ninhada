@@ -239,15 +239,15 @@ export const BALANCE = {
      * centro o boneco simplesmente para de andar. */
     filtroInclinacao: 0.5,      // passa-baixa mínimo (contra tremor)
     saltoInclinacao: 3,         // virada ≥3° passa direto
-    zonaMortaGraus: 3,
+    zonaMortaGraus: 2,
     grausMax: 24,
     velMaxH: 6.0,               // velocidade no ângulo máximo
-    curvaAngulo: 1.6,           // resposta fina perto do centro
+    curvaAngulo: 1.25,          // quase proporcional: leve, sem ponto morto grande
     /* Movimento: velocidade suavizada, com aceleração PROPORCIONAL ao
      * que falta (a = k·(alvo − vx)) — nunca um teto fixo. É o que torna
      * o deslocamento simétrico no tempo: inverter o giro traz o boneco
      * de volta pelo mesmo caminho. */
-    suavizacao: 0.3,            // k do amortecimento (maior = freia mais seco)
+    suavizacao: 0.45,           // k do amortecimento (maior = responde mais rápido)
     linhaCamera: 0.48,          // a câmera sobe quando ele passa dos 48%
     /* toque e teclado (inalterados) */
     acelToque: 0.0011,

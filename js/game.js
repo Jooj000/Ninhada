@@ -138,7 +138,7 @@ function setRoom(idxOrId) {
     setTool(null); clearBubbles();
     // a luz é do QUARTO: ao entrar noutro cômodo, o overlay some da tela,
     // mas o estado do quarto (escuro/claro) fica guardado
-    aplicarOverlayLuz(ROOMS[idx].id === "quarto" && quartoEscuro);
+
   }
   roomIdx = idx;
   localStorage.setItem("ninhada-room", ROOMS[idx].id);
@@ -146,6 +146,8 @@ function setRoom(idxOrId) {
   const scene = document.getElementById("screen-home");
   scene.dataset.room = ROOMS[idx].id;
   document.getElementById("room-name").textContent = ROOMS[idx].name;
+
+  atualizarLuzDaCena();          // SEMPRE, inclusive ao abrir o app
 
   const bg = document.getElementById("scene-bg");
   bg.style.backgroundImage = ROOMS[idx].grad;
@@ -183,52 +185,62 @@ function flashMsg(text, ms = 2600) {
   flashMsg._t = setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, ms);
 }
 
-/* ---------------- QUARTO: luz / sono / pesadelo ---------------- */
-let lightsOff = false;
+/* ---------------- QUARTO: luz / sono / pesadelo ----------------
+ * UMA fonte de verdade: `quartoEscuro`. Antes havia duas (`lightsOff`
+ * para a lógica e `quartoEscuro` para o visual) e elas saíam de sincronia
+ * — o quarto ficava "apagado" no sistema e aceso na tela. */
 let sleepTimer = null;
+let quartoEscuro = localStorage.getItem("ninhada-quarto-escuro") === "1";
 
-/* Só o visual: pinta (ou não) o escurecimento na tela atual. */
+/* compatibilidade: quem lê `lightsOff` continua funcionando */
+Object.defineProperty(globalThis, "lightsOff", { get: () => quartoEscuro, configurable: true });
+
+/* Pinta (ou não) o escurecimento — sempre derivado do estado + cômodo. */
 function aplicarOverlayLuz(mostrar) {
   const ov = document.getElementById("lights-overlay");
   if (ov) ov.hidden = !mostrar;
-  document.getElementById("screen-home").classList.toggle("lights-off", !!mostrar);
+  const home = document.getElementById("screen-home");
+  if (home) home.classList.toggle("lights-off", !!mostrar);
 }
 
-/* Estado do QUARTO (não do jogador): fica escuro até alguém acender. */
-let quartoEscuro = localStorage.getItem("ninhada-quarto-escuro") === "1";
+/* Recalcula o visual a partir do estado (chamada de todo lugar). */
+function atualizarLuzDaCena() {
+  const naCasa = document.getElementById("screen-home").classList.contains("active");
+  aplicarOverlayLuz(naCasa && currentRoom().id === "quarto" && quartoEscuro);
+}
 
 function setLights(off) {
-  /* PORTA DE BEM-ESTAR: sem higiene E sem barriga cheia, a criança não
-   * quer dormir — apagar a luz não adianta. */
+  /* PORTA DE BEM-ESTAR: sem higiene E sem barriga cheia, não dorme. */
   if (off && !podeDormir()) {
     flashMsg("Assim ela não dorme… dê um banho e comidinha antes 🛁🍽️");
-    lightsOff = false;
-    document.getElementById("lights-overlay").hidden = true;
-    document.getElementById("screen-home").classList.remove("lights-off");
+    quartoEscuro = false;
+    atualizarLuzDaCena();
     return;
   }
-  lightsOff = off;
-  // registra no Firebase: o sono CONTINUA correndo com o app fechado
-  // quem está no quarto dorme junto (mesmo tendo vindo acompanhando outra)
+
+  quartoEscuro = off;                                   // <- a fonte de verdade
+  localStorage.setItem("ninhada-quarto-escuro", off ? "1" : "0");
+
+  // o sono CONTINUA correndo com o app fechado
   for (const id of criancasNoComodo("quarto")) setDormindo(id, off);
-  document.getElementById("lights-overlay").hidden = !off;
-  document.getElementById("screen-home").classList.toggle("lights-off", off);
+
+  atualizarLuzDaCena();
+
   clearInterval(sleepTimer);
   if (off) {
     sleepTimer = setInterval(() => {
-      /* Não exige que o jogador esteja no quarto: se o quarto está
-       * escuro, quem está lá dorme mesmo com o jogador noutro cômodo. */
-      if (quartoEscuro) {
-        // no quarto escuro, TODAS as crianças do QUARTO dormem
-        for (const id of criancasNoComodo("quarto")) {
-          boostStatus(id, "sleep", BALANCE.care.sleepPerTick);
-        }
-        registerCare();
+      /* Não exige o jogador no quarto: se o quarto está escuro, quem
+       * está lá dorme mesmo com o jogador noutro cômodo. */
+      if (!quartoEscuro) return;
+      for (const id of criancasNoComodo("quarto")) {
+        boostStatus(id, "sleep", BALANCE.care.sleepPerTick);
       }
+      registerCare();
     }, 1500);
   }
   renderHotspots();
 }
+
 /* Telas que são minigame (a lista sai da própria bandeja no HTML). */
 const TELAS_DE_JOGO = new Set([
   "screen-flappy", "screen-fooddrop", "screen-starpopper", "screen-goal",
@@ -294,8 +306,8 @@ let bubbles = [];               // {x, y, el} em coordenadas do palco
 let hygieneAcc = 0;
 
 function setTool(t) {
-  /* dando banho também é atividade: trava a criança no cômodo */
-  if (typeof marcarAtividade === "function") marcarAtividade(arguments[0] ? "banho" : null);
+  /* largar a ferramenta destrava na hora */
+  if (!arguments[0] && atividadeAtual === "banho") marcarAtividade(null);
   tool = tool === t ? null : t;
   const layer = document.getElementById("bubbles-layer");
   layer.style.pointerEvents = tool ? "auto" : "none";
@@ -381,12 +393,23 @@ function wireBathroom() {
     if (tool === "soap") soapAt(p);
     else showerAt(p);
   };
-  layer.addEventListener("pointerdown", (e) => { down = true; use(e); });
+  layer.addEventListener("pointerdown", (e) => {
+    down = true;
+    // enquanto a mão está no banho, a criança não sai do cômodo
+    if (currentRoom().id === "banheiro" && tool) marcarAtividade("banho");
+    use(e);
+  });
   layer.addEventListener("pointermove", (e) => {
     if (currentRoom().id === "banheiro" && tool === "shower") use(e);   // o chuveirinho segue o dedo/mouse
     else if (down) use(e);
   });
-  window.addEventListener("pointerup", () => { down = false; });
+  /* SOLTOU: a trava cai na mesma hora (não espera o carimbo expirar). */
+  const soltou = () => {
+    down = false;
+    if (atividadeAtual === "banho") marcarAtividade(null);
+  };
+  window.addEventListener("pointerup", soltou);
+  window.addEventListener("pointercancel", soltou);
 }
 
 /* ---------------- BANHEIRO: remédio ----------------------------- */
@@ -598,7 +621,7 @@ function setView(mode) {
 
   /* No SOLO a cena é vertical: trava em retrato. No GRUPO a turma
    * aproveita a tela deitada, então libera. */
-  if (mode === "room") liberarRotacao(); else travarRetrato();
+  travarRetrato();   // a casa é sempre vertical (grupo inclusive)
 
   if (mode === "room") {
     single.hidden = true; roomv.hidden = false;
@@ -712,10 +735,10 @@ export function showScreen(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add("active");
   // voltando para a casa: o quarto reaparece do jeito que ficou
-  if (id === "screen-home") aplicarOverlayLuz(currentRoom().id === "quarto" && quartoEscuro);
+  if (id === "screen-home") atualizarLuzDaCena();
   /* Sair da tela inicial NÃO acende a luz: o quarto continua escuro e
    * quem está lá segue dormindo. Só escondemos o escurecimento. */
-  if (prev === "screen-home") aplicarOverlayLuz(false);
+  if (prev === "screen-home") aplicarOverlayLuz(false);   // fora da casa não escurece
 
   // sair da tela de um jogo = RESETAR o jogo (fs-canvas.js distribui)
   announceScreenChange(prev, id);
@@ -805,6 +828,13 @@ function atualizarBanner() { /* sem banner */ }
 /* O manifest pedia "portrait", o que TRAVA a rotação em app instalado.
  * Trocamos para "any", mas um PWA já instalado guarda o manifest antigo —
  * então destravamos também em tempo de execução. */
+/* ROTAÇÃO
+ * O `lock()` por JavaScript costuma FALHAR fora de tela cheia — foi por
+ * isso que travar em retrato não pegava. O que o sistema respeita mesmo
+ * é o `orientation` do manifest. Então invertemos: o manifest inteiro é
+ * "portrait" e apenas Dino e Hill Drive chamam `unlock()` para poder
+ * deitar. O `lock()` aqui é só reforço para quando o app já estiver
+ * destravado por causa desses dois. */
 function travarRetrato() {
   try {
     const so = window.screen && window.screen.orientation;
@@ -812,7 +842,7 @@ function travarRetrato() {
       const r = so.lock("portrait");
       if (r && typeof r.catch === "function") r.catch(() => {});
     }
-  } catch (_) { /* navegador sem suporte: segue o jogo */ }
+  } catch (_) { /* navegador sem suporte: o manifest já garante */ }
 }
 
 function liberarRotacao() {
@@ -826,7 +856,7 @@ function liberarRotacao() {
 }
 
 async function main() {
-  liberarRotacao();
+  travarRetrato();          // o app abre vertical; só Dino e Hill Drive deitam
   try {
     await initSync();
   } catch (err) {

@@ -1758,3 +1758,92 @@ body {
 
 /* 2) o seletor de crianças também aparece no modo grupo */
 .modo-grupo #home-baby-select { display: inline-block; }
+
+/* =====================================================================
+ * ============ V13 — COZINHA REPAGINADA =============================
+ * Grade regular no lugar da fileira que quebrava torto, cartões com
+ * hierarquia clara (emoji > nome > preço > efeito) e o caderno de
+ * receitas legível.
+ * ===================================================================== */
+
+#screen-kitchen .room-h2 {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 1rem; margin: 18px 0 10px;
+}
+#screen-kitchen .room-h2::after {
+  content: ""; flex: 1; height: 1px;
+  background: linear-gradient(90deg, rgba(74,63,85,.14), transparent);
+}
+
+/* ---- grade de comidas e ingredientes ---- */
+#screen-kitchen .food-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+#screen-kitchen .food-btn {
+  min-width: 0; padding: 12px 8px 10px;
+  border-radius: 16px; gap: 3px;
+  background: linear-gradient(180deg, #fff, var(--surface));
+  box-shadow: 0 3px 10px rgba(74,63,85,.10);
+  transition: transform .12s, box-shadow .12s;
+  position: relative; overflow: hidden;
+}
+#screen-kitchen .food-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(74,63,85,.16); }
+#screen-kitchen .food-btn .food-emoji { font-size: 2rem; line-height: 1.1; }
+#screen-kitchen .food-btn > span:nth-child(2) {
+  font-size: .78rem; font-weight: 700; line-height: 1.15;
+}
+/* preço em destaque, como etiqueta */
+#screen-kitchen .food-btn small:not(.food-efeito) {
+  display: inline-block; margin-top: 2px;
+  background: rgba(255, 216, 128, .35);
+  border-radius: 999px; padding: 1px 8px;
+  font-weight: 800; color: #8A6B2E; font-size: .7rem;
+}
+#screen-kitchen .food-efeito {
+  background: none; padding: 0; margin-top: 3px;
+  font-size: .64rem; line-height: 1.25; color: var(--primary-d);
+}
+
+/* ---- panela ---- */
+#screen-kitchen .pot-area { gap: 10px; align-items: stretch; }
+#screen-kitchen .pot {
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff, var(--surface));
+  box-shadow: inset 0 0 0 2px rgba(74,63,85,.06), 0 3px 10px rgba(74,63,85,.10);
+}
+#screen-kitchen .pot-pan { font-size: 2.3rem; }
+#screen-kitchen .cook-btn {
+  border-radius: 16px; min-width: 120px;
+  box-shadow: 0 4px 12px rgba(197,138,183,.35);
+}
+
+/* ---- caderno de receitas ---- */
+#screen-kitchen .recipe-book {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+#screen-kitchen .recipe-card {
+  border-radius: 16px; padding: 12px 10px; gap: 3px;
+  border: 1px dashed rgba(74,63,85,.18);
+  background: rgba(255,255,255,.4);
+}
+#screen-kitchen .recipe-card.found {
+  border: 0;
+  background: linear-gradient(180deg, #fff, var(--surface));
+  box-shadow: 0 3px 10px rgba(74,63,85,.10);
+}
+#screen-kitchen .recipe-card .food-emoji { font-size: 1.9rem; }
+#screen-kitchen .recipe-card > span:nth-child(2) { font-size: .82rem; font-weight: 700; }
+#screen-kitchen .recipe-card small { font-size: .95rem; }
+#screen-kitchen .recipe-card .food-efeito {
+  font-size: .64rem; line-height: 1.3; color: var(--primary-d); font-weight: 800;
+}
+
+
+/* A casa é sempre vertical: o layout deitado sobrou só como salvaguarda
+   para o site aberto no navegador (onde não há como travar a rotação). */
+@media (orientation: landscape) and (max-height: 560px) {
+  .screen.scene.active .scene-baby-stage { width: auto; height: min(66%, 240px); }
+}
