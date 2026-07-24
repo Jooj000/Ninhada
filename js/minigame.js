@@ -10,6 +10,7 @@ import { rewardGame, getRecord } from "./firebase-sync.js";
 import { desenharBebe } from "./baby-sprite.js";
 import { getActiveBaby } from "./session.js";
 import { registerCare } from "./streak.js";
+import { BALANCE } from "./config.js";
 import { fullscreenCanvas, onScreenShown, onScreenLeft } from "./fs-canvas.js";
 
 export function initMinigame() {
@@ -36,6 +37,7 @@ export function initMinigame() {
   let VAO_CANOS = 220, MARGEM = 60, FUNDO = 200;
 
   let bird, pipes, score, running, dead;
+  let proximoVao = 170;          // distância até o próximo cano (sorteada)
 
   function reset() {
     runId++;                      // nova partida: invalida recompensas pendentes
@@ -47,7 +49,8 @@ export function initMinigame() {
     SPEED   = SPEED_REF * sx;        // canos cruzam a tela no mesmo tempo
     GRAVITY = GRAVITY_REF * sy;      // gravidade e impulso escalam JUNTOS,
     FLAP    = FLAP_REF * sy;         // então a altura do pulo é proporcional
-    VAO_CANOS = VAO_CANOS_REF * sx;  // distância entre canos
+    // distância entre canos: sorteada a cada cano, entre 0,8x e 1,0x o VÃO
+    VAO_CANOS = GAP;
     MARGEM  = MARGEM_REF * sy;
     FUNDO   = FUNDO_REF * sy;
 
@@ -63,6 +66,12 @@ export function initMinigame() {
 
   function spawnPipe() {
     const top = MARGEM + Math.random() * Math.max(20, H - GAP - FUNDO);
+    /* O espaço até o PRÓXIMO cano é uma fração da ALTURA DO VÃO:
+     * entre 0,8x e 1,0x. Assim a dificuldade horizontal acompanha a
+     * vertical em qualquer tela. */
+    const f = BALANCE.flappy || { espacoMin: 0.8, espacoMax: 1.0 };
+    const fator = f.espacoMin + Math.random() * (f.espacoMax - f.espacoMin);
+    proximoVao = GAP * fator;
     pipes.push({ x: W + 20, top, passed: false });
   }
 
@@ -80,7 +89,7 @@ export function initMinigame() {
     bird.y += bird.vy;
 
     for (const p of pipes) p.x -= SPEED;
-    if (pipes.length && pipes[pipes.length - 1].x < W - VAO_CANOS) spawnPipe();
+    if (pipes.length && pipes[pipes.length - 1].x < W - proximoVao) spawnPipe();
     pipes = pipes.filter((p) => p.x + PIPE_W > -20);
 
     for (const p of pipes) {

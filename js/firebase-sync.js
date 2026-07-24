@@ -17,7 +17,7 @@ import {
   push, query, limitToLast, remove
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
-import { firebaseConfig, ROOM_ID, GAME_CONFIG, MINIGAMES } from "./config.js";
+import { firebaseConfig, ROOM_ID, GAME_CONFIG, MINIGAMES, BALANCE } from "./config.js";
 import { defaultRoom, defaultBaby, applyDecay, clamp, phaseForXp, nextColdState, isNightNow, wantsNightmare, nextFatigue, tierMultiplier } from "./state.js";
 
 let db = null;
@@ -101,6 +101,48 @@ export function boostStatus(babyId, key, amount, xp = GAME_CONFIG.xpPerCare, act
   });
 }
 
+/* ---------------------------------------------------------------------
+ * DORMIR MESMO COM O APP FECHADO
+ * Guardamos no Firebase o instante em que a criança foi posta para
+ * dormir. Ao voltar (mesmo dias depois, em outro aparelho), o tempo
+ * decorrido vira sono — sem precisar deixar a tela aberta.
+ * ------------------------------------------------------------------- */
+export function setDormindo(babyId, dormindo) {
+  if (!babyId) return Promise.resolve();
+  return runTransaction(babyRef(babyId), (baby) => {
+    if (!baby) return baby;
+    const now = Date.now();
+    const s = colherSono(baby, now);        // fecha a conta do sono anterior
+    s.dormindoDesde = dormindo ? now : null;
+    s.lastUpdate = now;
+    return s;
+  });
+}
+
+/* Converte o tempo dormido em sono e devolve o estado atualizado.
+ * Usada tanto ao acordar quanto ao abrir o app. */
+export function colherSono(baby, now = Date.now()) {
+  const s = { ...baby };
+  const desde = s.dormindoDesde;
+  if (!desde) return s;
+  const horas = Math.max(0, (now - desde) / 3_600_000);
+  if (horas <= 0) return s;
+  const taxa = (BALANCE.care && BALANCE.care.sleepPerHourDormindo) || 38;
+  const decaiu = applyDecay(s, now);       // o resto do tempo ainda desgasta
+  decaiu.sleep = clamp((decaiu.sleep ?? 0) + taxa * horas);
+  decaiu.dormindoDesde = now;              // reinicia a contagem
+  return decaiu;
+}
+
+/* Fecha a conta do sono acumulado (chamado ao abrir o app). */
+export function acertarSono(babyId) {
+  if (!babyId) return Promise.resolve();
+  return runTransaction(babyRef(babyId), (baby) => {
+    if (!baby || !baby.dormindoDesde) return baby;
+    return colherSono(baby, Date.now());
+  });
+}
+
 /* Aumenta o afeto de um bebê (usado pelo sistema de toque/carinho). */
 export function addLove(babyId, amount, xp = GAME_CONFIG.xpPerCare) {
   return boostStatus(babyId, "love", amount, xp);
@@ -152,6 +194,13 @@ export function rewardGame(babyId, gameId, points, score = null, extraCoins = 0)
 
     s.fatigue = fatigue;
     s.xp = (s.xp ?? 0) + xp;
+    /* Jogar CANSA: sono, fome e higiene caem mais rápido ao brincar. */
+    {
+      const d = (BALANCE.status && BALANCE.status.minigameDrain) || {};
+      for (const k of ["sleep", "hunger", "hygiene"]) {
+        if (d[k]) s[k] = clamp((s[k] ?? 0) - d[k]);
+      }
+    }
     s.fun = clamp((s.fun ?? 0) + GAME_CONFIG.funPerMinigame);   // diversão sempre sobe
     room.babies[babyId] = s;
     room.coins = (room.coins ?? 0) + coins;

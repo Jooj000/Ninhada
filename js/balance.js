@@ -18,7 +18,17 @@ export const BALANCE = {
   /* ================= STATUS / NECESSIDADES ================= */
   status: {
     // Quanto cada barra cai por HORA (0–100). Maior = mais exigente.
-    decayPerHour: { hunger: 20, sleep: 12, hygiene: 8, fun: 15, love: 10 },
+    decayPerHour: { hunger: 20, sleep: 7, hygiene: 8, fun: 15, love: 10 },
+
+    /* Jogar CANSA: cada rodada de minigame consome estes pontos. Sono,
+     * fome e higiene caem bem mais rápido quando a criança está jogando. */
+    minigameDrain: { sleep: 9, hunger: 7, hygiene: 5 },
+
+    /* Portas de bem-estar: abaixo destes valores a criança recusa.
+     *   - sem higiene E sem barriga cheia, não quer dormir;
+     *   - sem barriga cheia E sem sono, não quer brincar. */
+    minParaDormir:  { hygiene: 25, hunger: 25 },
+    minParaBrincar: { hunger: 20, sleep: 20 },
     // Média abaixo disso = criança doente.
     sickThreshold: 20,
     // Abaixo disso a criança "demonstra" (sujeira, cara de sono/fome/carência).
@@ -43,7 +53,11 @@ export const BALANCE = {
     lovePerPixel: 0.05,
     hygienePerPixel: 0.06,
     // Sono ganho por "tique" com a luz apagada (a cada 1,5 s).
-    sleepPerTick: 4,
+    // Baixou de 4 para 1,6: encher o sono agora leva bem mais tempo.
+    sleepPerTick: 1.6,
+    /* Dormir CONTINUA com o app fechado: ao voltar, o tempo em que a
+     * criança ficou no escuro é convertido nesta taxa por hora. */
+    sleepPerHourDormindo: 38,
   },
 
   /* ================= CRESCIMENTO ================= */
@@ -95,7 +109,7 @@ export const BALANCE = {
     fooddrop:   { minPhase: "newborn",  coinsPerPoint: 0.2,   xpPerPoint: 1.6,  hard: false },
     memory:     { minPhase: "crawling", coinsPerPoint: 0.2,   xpPerPoint: 1.1,  hard: false },
     colormatch: { minPhase: "crawling", coinsPerPoint: 0.3,   xpPerPoint: 1.8,  hard: false },
-    g2048:      { minPhase: "toddler",  coinsPerPoint: 0.08,  xpPerPoint: 0.55, hard: true  },
+    g2048:      { minPhase: "toddler",  coinsPerPoint: 0.16,  xpPerPoint: 1.10, hard: true  },   // 2x
     match3:     { minPhase: "crawling", coinsPerPoint: 0.3,   xpPerPoint: 2,    hard: false },
     starpopper: { minPhase: "crawling", coinsPerPoint: 0.06,  xpPerPoint: 0.5,  hard: false },
     // ----- arcades do Pou -----
@@ -162,7 +176,16 @@ export const BALANCE = {
     // tombar além de ~85° é o que encosta a cabeça.
     alturaCabeca: 0.78,
     tamanhoCarro: 46,
-    moedaMin: 450, moedaMax: 800,   // moedas bem mais espaçadas
+    moedaMin: 170, moedaMax: 320,   // bem mais moedas pelo caminho
+  },
+
+  /* ================= FLAPPY BABY ================= */
+  flappy: {
+    /* A distância HORIZONTAL entre os canos é sorteada como uma fração
+     * da ALTURA DO VÃO: entre 0,8× e 1,0×. Canos mais juntos = mais
+     * difícil, e a dificuldade acompanha o tamanho do vão. */
+    espacoMin: 0.8,
+    espacoMax: 1.0,
   },
 
   /* ================= SKY JUMP ================= */
@@ -204,13 +227,16 @@ export const BALANCE = {
      * (t^curvaInclinacao), com t indo de 0 na borda da zona morta a 1 na
      * inclinação máxima. Assim inclinar pouco quase não acelera e o
      * ajuste fino fica fácil; a força total só vem no ângulo cheio. */
-    curvaInclinacao: 1,         // LINEAR: inclinou pouco, já responde na hora
-    acelMax: 0.30,              // aceleração no ÂNGULO MÁXIMO
+    /* MODELO: inércia + atrito (sem aceleração por ângulo).
+     * O ângulo define a velocidade ALVO; `adesao` é o quanto o boneco
+     * consegue perseguir esse alvo a cada quadro, e o atrito segura. */
+    adesao: 0.20,               // tração com o alvo (maior = obedece mais rápido)
+    curvaInclinacao: 1,         // mantido: 1 = alvo proporcional ao ângulo
     atritoH: 0.945,             // por frame: freia um pouquinho mais que antes
     /* Inversão brusca de sentido: freia rápido, mas sem catapultar. */
-    freioInversao: 1.35,        // força extra quando a inclinação se opõe à velocidade
-    estabilizaFrames: 18,       // ~0,3 s para a aceleração voltar ao normal
-    estabilizaMin: 0.35,        // no instante da virada, só 35% da força
+    freioInversao: 1,           // a perseguição já freia sozinha; sem extra
+    estabilizaFrames: 34,       // ~0,6 s para a tração voltar ao normal após virar
+    estabilizaMin: 0.14,        // no instante da virada, só 14% da tração
     velMaxH: 6.5,               // ÚNICO teto: a velocidade (nunca a aceleração)
     acelToque: 0.0011,          // arrastar: aceleração rumo ao dedo (por px)
     acelSeta: 0.20,             // setas do teclado: aceleração constante
@@ -243,7 +269,7 @@ export const BALANCE = {
   /* ================= COZINHA ================= */
   kitchen: {
     // Multiplicadores rápidos (os valores base ficam em recipes.js).
-    foodPriceMultiplier: 1,
+    foodPriceMultiplier: 3.2,   // comida e ingredientes bem mais caros
     cookXpMultiplier: 1,
     readyFoodXpMultiplier: 1,
     cookSpeed: 5,           // velocidade do marcador (maior = mais difícil)

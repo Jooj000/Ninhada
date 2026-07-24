@@ -40,6 +40,7 @@ export function initSkyJump() {
   let moedas;
   let setaX = 0;                 // -1 / 0 / +1 pelas setas do teclado
   let estabiliza = 0;            // 1 logo após inverter o sentido, decai a 0
+  const VMAX_H = () => (SJ.velMaxH ?? 6.5) * sx;
   let grausSuaves = 0;           // leitura do sensor JÁ filtrada
 
   function medidas() {
@@ -85,69 +86,58 @@ export function initSkyJump() {
   function update(dt) {
     if (!rodando || morto) return;
 
-    /* ============ HORIZONTAL: MASSA e INÉRCIA ============
-     * O celular NÃO é joystick: a inclinação não DEFINE a velocidade,
-     * ela gera ACELERAÇÃO. O fluxo é
-     *   inclinação -> filtro -> zona morta -> aceleração -> velocidade
-     *   -> atrito -> posição
-     * Assim o boneco demora a engrenar, CONTINUA deslizando quando o
-     * aparelho volta ao centro e para aos poucos. */
-    /* As fontes de controle SOMAM suas acelerações — nenhuma desliga a
-     * outra. (Antes era um `else if`: bastava o arraste deixar um alvo
-     * preso para a INCLINAÇÃO parar de responder para sempre.)
-     * E nada aqui olha se o Pou está no ar ou pisando: o controle
-     * horizontal vale IGUAL nos dois casos. */
-    let ax = 0;
+    /* ============ HORIZONTAL: SÓ INÉRCIA E ATRITO ============
+     * Não existe mais "aceleração proporcional ao ângulo". O boneco
+     * tem uma velocidade ALVO ditada pelo ângulo do celular e apenas
+     * TENTA alcançá-la — quem segura essa perseguição é o ATRITO.
+     *
+     *   alvo   = (ângulo / ângulo máximo) · velocidade máxima
+     *   vx    += (alvo − vx) · adesao        (a "tração" com o alvo)
+     *   vx    *= atrito                      (o freio que dá o peso)
+     *
+     * Como o atrito age SEMPRE, o boneco nunca chega instantaneamente
+     * ao alvo: ele desliza, demora a virar e continua andando quando o
+     * celular volta ao centro (alvo = 0, sobra só o atrito). */
+    let alvo = null;                         // velocidade que o controle pede
 
     if (tiltLigado) {
-      /* A ACELERAÇÃO VARIA COM O ÂNGULO, e não de forma linear: usamos
-       * uma curva (expoente > 1). Perto da zona morta a resposta é bem
-       * mansa — dá para fazer ajuste fino sem o boneco disparar; só
-       * inclinando de verdade é que vem a força toda.
-       *
-       *   t  = (|graus| − zona) / (grausMax − zona)   ∈ [0, 1]
-       *   ax = sinal · t^curva · acelMax
-       */
       const zona = SJ.zonaMortaGraus ?? 3;
       const gMax = SJ.grausMax ?? 24;
       const excesso = Math.abs(grausSuaves) - zona;
       if (excesso > 0) {
         const t = Math.min(1, excesso / Math.max(1, gMax - zona));
-        const forca = Math.pow(t, SJ.curvaInclinacao ?? 1);
-        ax += Math.sign(grausSuaves) * forca * (SJ.acelMax ?? 0.30) * sx;
+        alvo = Math.sign(grausSuaves) * t * VMAX_H();
+      } else {
+        alvo = 0;                            // no centro: só o atrito trabalha
       }
-      // dentro da zona morta não soma nada: o boneco segue por INÉRCIA
     }
     if (alvoX !== null) {
-      // arrastar o dedo também ACELERA rumo ao ponto (não teleporta a vel.)
-      ax += (alvoX - (heroi.x + heroi.w / 2)) * (SJ.acelToque ?? 0.0011);   // já é proporcional à distância
+      // arrastar: o alvo é proporcional à distância até o dedo
+      const d = alvoX - (heroi.x + heroi.w / 2);
+      const porToque = Math.max(-1, Math.min(1, d / (W * 0.28))) * VMAX_H();
+      alvo = alvo === null ? porToque : (alvo + porToque) / 2;
     }
-    if (setaX !== 0) ax += setaX * (SJ.acelSeta ?? 0.29) * sx;
+    if (setaX !== 0) alvo = setaX * VMAX_H();
 
-    /* ---- INVERSÃO DE SENTIDO ----
-     * Virar o celular de 45° à direita para 45° à esquerda deve FREAR
-     * rápido, mas não catapultar o boneco para o outro lado: o jogador
-     * precisa de um instante para centralizar o aparelho.
-     *   1) enquanto a inclinação se opõe à velocidade, ela vira FREIO
-     *      (um pouco mais forte que a aceleração normal);
-     *   2) assim que a velocidade cruza o zero, a aceleração volta
-     *      SUAVEMENTE ao normal em ~0,3 s.
-     * Nada trava o boneco no centro — é um amortecimento passageiro. */
-    const opondo = ax !== 0 && heroi.vx !== 0 && Math.sign(ax) !== Math.sign(heroi.vx);
-    if (opondo) {
-      ax *= (SJ.freioInversao ?? 1.35);        // freia mais rápido
-      estabiliza = 1;                          // arma o amortecimento
-    } else if (estabiliza > 0) {
-      const passo = dt / Math.max(1, (SJ.estabilizaFrames ?? 18));
-      estabiliza = Math.max(0, estabiliza - passo);
-      ax *= 1 - estabiliza * (1 - (SJ.estabilizaMin ?? 0.35));
+    /* Com o celular NO CENTRO (alvo 0) não há perseguição nenhuma:
+     * sobra só o atrito. É daí que vem a inércia — o boneco continua
+     * deslizando e vai parando sozinho, em vez de ser puxado de volta. */
+    if (alvo) {
+      const contra = heroi.vx !== 0 && Math.sign(alvo) !== Math.sign(heroi.vx);
+      let adesao = SJ.adesao ?? 0.20;
+      if (contra) {
+        adesao *= (SJ.freioInversao ?? 1);      // a própria perseguição já freia
+        estabiliza = 1;                          // arma o amortecimento da virada
+      } else if (estabiliza > 0) {
+        estabiliza = Math.max(0, estabiliza - dt / Math.max(1, SJ.estabilizaFrames ?? 34));
+        adesao *= 1 - estabiliza * (1 - (SJ.estabilizaMin ?? 0.14));
+      }
+      heroi.vx += (alvo - heroi.vx) * adesao * dt;
     }
 
-    heroi.vx += ax * dt;                       // integra: v = ∫a
-    heroi.vx *= Math.pow(SJ.atritoH ?? 0.945, dt);   // atrito suave e contínuo
+    heroi.vx *= Math.pow(SJ.atritoH ?? 0.945, dt);   // ATRITO: o peso do boneco
 
-    // ÚNICO limite é a velocidade — a aceleração nunca é cortada
-    const VMAX = (SJ.velMaxH ?? 6.5) * sx;    // teto também proporcional
+    const VMAX = VMAX_H();
     heroi.vx = Math.max(-VMAX, Math.min(VMAX, heroi.vx));
 
     heroi.x += heroi.vx * dt;

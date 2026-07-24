@@ -16,7 +16,7 @@
 
 import {
   initSync, onStateChange, syncDecay, addBaby, renameBaby,
-  boostStatus, sootheNightmare,
+  boostStatus, sootheNightmare, setDormindo, acertarSono,
 } from "./firebase-sync.js";
 import { ASSETS } from "./assets-map.js";
 import { GAME_CONFIG, ROOM_NAME, BALANCE } from "./config.js";
@@ -158,7 +158,18 @@ let lightsOff = false;
 let sleepTimer = null;
 
 function setLights(off) {
+  /* PORTA DE BEM-ESTAR: sem higiene E sem barriga cheia, a criança não
+   * quer dormir — apagar a luz não adianta. */
+  if (off && !podeDormir()) {
+    flashMsg("Assim ela não dorme… dê um banho e comidinha antes 🛁🍽️");
+    lightsOff = false;
+    document.getElementById("lights-overlay").hidden = true;
+    document.getElementById("screen-home").classList.remove("lights-off");
+    return;
+  }
   lightsOff = off;
+  // registra no Firebase: o sono CONTINUA correndo com o app fechado
+  if (getActiveBaby()) setDormindo(getActiveBaby(), off);
   document.getElementById("lights-overlay").hidden = !off;
   document.getElementById("screen-home").classList.toggle("lights-off", off);
   clearInterval(sleepTimer);
@@ -173,6 +184,33 @@ function setLights(off) {
   }
   renderHotspots();
 }
+/* Telas que são minigame (a lista sai da própria bandeja no HTML). */
+const TELAS_DE_JOGO = new Set([
+  "screen-flappy", "screen-fooddrop", "screen-starpopper", "screen-goal",
+  "screen-dino", "screen-fishing", "screen-memory", "screen-colormatch",
+  "screen-match3", "screen-skyjump", "screen-hilldrive", "screen-circuit",
+  "screen-homework", "screen-2048", "screen-connect",
+]);
+const ehTelaDeJogo = (id) => TELAS_DE_JOGO.has(id);
+
+/* --- PORTAS DE BEM-ESTAR --- */
+function babyAtivo() {
+  return (room && room.babies && room.babies[getActiveBaby()]) || null;
+}
+function podeDormir() {
+  const b = babyAtivo();
+  if (!b) return true;
+  const m = BALANCE.status.minParaDormir || { hygiene: 25, hunger: 25 };
+  // só recusa quando FALTAM as DUAS coisas (sujo E com fome)
+  return !((b.hygiene ?? 100) < m.hygiene && (b.hunger ?? 100) < m.hunger);
+}
+function podeBrincar() {
+  const b = babyAtivo();
+  if (!b) return true;
+  const m = BALANCE.status.minParaBrincar || { hunger: 20, sleep: 20 };
+  return !((b.hunger ?? 100) < m.hunger && (b.sleep ?? 100) < m.sleep);
+}
+
 function toggleLights() {
   setLights(!lightsOff);
   flashMsg(lightsOff ? "Shhh… hora de dormir 😴" : "Bom dia! ☀️");
@@ -426,7 +464,10 @@ function layoutTiles() {
     el.style.left = "";
     el.style.bottom = "";
     // leve escadinha para dar profundidade, sem empurrar ninguém pra fora
-    el.style.alignSelf = i % 2 ? "flex-end" : "center";
+    // escadinha bem discreta (antes "center" jogava metade da turma
+    // para o meio do palco e eles ficavam espalhados na vertical)
+    el.style.alignSelf = "flex-end";
+    el.style.marginBottom = i % 2 ? "3%" : "0";
   });
 }
 
@@ -469,6 +510,10 @@ function setView(mode) {
   // grupo = widescreen, com a turma toda em destaque
   const cena = document.getElementById("screen-home");
   if (cena) cena.classList.toggle("modo-grupo", mode === "room");
+
+  /* No SOLO a cena é vertical: trava em retrato. No GRUPO a turma
+   * aproveita a tela deitada, então libera. */
+  if (mode === "room") liberarRotacao(); else travarRetrato();
 
   if (mode === "room") {
     single.hidden = true; roomv.hidden = false;
@@ -521,6 +566,11 @@ let currentScreen = "screen-home";
 let cameFromTray = false;
 
 export function showScreen(id) {
+  /* Sem barriga cheia E sem sono, a criança não brinca. */
+  if (id.startsWith("screen-") && ehTelaDeJogo(id) && !podeBrincar()) {
+    flashMsg("Ela está com fome e com sono… cuide dela antes de brincar 🍽️😴");
+    return;
+  }
   if (id === "screen-dino" || id === "screen-hilldrive") liberarRotacao();
   const prev = currentScreen;
   if (prev === id) return;
@@ -596,7 +646,9 @@ function wireNav() {
     addBaby(name.trim() || "Bebê");
   });
 
+  /* Ao abrir o app, fecha a conta do sono de quem ficou dormindo. */
   onActiveBaby(() => {
+    if (getActiveBaby()) acertarSono(getActiveBaby());
     applyActiveVisibility();
     updateTrayLocks();
     renderHotspots();
@@ -629,6 +681,16 @@ function atualizarBanner(state) {
 /* O manifest pedia "portrait", o que TRAVA a rotação em app instalado.
  * Trocamos para "any", mas um PWA já instalado guarda o manifest antigo —
  * então destravamos também em tempo de execução. */
+function travarRetrato() {
+  try {
+    const so = window.screen && window.screen.orientation;
+    if (so && typeof so.lock === "function") {
+      const r = so.lock("portrait");
+      if (r && typeof r.catch === "function") r.catch(() => {});
+    }
+  } catch (_) { /* navegador sem suporte: segue o jogo */ }
+}
+
 function liberarRotacao() {
   try {
     const so = window.screen && window.screen.orientation;

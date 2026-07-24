@@ -1605,3 +1605,50 @@ body {
 
 /* a lista suspensa de crianças não existe mais (quem escolhe é o modo grupo) */
 #home-baby-select { display: none !important; }
+
+/* =====================================================================
+ * ============ V9 — BONECO GRANDE NO PC · GRUPO JUNTO · DEITADO ======
+ * ===================================================================== */
+
+/* ---- 1) No PC a criança fica do MESMO tamanho relativo do celular:
+ *  grande a ponto de quase encostar nos ícones do topo. ---- */
+@media (min-width: 1000px) {
+  :root { --coluna: min(560px, calc(100dvh * 0.62)); }
+  .scene-baby { width: min(100%, 96dvh, 700px); }
+  /* o palco cede a altura necessária para ela crescer */
+  .scene-stage { min-height: 0; }
+  .hotspots { min-height: 56px; }
+}
+
+/* ---- 2) GRUPO: pés no chão e sem espalhar na vertical ---- */
+.room-view { align-items: flex-end; }
+.room-baby { align-self: flex-end; }
+
+/* ---- 3) DEITADO: as pernas cortavam no chão e os ícones de baixo
+ *  ficavam por cima da criança do meio. ---- */
+@media (orientation: landscape) and (max-height: 560px) {
+  /* a criança cabe na altura disponível, sem passar da linha do chão */
+  .scene-baby { width: auto; height: min(72%, 300px); }
+  .scene-baby-stage { width: auto; height: 100%; aspect-ratio: 1 / 1; }
+
+  /* palco recebe o espaço que sobra e ninguém invade */
+  .scene-stage { flex: 1 1 auto; min-height: 0; }
+  .single-view, .room-view { padding-bottom: 0; }
+
+  /* controles de baixo compactos e SEMPRE embaixo, nunca por cima */
+  .hotspots {
+    min-height: 0; gap: 12px; padding: 0 10px 2px;
+    background: linear-gradient(180deg, transparent, rgba(255,255,255,.35));
+  }
+  .hot-emoji { font-size: 1.5rem; }
+  .hot-label { font-size: .58rem; }
+  .scene-nav { padding: 0 12px calc(4px + env(safe-area-inset-bottom)); }
+  .room-arrow { width: 38px; height: 38px; font-size: 1.2rem; }
+  .scene-msg { min-height: 0; margin: 0 12px; font-size: .78rem; }
+  .scene-top { padding-top: calc(4px + env(safe-area-inset-top)); gap: 2px; }
+  .scene-controls { padding-top: 4px; }
+  .chip { width: 30px; height: 30px; }
+
+  /* grupo deitado: linha larga, todos com o pé na mesma altura */
+  .room-baby { max-height: 92%; margin-bottom: 0 !important; }
+}
